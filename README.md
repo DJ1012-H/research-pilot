@@ -4,6 +4,20 @@ ResearchPilot 是一个基于 Java、Spring Boot、LangChain4j 与 RAG 的学术
 
 第一阶段已经完成工程骨架、MySQL、Redis、真实模型调用、统一异常处理、Swagger 和自动测试。
 
+第二阶段已完成文献检索数据流、接口契约和五个核心数据结构的冻结；OpenAlex、Search Agent、Crossref、去重和持久化实现仍按后续计划开发。
+
+## 当前进度
+
+- [x] 第一阶段工程闭环和真实环境验收
+- [x] 文献检索类级数据流与模块职责
+- [x] `SearchRequest`、`SearchPlan`、`PaperDTO`、`VerificationResult`、`SearchResponse`
+- [x] `POST /api/literature/search` 请求与响应契约
+- [ ] OpenAlex 真实文献检索
+- [ ] Search Agent 查询规划
+- [ ] Crossref 元数据核验
+- [ ] DOI/标题去重与可信度评分
+- [ ] MySQL 检索任务、论文和核验记录持久化
+
 ## 技术栈
 
 - Java 21
@@ -27,6 +41,15 @@ ResearchPilot 是一个基于 Java、Spring Boot、LangChain4j 与 RAG 的学术
 
 ~~~text
 src/main/java/com/dj1012h/researchpilot
+├── literature
+│   ├── api
+│   │   └── dto
+│   │       ├── SearchRequest.java
+│   │       └── SearchResponse.java
+│   └── model
+│       ├── SearchPlan.java
+│       ├── PaperDTO.java
+│       └── VerificationResult.java
 ├── controller
 ├── service
 │   └── impl
@@ -42,9 +65,12 @@ src/main/java/com/dj1012h/researchpilot
 src/test                    # 自动测试
 docs/sql                   # MySQL 初始化脚本
 docs/decisions             # 技术决策记录
+docs/design                # 检索契约、模块职责和类级数据流
 http                       # HTTP 请求样例
 scripts                    # 启动与验收脚本
 ~~~
+
+新的文献检索功能采用“按业务分包、包内轻量分层”。第一阶段已有的通用聊天和系统状态代码暂时保留原结构，待第二阶段完成后再逐步迁移，避免重构干扰当前主线。
 
 ## 初始化 MySQL
 
@@ -97,6 +123,7 @@ powershell.exe -NoProfile -ExecutionPolicy Bypass `
 - 健康检查：<http://localhost:8080/actuator/health>
 - 依赖状态：<http://localhost:8080/api/system/status>
 - 聊天接口：`POST /api/chat`
+- 文献检索接口：`POST /api/literature/search`（仅完成契约，当前尚不可调用）
 
 聊天请求示例：
 
@@ -105,6 +132,23 @@ powershell.exe -NoProfile -ExecutionPolicy Bypass `
   "message": "什么是 RAG？"
 }
 ~~~
+
+## 文献检索契约
+
+中文设计文档：[`docs/design/literature-search-contract.md`](docs/design/literature-search-contract.md)
+
+第一版已冻结的关键规则：
+
+- “近五年”包含当前年份；2026 年解析为 2022～2026。
+- 显式年份和数量字段优先于自然语言推断。
+- 第一版只执行一个主要 OpenAlex 检索式。
+- 默认不限制论文语言。
+- 预印本只进入候选池，不进入正式结果。
+- 正式结果必须包含标准化 DOI，核验状态只能是 `VERIFIED` 或符合门槛的 `PARTIALLY_VERIFIED`。
+- 搜索成功但零篇通过核验时，返回 HTTP 200、`NO_VERIFIED_RESULTS` 和空列表。
+- `PaperDTO` 与 `VerificationResult` 分离，外部 API DTO 和数据库 Entity 不得替代核心契约。
+
+当前自动测试共 31 个，包含 9 个文献检索契约测试。
 
 ## 第一阶段验收记录
 
@@ -127,9 +171,12 @@ powershell.exe -NoProfile -ExecutionPolicy Bypass `
 
 ## 当前范围
 
-第一阶段暂不实现：
+当前尚未实现：
 
-- 文献搜索与核验
+- 文献检索接口的运行时编排
+- OpenAlex/Crossref 外部调用
+- Search Agent、标准化、去重、核验和排序
+- 检索任务、论文和核验记录入库
 - Embedding
 - Qdrant 接入
 - 向量检索
