@@ -1,0 +1,13 @@
+### Application health (does not test MySQL or Redis by default)
+GET http://localhost:8080/actuator/health
+
+### Explicit MySQL, Redis and LLM configuration check
+GET http://localhost:8080/api/system/status
+
+### Chat model smoke test
+POST http://localhost:8080/api/chat
+Content-Type: application/json
+
+{
+  "message": "什么是 RAG？"
+}

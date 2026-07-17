@@ -1,9 +1,39 @@
+# IntelliJ IDEA
 .idea/
 *.iml
+*.ipr
+*.iws
+
+# Maven
 target/
 **/target/
+
+# Logs and runtime data
 logs/
 *.log
+uploads/
+vector-data/
+
+# Local secrets
 .env
+.env.*
+!.env.example
 application-local.yml
+application-local.yaml
 application-secret.yml
+application-secret.yaml
+
+# Operating system
+.DS_Store
+Thumbs.db
+
+# Local AI assistant settings
+.claude/
+
+# Temporary API response
+response.json
+
+# Qdrant local data
+qdrant-storage/
+# Local script backups
+scripts/*.broken
