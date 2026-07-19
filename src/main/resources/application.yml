@@ -33,6 +33,13 @@ app:
     timeout: ${LLM_TIMEOUT:60s}
     max-retries: ${LLM_MAX_RETRIES:2}
     temperature: ${LLM_TEMPERATURE:0.2}
+  openalex:
+    enabled: ${OPENALEX_ENABLED:false}
+    base-url: ${OPENALEX_BASE_URL:https://api.openalex.org}
+    api-key: ${OPENALEX_API_KEY:}
+    connect-timeout: ${OPENALEX_CONNECT_TIMEOUT:3s}
+    read-timeout: ${OPENALEX_READ_TIMEOUT:10s}
+    default-page-size: ${OPENALEX_DEFAULT_PAGE_SIZE:25}
 
 management:
   endpoints:

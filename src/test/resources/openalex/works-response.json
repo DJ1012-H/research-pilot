@@ -1,0 +1,59 @@
+{
+  "meta": {
+    "count": 123,
+    "page": 1,
+    "per_page": 25,
+    "next_cursor": "next-cursor-value"
+  },
+  "results": [
+    {
+      "id": "https://openalex.org/W3177828909",
+      "doi": "https://doi.org/10.1038/S41586-021-03819-2",
+      "title": "  Highly   accurate protein structure prediction with AlphaFold  ",
+      "publication_year": 2021,
+      "publication_date": "2021-08-26",
+      "type": "article",
+      "cited_by_count": 100,
+      "authorships": [
+        {
+          "author": {
+            "id": "https://openalex.org/A123",
+            "display_name": "  John   Jumper ",
+            "orcid": "https://orcid.org/0000-0001-2345-6789"
+          }
+        },
+        {
+          "author": {
+            "id": "https://openalex.org/A456",
+            "display_name": "Demis Hassabis",
+            "orcid": null
+          }
+        }
+      ],
+      "primary_location": {
+        "landing_page_url": "https://publisher.example/paper",
+        "pdf_url": null,
+        "is_oa": false,
+        "source": {
+          "display_name": "  Nature  "
+        }
+      },
+      "best_oa_location": {
+        "landing_page_url": "https://repository.example/paper",
+        "pdf_url": "https://repository.example/paper.pdf",
+        "is_oa": true,
+        "source": {
+          "display_name": "Example Repository"
+        }
+      },
+      "abstract_inverted_index": {
+        "Deep": [0],
+        "learning": [1],
+        "predicts": [2],
+        "structures": [3]
+      },
+      "unknown_future_field": "ignored"
+    }
+  ],
+  "group_by": []
+}

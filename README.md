@@ -4,7 +4,9 @@ ResearchPilot 是一个基于 Java、Spring Boot、LangChain4j 与 RAG 的学术
 
 第一阶段已经完成工程骨架、MySQL、Redis、真实模型调用、统一异常处理、Swagger 和自动测试。
 
-第二阶段已完成文献检索数据流、接口契约和五个核心数据结构的冻结；OpenAlex、Search Agent、Crossref、去重和持久化实现仍按后续计划开发。
+第二阶段已完成文献检索数据流、接口契约和五个核心数据结构的冻结。原计划
+2026-07-20 完成的 OpenAlex 候选论文检索模块已于 2026-07-19 提前完成；
+Search Agent、Crossref、去重和持久化仍按后续计划开发。
 
 ## 当前进度
 
@@ -12,7 +14,7 @@ ResearchPilot 是一个基于 Java、Spring Boot、LangChain4j 与 RAG 的学术
 - [x] 文献检索类级数据流与模块职责
 - [x] `SearchRequest`、`SearchPlan`、`PaperDTO`、`VerificationResult`、`SearchResponse`
 - [x] `POST /api/literature/search` 请求与响应契约
-- [ ] OpenAlex 真实文献检索
+- [x] OpenAlex 候选论文检索模块
 - [ ] Search Agent 查询规划
 - [ ] Crossref 元数据核验
 - [ ] DOI/标题去重与可信度评分
@@ -28,6 +30,7 @@ ResearchPilot 是一个基于 Java、Spring Boot、LangChain4j 与 RAG 的学术
 - Redis
 - Maven Wrapper
 - springdoc-openapi / Swagger UI
+- Spring RestClient
 
 ## 基础设施职责
 
@@ -46,10 +49,21 @@ src/main/java/com/dj1012h/researchpilot
 │   │   └── dto
 │   │       ├── SearchRequest.java
 │   │       └── SearchResponse.java
+│   ├── application
+│   │   └── OpenAlexQueryFactory.java
 │   └── model
+│       ├── CandidatePaper.java
+│       ├── OpenAlexQuery.java
 │       ├── SearchPlan.java
 │       ├── PaperDTO.java
 │       └── VerificationResult.java
+├── integration
+│   └── openalex
+│       ├── dto
+│       ├── OpenAlexClient.java
+│       ├── OpenAlexPaperMapper.java
+│       ├── OpenAlexSearchAdapter.java
+│       └── OpenAlexSearchPort.java
 ├── controller
 ├── service
 │   └── impl
@@ -148,7 +162,40 @@ powershell.exe -NoProfile -ExecutionPolicy Bypass `
 - 搜索成功但零篇通过核验时，返回 HTTP 200、`NO_VERIFIED_RESULTS` 和空列表。
 - `PaperDTO` 与 `VerificationResult` 分离，外部 API DTO 和数据库 Entity 不得替代核心契约。
 
-当前自动测试共 31 个，包含 9 个文献检索契约测试。
+当前自动测试共 67 个，包含文献检索契约和 OpenAlex 模块测试。
+
+## OpenAlex 候选检索
+
+原计划完成日期：2026-07-20
+
+实际完成日期：2026-07-19（提前一天）
+
+OpenAlex 集成使用 `RestClient`，通过 `OpenAlexSearchPort` 向后续
+`SearchAgent` 暴露内部候选论文，不向业务层暴露 OpenAlex 外部 DTO。
+`OpenAlexQueryFactory` 只接受经过校验的 `SearchPlan`，客户端负责 HTTP 和
+反序列化，`OpenAlexPaperMapper` 负责生成项目内部 `CandidatePaper`。
+
+本地启用前设置以下环境变量：
+
+~~~powershell
+$env:OPENALEX_ENABLED = "true"
+$env:OPENALEX_API_KEY = "从 OpenAlex 获取的 API Key"
+~~~
+
+可选配置包括 `OPENALEX_BASE_URL`、`OPENALEX_CONNECT_TIMEOUT`、
+`OPENALEX_READ_TIMEOUT` 和 `OPENALEX_DEFAULT_PAGE_SIZE`。API Key 不得写入
+仓库或日志；本地 `.env` 已加入 `.gitignore`，但 Spring Boot 默认不会自动
+加载 `.env`，运行应用时仍需由终端、IDE 或外部配置注入环境变量。
+
+真实验收使用固定英文检索词 `protein structure prediction`，筛选
+2021～2026 年 `article`，成功获得并映射 5 篇真实候选论文。返回数据覆盖
+OpenAlex ID、DOI、标题、作者、来源、日期、摘要和开放获取地址；其中一篇
+缺少摘要但未影响整批解析。真实 API 验收还确认当前降序排序语法应使用
+`relevance_score:desc`、`publication_date:desc` 和
+`cited_by_count:desc`。
+
+当前尚未实现 `SearchAgent` 和文献检索 Controller 的运行时编排，因此该模块
+暂不提供独立 HTTP 入口。
 
 ## 第一阶段验收记录
 
@@ -174,8 +221,8 @@ powershell.exe -NoProfile -ExecutionPolicy Bypass `
 当前尚未实现：
 
 - 文献检索接口的运行时编排
-- OpenAlex/Crossref 外部调用
-- Search Agent、标准化、去重、核验和排序
+- Crossref 外部调用
+- Search Agent、候选去重、核验和最终排序
 - 检索任务、论文和核验记录入库
 - Embedding
 - Qdrant 接入

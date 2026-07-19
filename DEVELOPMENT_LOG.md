@@ -1,8 +1,9 @@
 # ResearchPilot 开发日志
 
-> 日志覆盖时间：2026-07-13 ～ 2026-07-17
+> 日志覆盖时间：2026-07-13 ～ 2026-07-19
 > 第一阶段状态：已完成，较原计划 2026-07-18 提前一天
 > 第二阶段进展：已提前完成原计划 2026-07-19 的数据流与接口契约
+> OpenAlex 进展：已提前完成原计划 2026-07-20 的候选论文检索模块
 > 里程碑版本：`v0.1.0-phase1`
 > 第一阶段提交：`3c84ef4a6dd6043320c95bc9655701a52d52ce3b`
 > 远程仓库：<https://github.com/DJ1012-H/research-pilot>
@@ -67,6 +68,7 @@ ResearchPilot 的最终目标是完成一个可由其他用户从 GitHub 下载�
 | 2026-07-16 | 强化模型异常处理、参数校验、测试和验收工具 | 统一错误结构形成；解决 Maven Wrapper、环境变量和验收脚本问题 |
 | 2026-07-17 | 完成自动测试、真实环境验收、文档、Git 里程碑和远程同步 | 第一阶段正式完成并发布 `v0.1.0-phase1` |
 | 2026-07-17（原计划 07-19） | 确定文献检索数据流、接口契约、模块职责和冻结规则 | 第二阶段查询契约落地，完整测试增至 31 个 |
+| 2026-07-19（原计划 07-20） | 实现 OpenAlex 候选论文检索、映射、异常治理和真实 API 验收 | 候选召回模块提前完成，完整测试增至 67 个 |
 
 ## 5. 每日开发记录
 
@@ -435,6 +437,96 @@ ResearchPilot 的最终目标是完成一个可由其他用户从 GitHub 下载�
 - 07-20 实现 `OpenAlexClient`、外部响应 DTO 和 `OpenAlexPaperMapper`。
 - 保持五个核心契约字段和语义不变；确需破坏性变更时先写 ADR。
 
+## 2026-07-19｜提前完成 OpenAlex 候选论文检索模块（原计划 07-20）
+
+### 当日目标
+
+- 将可信 `SearchPlan` 转换为受限、可执行的 OpenAlex `/works` 查询。
+- 使用 Spring `RestClient` 完成单次候选召回，不引入 WebFlux。
+- 将 OpenAlex 外部响应转换为项目内部 `CandidatePaper`。
+- 使用 Mock HTTP 完成自动测试，并以固定英文检索词执行一次真实数据验收。
+
+### 实际进展
+
+- 新增 `OpenAlexQueryFactory`，负责日期、文献类型、排序和候选数量映射。
+- 新增 `OpenAlexSearchPort` 与 `OpenAlexSearchAdapter`，使业务层不依赖
+  `OpenAlexClient` 或外部 DTO。
+- 新增 `OpenAlexClient`，只负责 HTTP 请求和 JSON 反序列化。
+- 新增带 Jackson snake_case 映射和未知字段容错的 OpenAlex 外部 DTO。
+- 新增 `OpenAlexPaperMapper`，完成：
+  - OpenAlex ID 和 DOI 标准化。
+  - 标题、作者名和来源名称空白归一化。
+  - `abstract_inverted_index` 摘要还原。
+  - `best_oa_location` 到 `primary_location` 的地址回退。
+  - DOI、作者、来源、摘要和开放获取地址缺失时的空值容错。
+- 新增 `CandidatePaper`、`OpenAlexQuery` 和 `OpenAlexSearchResult`，
+  分别表示内部候选论文、受限查询和召回统计。
+- 将 OpenAlex 配置和异常映射接入现有 Spring 配置与
+  `GlobalExceptionHandler`。
+
+### 真实 API 验收
+
+- 固定英文检索词：`protein structure prediction`。
+- 过滤条件：2021～2026 年、`article`。
+- OpenAlex 返回总匹配数：368,715。
+- 单次召回并成功解析 5 篇真实候选论文，包括：
+  - *Highly accurate protein structure prediction with AlphaFold*
+  - *Highly accurate protein structure prediction for the human proteome*
+  - *Accurate prediction of protein structures and interactions using a three-track neural network*
+  - *Evolutionary-scale prediction of atomic-level protein structure with a language model*
+  - *The trRosetta server for fast and accurate protein structure prediction*
+- 真实数据中存在缺失摘要的论文，映射器按预期保留论文并将摘要置空，
+  未导致整批失败。
+
+### 故障与修复
+
+1. 初次真实请求使用 `-relevance_score` 时，OpenAlex 返回 HTTP 400，
+   提示该字段无效。
+2. 分别验证基础查询、`search`、`filter`、`sort` 和 `select` 后，定位到
+   当前 API 的降序排序格式为 `field:desc`。
+3. 最终映射改为：
+   - `RELEVANCE` → `relevance_score:desc`
+   - `NEWEST` → `publication_date:desc`
+   - `MOST_CITED` → `cited_by_count:desc`
+4. 三种排序均通过真实 API 验证，并同步更新 Mock HTTP 测试。
+
+### 配置与密钥治理
+
+- `OpenAlexProperties` 中的公开 Base URL、连接超时、读取超时和默认分页大小
+  不属于敏感信息，`apiKey` 字段没有代码默认值。
+- 排查发现本地曾误将真实 Key 写入 `application.yml` 的环境变量默认值。
+- 已将真实 Key 移至被 `.gitignore` 排除的本地 `.env`。
+- `application.yml` 只保留 `${OPENALEX_API_KEY:}`，`.env.example` 只保留
+  `CHANGE_ME`。
+- 安全扫描确认真实 Key 不存在于当前受版本控制文件和 Git 历史。
+- 客户端和异常消息不记录包含 `api_key` 的完整请求 URL。
+
+### 验证结果
+
+| 验证 | 通过 | 失败 | 错误 |
+|---|---:|---:|---:|
+| OpenAlex 定向自动测试 | 17 | 0 | 0 |
+| Maven 全量自动测试 | 67 | 0 | 0 |
+| 真实 OpenAlex 冒烟测试 | 1 | 0 | 0 |
+
+- Maven 最终状态：`BUILD SUCCESS`。
+- 自动测试不调用真实 OpenAlex；真实测试使用一次性测试入口，执行后已删除。
+- `git diff --check` 通过。
+- 未发现临时联网测试文件、重复模型或无关代码修改。
+
+### 范围边界
+
+- 本次只完成 OpenAlex 候选论文召回。
+- 尚未实现 `SearchAgent`、`LlmQueryPlanner`、`SearchPlanDraft`、
+  `SearchPlanValidator` 和文献检索 Controller 的运行时编排。
+- 尚未实现 Crossref 核验、去重、最终排名、持久化、缓存和前端。
+
+### 下一步
+
+- 实现 LLM 查询草稿与 Java 规则校验，形成可信 `SearchPlan`。
+- 由 `SearchAgent` 通过 `OpenAlexSearchPort` 编排候选召回。
+- 保持 OpenAlex 外部 DTO 不进入 Controller 或后续业务层。
+
 ## 6. 故障台账
 
 | 编号 | 日期 | 故障现象 | 根因 | 解决方案 | 验证与预防 |
@@ -452,6 +544,8 @@ ResearchPilot 的最终目标是完成一个可由其他用户从 GitHub 下载�
 | F-011 | 07-17 | PowerShell/Markdown 混合脚本复制被截断 | README 内三反引号关闭了外层代码块 | README 内围栏改用 `~~~` | 文档结构和 Git diff 正常 |
 | F-012 | 07-17 | 里程碑标签指向旧提交 | 在阶段代码提交前创建了标签 | 删除旧标签，先提交，再重新打标签 | HEAD 与 tag peeled commit 均为 `3c84ef4` |
 | F-013 | 07-17 | GitHub SSH 22 端口连接关闭 | 代理/TUN 将 GitHub 解析到 `198.18.0.0/16` 虚拟地址，未转发 SSH 22 | 远程地址改为 HTTPS，使用浏览器认证 | `main` 和 tag 均成功推送 |
+| F-014 | 07-19 | OpenAlex 真实 Key 被误写入 `application.yml` 默认值 | 将本地秘密与可提交配置混用 | Key 迁移到被忽略的 `.env`，YAML 只保留环境变量引用 | 当前受控文件和 Git 历史均未发现真实 Key |
+| F-015 | 07-19 | OpenAlex 排序请求返回 HTTP 400 | 当前 API 不接受 `-relevance_score` 降序格式 | 改用 `field:desc` 并逐项执行真实请求 | 三种排序和最终候选映射均验证成功 |
 
 ## 7. 关键技术决策
 
@@ -465,10 +559,12 @@ ResearchPilot 的最终目标是完成一个可由其他用户从 GitHub 下载�
 
 ### D-002｜配置与密钥管理
 
-- MySQL、Redis 和模型配置通过环境变量提供。
+- MySQL、Redis、模型和 OpenAlex 配置通过环境变量或外部配置提供。
 - 密码和 API Key 在 PowerShell 中使用安全输入读取。
 - 日志不记录消息正文、密码或 API Key。
 - `.env.example` 只保存占位配置。
+- 本地 `.env` 必须被 Git 忽略；Spring Boot 默认不自动加载该文件，启动时
+  仍需由终端、IDE 或外部配置注入变量。
 
 ### D-003｜存储职责
 
@@ -543,18 +639,19 @@ ResearchPilot 的最终目标是完成一个可由其他用户从 GitHub 下载�
 - 统一异常响应
 - Swagger UI
 - Actuator
-- 31 个自动测试（其中第一阶段验收测试 22 个）
+- 67 个自动测试（其中第一阶段验收测试 22 个）
 - 本地启动脚本
 - 第一阶段验收脚本
 - Qdrant 技术决策
 - Git 提交、标签和 GitHub 同步
 - 文献检索类级数据流和模块职责
 - 五个文献检索核心契约及冻结规则
+- OpenAlex 候选论文检索、响应映射和异常治理
+- 固定英文检索词的真实 OpenAlex 数据验收
 
 ### 尚未开始或尚未完成
 
 - Search Agent
-- OpenAlex 文献检索
 - Crossref 元数据核验
 - DOI/标题去重
 - 可信度评分
@@ -621,7 +718,7 @@ ResearchPilot 的最终目标是完成一个可由其他用户从 GitHub 下载�
 
 1. [x] 定义 SearchRequest、SearchPlan、PaperDTO、VerificationResult 和 SearchResponse。
 2. [x] 设计 `POST /api/literature/search`。
-3. [ ] 接入 OpenAlex，模型只生成检索策略，不生成论文列表。
+3. [x] 接入 OpenAlex，模型只生成检索策略，不生成论文列表。
 4. [ ] 使用 Flyway 创建检索任务、论文和核验记录表。
 5. [ ] 接入 Crossref 核验 DOI 和元数据。
 6. [ ] 实现 DOI/标题去重。

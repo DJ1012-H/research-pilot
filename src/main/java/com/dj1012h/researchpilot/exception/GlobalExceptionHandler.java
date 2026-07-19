@@ -1,6 +1,7 @@
 package com.dj1012h.researchpilot.exception;
 
 import com.dj1012h.researchpilot.common.response.ApiErrorResponse;
+import com.dj1012h.researchpilot.integration.openalex.OpenAlexApiException;
 import jakarta.servlet.http.HttpServletRequest;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -126,6 +127,55 @@ public class GlobalExceptionHandler {
                     HttpStatus.BAD_GATEWAY,
                     "MODEL_INVOCATION_FAILED",
                     "模型调用失败",
+                    request,
+                    Map.of()
+            );
+        };
+    }
+
+    @ExceptionHandler(OpenAlexApiException.class)
+    ResponseEntity<ApiErrorResponse> handleOpenAlex(OpenAlexApiException exception,
+                                                     HttpServletRequest request) {
+        return switch (exception.getFailureType()) {
+            case DISABLED, API_KEY_MISSING -> build(
+                    HttpStatus.SERVICE_UNAVAILABLE,
+                    "OPENALEX_NOT_CONFIGURED",
+                    "OpenAlex 检索服务未配置或未启用",
+                    request,
+                    Map.of()
+            );
+            case TIMEOUT -> build(
+                    HttpStatus.GATEWAY_TIMEOUT,
+                    "OPENALEX_TIMEOUT",
+                    "OpenAlex 检索响应超时",
+                    request,
+                    Map.of()
+            );
+            case RATE_LIMITED -> build(
+                    HttpStatus.SERVICE_UNAVAILABLE,
+                    "OPENALEX_RATE_LIMITED",
+                    "OpenAlex 请求受限，请稍后重试",
+                    request,
+                    Map.of()
+            );
+            case CLIENT_ERROR -> build(
+                    HttpStatus.BAD_GATEWAY,
+                    "OPENALEX_REQUEST_REJECTED",
+                    "OpenAlex 拒绝了检索请求",
+                    request,
+                    Map.of()
+            );
+            case SERVER_ERROR, TRANSPORT_ERROR -> build(
+                    HttpStatus.SERVICE_UNAVAILABLE,
+                    "OPENALEX_UNAVAILABLE",
+                    "OpenAlex 检索服务暂时不可用",
+                    request,
+                    Map.of()
+            );
+            case EMPTY_RESPONSE, INVALID_RESPONSE -> build(
+                    HttpStatus.BAD_GATEWAY,
+                    "OPENALEX_INVALID_RESPONSE",
+                    "OpenAlex 返回了无效响应",
                     request,
                     Map.of()
             );
