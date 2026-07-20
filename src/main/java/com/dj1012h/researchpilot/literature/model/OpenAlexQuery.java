@@ -13,18 +13,21 @@ public record OpenAlexQuery(
         LocalDate fromPublicationDate,
         LocalDate toPublicationDate,
         List<String> workTypes,
+        List<String> languages,
         Sort sort,
         Integer perPage
 ) {
 
     public static final int MAX_PAGE_SIZE = 100;
     private static final Pattern SAFE_WORK_TYPE = Pattern.compile("[a-z][a-z0-9-]*");
+    private static final Pattern SAFE_LANGUAGE = Pattern.compile("[a-z]{2}");
 
     public OpenAlexQuery {
         search = requireText(search, "search");
         fromPublicationDate = Objects.requireNonNull(fromPublicationDate, "fromPublicationDate 不能为空");
         toPublicationDate = Objects.requireNonNull(toPublicationDate, "toPublicationDate 不能为空");
         workTypes = List.copyOf(Objects.requireNonNull(workTypes, "workTypes 不能为空"));
+        languages = List.copyOf(Objects.requireNonNull(languages, "languages 不能为空"));
         sort = Objects.requireNonNull(sort, "sort 不能为空");
 
         if (toPublicationDate.isBefore(fromPublicationDate)) {
@@ -34,9 +37,27 @@ public record OpenAlexQuery(
                 type == null || !SAFE_WORK_TYPE.matcher(type).matches())) {
             throw new IllegalArgumentException("workTypes 包含不安全或无效的类型");
         }
+        if (languages.stream().anyMatch(language ->
+                language == null || !SAFE_LANGUAGE.matcher(language).matches())) {
+            throw new IllegalArgumentException("languages 包含不安全或无效的语言代码");
+        }
         if (perPage != null && (perPage < 1 || perPage > MAX_PAGE_SIZE)) {
             throw new IllegalArgumentException("perPage 必须在 1 到 " + MAX_PAGE_SIZE + " 之间");
         }
+    }
+
+    /**
+     * Compatibility constructor for existing callers that do not filter by language.
+     */
+    public OpenAlexQuery(
+            String search,
+            LocalDate fromPublicationDate,
+            LocalDate toPublicationDate,
+            List<String> workTypes,
+            Sort sort,
+            Integer perPage
+    ) {
+        this(search, fromPublicationDate, toPublicationDate, workTypes, List.of(), sort, perPage);
     }
 
     public int pageSizeOrDefault(int defaultPageSize) {

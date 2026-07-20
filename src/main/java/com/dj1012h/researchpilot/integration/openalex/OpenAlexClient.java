@@ -30,6 +30,7 @@ public class OpenAlexClient {
             "publication_year",
             "publication_date",
             "type",
+            "language",
             "cited_by_count",
             "authorships",
             "primary_location",
@@ -121,6 +122,9 @@ public class OpenAlexClient {
         filters.add("to_publication_date:" + query.toPublicationDate());
         if (!query.workTypes().isEmpty()) {
             filters.add("type:" + String.join("|", query.workTypes()));
+        }
+        if (!query.languages().isEmpty()) {
+            filters.add("language:" + String.join("|", query.languages()));
         }
         return String.join(",", filters);
     }

@@ -30,6 +30,7 @@ class OpenAlexPaperMapperTest {
         assertThat(paper.publicationDate()).isEqualTo(LocalDate.of(2021, 8, 26));
         assertThat(paper.publicationYear()).isEqualTo(2021);
         assertThat(paper.workType()).isEqualTo("article");
+        assertThat(paper.language()).isEqualTo("en");
         assertThat(paper.citedByCount()).isEqualTo(100);
         assertThat(paper.landingPageUrl()).isEqualTo("https://repository.example/paper");
         assertThat(paper.pdfUrl()).isEqualTo("https://repository.example/paper.pdf");

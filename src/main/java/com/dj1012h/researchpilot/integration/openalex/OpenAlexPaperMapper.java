@@ -65,6 +65,7 @@ public class OpenAlexPaperMapper {
                 publicationDate,
                 publicationYear,
                 normalizeWhitespace(work.type()),
+                normalizeWhitespace(work.language()),
                 work.citedByCount() == null ? 0 : Math.max(0, work.citedByCount()),
                 restoreAbstract(work.abstractInvertedIndex()),
                 landingPageUrl,

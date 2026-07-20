@@ -2,6 +2,10 @@ package com.dj1012h.researchpilot.exception;
 
 import com.dj1012h.researchpilot.common.response.ApiErrorResponse;
 import com.dj1012h.researchpilot.controller.ChatController;
+import com.dj1012h.researchpilot.literature.application.SearchPlanGenerationException;
+import com.dj1012h.researchpilot.literature.validation.SearchPlanValidationException;
+import com.dj1012h.researchpilot.literature.validation.ValidationIssue;
+import com.dj1012h.researchpilot.literature.validation.ValidationStage;
 import com.dj1012h.researchpilot.service.ChatService;
 import dev.langchain4j.exception.AuthenticationException;
 import org.junit.jupiter.api.BeforeEach;
@@ -18,6 +22,7 @@ import org.springframework.mock.web.MockHttpServletRequest;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 
+import java.util.List;
 import java.util.stream.Stream;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -147,6 +152,36 @@ class GlobalExceptionHandlerTest {
         assertThat(response.getBody()).isNotNull();
         assertThat(response.getBody().code()).isEqualTo(expectedCode);
         assertThat(response.getBody().message()).doesNotContain("provider details");
+    }
+
+    @Test
+    void shouldMapSearchPlanFailureWithoutExposingValidationMessages() {
+        MockHttpServletRequest request =
+                new MockHttpServletRequest("POST", "/api/literature/search");
+        SearchPlanValidationException validationException =
+                new SearchPlanValidationException(
+                        ValidationStage.JSON_SCHEMA,
+                        List.of(new ValidationIssue(
+                                "INVALID_ENUM_VALUE",
+                                "$.sort",
+                                "private model output must stay internal",
+                                true
+                        ))
+                );
+
+        ResponseEntity<ApiErrorResponse> response =
+                new GlobalExceptionHandler().handleSearchPlanGeneration(
+                        new SearchPlanGenerationException(validationException),
+                        request
+                );
+
+        assertThat(response.getStatusCode().value()).isEqualTo(422);
+        assertThat(response.getBody()).isNotNull();
+        assertThat(response.getBody().code()).isEqualTo("SEARCH_PLAN_GENERATION_FAILED");
+        assertThat(response.getBody().details())
+                .containsEntry("stage", "JSON_SCHEMA")
+                .containsEntry("codes", "INVALID_ENUM_VALUE");
+        assertThat(response.getBody().message()).doesNotContain("private model output");
     }
 
     private static Stream<Arguments> modelFailureMappings() {

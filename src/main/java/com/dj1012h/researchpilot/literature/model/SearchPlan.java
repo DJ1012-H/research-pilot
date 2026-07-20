@@ -1,13 +1,16 @@
 package com.dj1012h.researchpilot.literature.model;
 
+import java.util.Collections;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Objects;
+import java.util.Set;
 
 /**
  * Validated and executable plan for a single OpenAlex search chain.
  *
  * <p>The LLM-generated draft is intentionally not represented by this type.
- * A future {@code SearchPlanValidator} must resolve relative dates, apply
+ * {@code SearchPlanBusinessValidator} must resolve relative dates, apply
  * explicit request overrides and enforce limits before creating this record.</p>
  */
 public record SearchPlan(
@@ -15,8 +18,9 @@ public record SearchPlan(
         String topic,
         List<String> englishKeywords,
         String searchQuery,
-        List<String> languages,
+        Set<LanguageCode> languages,
         List<String> publicationTypes,
+        SearchSort sort,
         int fromYear,
         int toYear,
         int candidateLimit,
@@ -25,6 +29,7 @@ public record SearchPlan(
 
     public static final int EARLIEST_SUPPORTED_YEAR = 1900;
     public static final int MAX_CANDIDATE_LIMIT = 100;
+    public static final int MAX_SEARCH_QUERY_LENGTH = 300;
     public static final int MAX_RESULT_LIMIT = 50;
 
     public SearchPlan {
@@ -32,8 +37,9 @@ public record SearchPlan(
         topic = requireText(topic, "topic");
         searchQuery = requireText(searchQuery, "searchQuery");
         englishKeywords = List.copyOf(Objects.requireNonNull(englishKeywords, "englishKeywords 不能为空"));
-        languages = copyTextList(languages, "languages");
+        languages = copyLanguages(languages);
         publicationTypes = copyTextList(publicationTypes, "publicationTypes");
+        sort = Objects.requireNonNull(sort, "sort 不能为空");
 
         if (englishKeywords.isEmpty()) {
             throw new IllegalArgumentException("englishKeywords 不能为空");
@@ -55,6 +61,14 @@ public record SearchPlan(
                     "candidateLimit 必须大于等于 resultLimit 且不超过 " + MAX_CANDIDATE_LIMIT
             );
         }
+    }
+
+    private static Set<LanguageCode> copyLanguages(Set<LanguageCode> languages) {
+        Objects.requireNonNull(languages, "languages 不能为空");
+        if (languages.stream().anyMatch(Objects::isNull)) {
+            throw new IllegalArgumentException("languages 不能包含空值");
+        }
+        return Collections.unmodifiableSet(new LinkedHashSet<>(languages));
     }
 
     private static List<String> copyTextList(List<String> values, String field) {

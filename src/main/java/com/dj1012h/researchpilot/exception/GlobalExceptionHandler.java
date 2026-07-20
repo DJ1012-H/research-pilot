@@ -2,6 +2,7 @@ package com.dj1012h.researchpilot.exception;
 
 import com.dj1012h.researchpilot.common.response.ApiErrorResponse;
 import com.dj1012h.researchpilot.integration.openalex.OpenAlexApiException;
+import com.dj1012h.researchpilot.literature.application.SearchPlanGenerationException;
 import jakarta.servlet.http.HttpServletRequest;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -71,7 +72,7 @@ public class GlobalExceptionHandler {
         return build(
                 HttpStatus.SERVICE_UNAVAILABLE,
                 "MODEL_NOT_CONFIGURED",
-                "聊天模型当前未配置或未启用",
+                "模型服务当前未配置或未启用",
                 request,
                 Map.of()
         );
@@ -180,6 +181,31 @@ public class GlobalExceptionHandler {
                     Map.of()
             );
         };
+    }
+
+    @ExceptionHandler(SearchPlanGenerationException.class)
+    ResponseEntity<ApiErrorResponse> handleSearchPlanGeneration(
+            SearchPlanGenerationException exception,
+            HttpServletRequest request
+    ) {
+        List<String> codes = exception.getIssues().stream()
+                .map(issue -> issue.code())
+                .distinct()
+                .toList();
+        log.info(
+                "event=search_plan_generation_rejected method={} path={} stage={} codes={}",
+                request.getMethod(),
+                request.getRequestURI(),
+                exception.getFinalStage(),
+                codes
+        );
+        return build(
+                HttpStatus.UNPROCESSABLE_ENTITY,
+                "SEARCH_PLAN_GENERATION_FAILED",
+                "无法根据请求生成有效的文献检索计划",
+                request,
+                Map.of("stage", exception.getFinalStage().name(), "codes", String.join(",", codes))
+        );
     }
 
     @ExceptionHandler(Exception.class)

@@ -16,6 +16,7 @@ public record OpenAlexWorkDTO(
         @JsonProperty("publication_date")
         String publicationDate,
         String type,
+        String language,
         @JsonProperty("cited_by_count")
         Integer citedByCount,
         List<OpenAlexAuthorshipDTO> authorships,
@@ -26,4 +27,36 @@ public record OpenAlexWorkDTO(
         @JsonProperty("abstract_inverted_index")
         Map<String, List<Integer>> abstractInvertedIndex
 ) {
+
+    /**
+     * Compatibility constructor for callers created before language was selected.
+     */
+    public OpenAlexWorkDTO(
+            String id,
+            String doi,
+            String title,
+            Integer publicationYear,
+            String publicationDate,
+            String type,
+            Integer citedByCount,
+            List<OpenAlexAuthorshipDTO> authorships,
+            OpenAlexLocationDTO primaryLocation,
+            OpenAlexLocationDTO bestOpenAccessLocation,
+            Map<String, List<Integer>> abstractInvertedIndex
+    ) {
+        this(
+                id,
+                doi,
+                title,
+                publicationYear,
+                publicationDate,
+                type,
+                null,
+                citedByCount,
+                authorships,
+                primaryLocation,
+                bestOpenAccessLocation,
+                abstractInvertedIndex
+        );
+    }
 }

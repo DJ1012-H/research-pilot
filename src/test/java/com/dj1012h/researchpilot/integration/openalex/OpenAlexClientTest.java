@@ -49,7 +49,8 @@ class OpenAlexClientTest {
                             .isEqualTo(
                                     "from_publication_date:2022-01-01,"
                                             + "to_publication_date:2026-12-31,"
-                                            + "type:article|review"
+                                            + "type:article|review,"
+                                            + "language:en|zh"
                             );
                     assertThat(queryParam(request.getURI(), "sort"))
                             .isEqualTo("relevance_score:desc");
@@ -67,6 +68,27 @@ class OpenAlexClientTest {
         assertThat(response.results()).hasSize(1);
         assertThat(response.results().getFirst().id())
                 .isEqualTo("https://openalex.org/W3177828909");
+        fixture.server().verify();
+    }
+
+    @Test
+    void shouldOmitLanguageFilterWhenNoLanguagesRequested() {
+        ClientFixture fixture = fixture(enabledProperties());
+        OpenAlexQuery query = new OpenAlexQuery(
+                "Mamba remote sensing",
+                LocalDate.of(2022, 1, 1),
+                LocalDate.of(2026, 12, 31),
+                List.of("article"),
+                OpenAlexQuery.Sort.RELEVANCE,
+                10
+        );
+        fixture.server().expect(requestTo(startsWith(BASE_URL + "/works")))
+                .andExpect(request -> assertThat(queryParam(request.getURI(), "filter"))
+                        .doesNotContain("language:"))
+                .andRespond(withSuccess("{\"meta\":{\"count\":0},\"results\":[]}", MediaType.APPLICATION_JSON));
+
+        fixture.client().search(query);
+
         fixture.server().verify();
     }
 
@@ -212,6 +234,7 @@ class OpenAlexClientTest {
                 LocalDate.of(2022, 1, 1),
                 LocalDate.of(2026, 12, 31),
                 List.of("article", "review"),
+                List.of("en", "zh"),
                 OpenAlexQuery.Sort.RELEVANCE,
                 perPage
         );

@@ -1,6 +1,7 @@
 package com.dj1012h.researchpilot.literature.application;
 
 import com.dj1012h.researchpilot.literature.model.OpenAlexQuery;
+import com.dj1012h.researchpilot.literature.model.SearchSort;
 import com.dj1012h.researchpilot.literature.model.SearchPlan;
 import org.springframework.stereotype.Component;
 
@@ -16,14 +17,26 @@ import java.util.Objects;
 public class OpenAlexQueryFactory {
 
     public OpenAlexQuery create(SearchPlan plan) {
-        return create(plan, OpenAlexQuery.Sort.RELEVANCE);
+        Objects.requireNonNull(plan, "plan 不能为空");
+        return createQuery(plan, mapSort(plan.sort()));
     }
 
+    /**
+     * Compatibility entry point. New execution paths must use {@link #create(SearchPlan)}.
+     */
+    @Deprecated(forRemoval = false)
     public OpenAlexQuery create(SearchPlan plan, OpenAlexQuery.Sort sort) {
         Objects.requireNonNull(plan, "plan 不能为空");
+        return createQuery(plan, Objects.requireNonNull(sort, "sort 不能为空"));
+    }
 
+    private OpenAlexQuery createQuery(SearchPlan plan, OpenAlexQuery.Sort sort) {
         List<String> workTypes = plan.publicationTypes().stream()
                 .map(type -> type.trim().toLowerCase(Locale.ROOT))
+                .distinct()
+                .toList();
+        List<String> languages = plan.languages().stream()
+                .map(language -> language.apiValue().toLowerCase(Locale.ROOT))
                 .distinct()
                 .toList();
 
@@ -32,8 +45,17 @@ public class OpenAlexQueryFactory {
                 LocalDate.of(plan.fromYear(), 1, 1),
                 LocalDate.of(plan.toYear(), 12, 31),
                 workTypes,
-                Objects.requireNonNull(sort, "sort 不能为空"),
+                languages,
+                sort,
                 Math.min(plan.candidateLimit(), OpenAlexQuery.MAX_PAGE_SIZE)
         );
+    }
+
+    private OpenAlexQuery.Sort mapSort(SearchSort sort) {
+        return switch (Objects.requireNonNull(sort, "sort 不能为空")) {
+            case RELEVANCE -> OpenAlexQuery.Sort.RELEVANCE;
+            case NEWEST -> OpenAlexQuery.Sort.NEWEST;
+            case MOST_CITED -> OpenAlexQuery.Sort.MOST_CITED;
+        };
     }
 }

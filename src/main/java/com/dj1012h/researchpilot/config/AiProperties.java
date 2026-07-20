@@ -14,6 +14,7 @@ public class AiProperties {
     private Duration timeout = Duration.ofSeconds(60);
     private int maxRetries = 2;
     private double temperature = 0.2;
+    private StructuredOutput structuredOutput = new StructuredOutput();
 
     public boolean isEnabled() {
         return enabled;
@@ -69,5 +70,53 @@ public class AiProperties {
 
     public void setTemperature(double temperature) {
         this.temperature = temperature;
+    }
+
+    public StructuredOutput getStructuredOutput() {
+        return structuredOutput;
+    }
+
+    public void setStructuredOutput(StructuredOutput structuredOutput) {
+        this.structuredOutput = structuredOutput;
+    }
+
+    public static class StructuredOutput {
+
+        private int maxOutputLength = 32_768;
+        private int maxValidationRetries = 1;
+        private String promptVersion = "search-plan-v1";
+        private String schemaVersion = "search-plan-v1";
+
+        public int getMaxOutputLength() {
+            return maxOutputLength;
+        }
+
+        public void setMaxOutputLength(int maxOutputLength) {
+            this.maxOutputLength = maxOutputLength;
+        }
+
+        public int getMaxValidationRetries() {
+            return maxValidationRetries;
+        }
+
+        public void setMaxValidationRetries(int maxValidationRetries) {
+            this.maxValidationRetries = maxValidationRetries;
+        }
+
+        public String getPromptVersion() {
+            return promptVersion;
+        }
+
+        public void setPromptVersion(String promptVersion) {
+            this.promptVersion = promptVersion;
+        }
+
+        public String getSchemaVersion() {
+            return schemaVersion;
+        }
+
+        public void setSchemaVersion(String schemaVersion) {
+            this.schemaVersion = schemaVersion;
+        }
     }
 }

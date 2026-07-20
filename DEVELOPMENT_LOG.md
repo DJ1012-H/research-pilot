@@ -1,16 +1,17 @@
 # ResearchPilot 开发日志
 
-> 日志覆盖时间：2026-07-13 ～ 2026-07-19
+> 日志覆盖时间：2026-07-13 ～ 2026-07-20
 > 第一阶段状态：已完成，较原计划 2026-07-18 提前一天
 > 第二阶段进展：已提前完成原计划 2026-07-19 的数据流与接口契约
 > OpenAlex 进展：已提前完成原计划 2026-07-20 的候选论文检索模块
+> Search Agent 进展：已提前完成原计划 2026-07-21 的查询规划与可信校验链路
 > 里程碑版本：`v0.1.0-phase1`
 > 第一阶段提交：`3c84ef4a6dd6043320c95bc9655701a52d52ce3b`
 > 远程仓库：<https://github.com/DJ1012-H/research-pilot>
 
 ## 1. 记录原则与证据说明
 
-本文档记录 ResearchPilot 从初始化、第一阶段验收到第二阶段检索契约冻结的实际开发过程。
+本文档记录 ResearchPilot 从初始化、第一阶段验收到 Search Agent 可信查询规划链路落地的实际开发过程。
 
 为避免把计划误写成事实，日志使用以下证据来源：
 
@@ -69,6 +70,7 @@ ResearchPilot 的最终目标是完成一个可由其他用户从 GitHub 下载�
 | 2026-07-17 | 完成自动测试、真实环境验收、文档、Git 里程碑和远程同步 | 第一阶段正式完成并发布 `v0.1.0-phase1` |
 | 2026-07-17（原计划 07-19） | 确定文献检索数据流、接口契约、模块职责和冻结规则 | 第二阶段查询契约落地，完整测试增至 31 个 |
 | 2026-07-19（原计划 07-20） | 实现 OpenAlex 候选论文检索、映射、异常治理和真实 API 验收 | 候选召回模块提前完成，完整测试增至 67 个 |
+| 2026-07-20（原计划 07-21） | 实现 Search Agent、五层可信校验和单 OpenAlex 运行时链路 | 查询规划提前完成，完整测试增至 164 个 |
 
 ## 5. 每日开发记录
 
@@ -527,6 +529,108 @@ ResearchPilot 的最终目标是完成一个可由其他用户从 GitHub 下载�
 - 由 `SearchAgent` 通过 `OpenAlexSearchPort` 编排候选召回。
 - 保持 OpenAlex 外部 DTO 不进入 Controller 或后续业务层。
 
+## 2026-07-20｜提前完成 Search Agent 可信查询规划（原计划 07-21）
+
+### 当日目标
+
+- 将原始模型输出限制在明确的 JSON 契约内。
+- 建立 LLM 草稿到可信 `SearchPlan` 的 Java 校验边界。
+- 实现 `SearchAgent` 与最多一次结构化输出修正。
+- 将可信计划接入已有 OpenAlex 候选检索能力。
+
+### 实际进展
+
+按照修订后的八阶段方案依次完成，未跨阶段提前引入 Crossref、持久化、缓存、
+向量存储或前端：
+
+1. 重构 `ModelInvoker`，统一聊天和检索规划的模型调用、供应商异常分类与脱敏日志。
+2. 新增 `SearchPlanDraft`、`SearchSort`、`LanguageCode`，扩展可信 `SearchPlan`。
+3. 新增版本化 Prompt、JSON Schema 和模型结构化输出专用严格 Mapper。
+4. 固定实现 JSON 语法、Schema、DTO 映射、业务规则、安全规则五层校验顺序。
+5. 实现 `LlmQueryPlanner` 与 `SearchAgent`，结构化输出最多修正一次。
+6. 将语言和排序意图映射到 OpenAlex filter、sort、DTO 与内部候选论文。
+7. 实现 `LiteratureSearchService`、`LiteratureSearchController` 和受控异常响应。
+8. 增加单元测试、端到端阻断测试、架构约束和真实 Spring MVC 序列化测试。
+
+### Search Agent 可信边界
+
+- 模型实际返回值始终是原始 `String`。
+- 原始字符串依次通过 JSON 语法、JSON Schema 和 DTO 严格映射后，才能成为
+  `SearchPlanDraft`。
+- `SearchPlanDraft` 再通过业务规则和执行前安全校验，才能生成 `SearchPlan`。
+- `originalQuery` 只来自 `SearchRequest`；`candidateLimit` 只由 Java 按配置计算。
+- HTTP 显式年份和数量优先于模型推断，模型推断优先于 Java 默认值。
+- 安全失败不可重试；模型认证、超时、限流等供应商错误沿用 `ModelInvoker`
+  分类，不进入结构化输出修正。
+- `SearchAgent` 不依赖 OpenAlex；`LiteratureSearchService` 负责可信计划到一次
+  OpenAlex 候选召回的确定性编排。
+
+### OpenAlex 与接口增强
+
+- `SearchPlan.sort` 确定性映射为相关性、最新或高被引排序。
+- `LanguageCode.EN/ZH` 映射为 `language:en`、`language:zh` 或
+  `language:en|zh`。
+- OpenAlex 外部响应增加 `language` 字段，允许数据源返回空值。
+- `POST /api/literature/search` 已具备运行时入口。
+- 当前未接入 Crossref 核验，因此召回候选只进入统计，正式论文列表仍为空。
+
+### JSON 时间序列化故障与修复
+
+#### 故障现象
+
+浏览器调用 `POST /api/literature/search` 时返回 Spring Boot 基础 HTTP 500。
+日志分别可能指向 `SearchResponse.completedAt` 或
+`ApiErrorResponse.timestamp` 无法序列化。
+
+#### 根因
+
+`jackson-datatype-jsr310` 已由 `spring-boot-starter-json` 传递引入，并非依赖
+缺失。真正原因是模型专用严格 `ObjectMapper` 被注册为 Spring Bean，触发
+Spring Boot 的条件装配回退，使它成为 MVC 使用的全局 Mapper；该严格 Mapper
+没有注册 Java Time 模块。
+
+#### 解决方案
+
+- 保留严格 `ObjectMapper` 工厂方法和既有公开构造入口。
+- 新增不继承 `ObjectMapper` 的 `StructuredOutputMapper` 窄职责包装器。
+- 容器只注册包装器，使 Spring Boot 恢复创建带 Java Time 支持的
+  `jacksonObjectMapper`。
+- 新增真实 Spring 上下文测试，同时覆盖成功响应 `completedAt` 和错误响应
+  `timestamp`。
+
+### 验证结果
+
+| 验证 | 通过 | 失败 | 错误 | 跳过 |
+|---|---:|---:|---:|---:|
+| Mapper 与五层校验聚焦回归 | 33 | 0 | 0 | 0 |
+| Maven 全量自动测试 | 164 | 0 | 0 | 0 |
+| Maven `clean verify` | 164 | 0 | 0 | 0 |
+| 真实 Spring MVC 时间序列化场景 | 3 | 0 | 0 | 0 |
+
+- `mvn test`：`BUILD SUCCESS`。
+- `mvn clean verify`：从空 `target` 重新编译、测试并成功生成可运行 JAR。
+- 运行时安全冒烟：在显式关闭 LLM/OpenAlex 时，文献接口返回受控
+  HTTP 503 `MODEL_NOT_CONFIGURED`，ISO-8601 `timestamp` 正常序列化，不再返回
+  基础 500。
+- 成功响应 `SearchResponse.completedAt` 由真实 Spring MVC 上下文和模拟业务
+  服务验证。
+- 架构测试确认 Controller 和 `SearchAgent` 不直接依赖 `OpenAlexClient`。
+- `git diff --check`、尾随空格和敏感值模式扫描均通过。
+
+### 范围边界
+
+- 已完成的是原计划 07-21 的 Search Agent 查询规划，以及支撑该链路的单
+  OpenAlex 运行时编排。
+- 未使用当前环境中的真实 LLM 凭据执行外部成功链路；需重启开发者 IDE 中的
+  8080 服务后，在其外部配置环境下再次执行 Swagger 验收。
+- 尚未实现 Crossref、去重、核验、持久化、缓存、异步任务、前端和 RAG。
+
+### 下一步
+
+- 使用 Flyway 创建检索任务、论文和核验记录表。
+- 接入 Crossref，并实现确定性的 DOI、标题、作者、年份和来源核验。
+- 保持“小步提交、每天推送、阶段打标签”的交付节奏。
+
 ## 6. 故障台账
 
 | 编号 | 日期 | 故障现象 | 根因 | 解决方案 | 验证与预防 |
@@ -546,6 +650,7 @@ ResearchPilot 的最终目标是完成一个可由其他用户从 GitHub 下载�
 | F-013 | 07-17 | GitHub SSH 22 端口连接关闭 | 代理/TUN 将 GitHub 解析到 `198.18.0.0/16` 虚拟地址，未转发 SSH 22 | 远程地址改为 HTTPS，使用浏览器认证 | `main` 和 tag 均成功推送 |
 | F-014 | 07-19 | OpenAlex 真实 Key 被误写入 `application.yml` 默认值 | 将本地秘密与可提交配置混用 | Key 迁移到被忽略的 `.env`，YAML 只保留环境变量引用 | 当前受控文件和 Git 历史均未发现真实 Key |
 | F-015 | 07-19 | OpenAlex 排序请求返回 HTTP 400 | 当前 API 不接受 `-relevance_score` 降序格式 | 改用 `field:desc` 并逐项执行真实请求 | 三种排序和最终候选映射均验证成功 |
+| F-016 | 07-20 | 文献接口返回基础 HTTP 500，`Instant` 无法序列化 | 模型专用严格 `ObjectMapper` 抑制了 Boot MVC Mapper 自动装配 | 将严格 Mapper 封装为非 `ObjectMapper` Bean，恢复 Boot `jacksonObjectMapper` | 成功与错误响应集成测试通过，运行时返回受控 503 |
 
 ## 7. 关键技术决策
 
@@ -599,6 +704,22 @@ ResearchPilot 的最终目标是完成一个可由其他用户从 GitHub 下载�
 
 该分类让调用方可以区分业务参数错误、配置错误和外部服务故障。
 
+### D-007｜Search Agent 是查询规划器，不是完整工作流
+
+- `LlmQueryPlanner` 只返回模型原始字符串。
+- `SearchAgent` 只创建上下文、调用五层校验、控制一次修正重试并返回可信
+  `SearchPlan`。
+- OpenAlex 调用、候选统计和响应组装由 `LiteratureSearchService` 负责。
+- 去重、Crossref 核验、持久化和 RAG 保持为后续独立职责。
+
+### D-008｜模型 JSON 与 MVC JSON 使用隔离配置
+
+- 模型结构化输出需要拒绝未知字段、类型宽松转换、单值转数组和数字转枚举。
+- HTTP JSON 继续使用 Spring Boot 自动配置的 MVC Mapper 及其 Java Time 模块。
+- 严格 Mapper 只通过 `StructuredOutputMapper` 暴露读取和映射能力，不作为
+  `ObjectMapper` Bean 注册。
+- 不通过重复添加 `jackson-datatype-jsr310` 掩盖 Bean 自动装配冲突。
+
 ## 8. 第一阶段测试与验收证据
 
 ### 自动测试
@@ -639,7 +760,7 @@ ResearchPilot 的最终目标是完成一个可由其他用户从 GitHub 下载�
 - 统一异常响应
 - Swagger UI
 - Actuator
-- 67 个自动测试（其中第一阶段验收测试 22 个）
+- 164 个自动测试（其中第一阶段验收测试 22 个）
 - 本地启动脚本
 - 第一阶段验收脚本
 - Qdrant 技术决策
@@ -648,10 +769,15 @@ ResearchPilot 的最终目标是完成一个可由其他用户从 GitHub 下载�
 - 五个文献检索核心契约及冻结规则
 - OpenAlex 候选论文检索、响应映射和异常治理
 - 固定英文检索词的真实 OpenAlex 数据验收
+- 公共 `ModelInvoker` 与统一模型供应商错误映射
+- Search Agent、版本化 Prompt 和最多一次结构化输出修正
+- JSON 语法、Schema、DTO、业务和安全五层校验管线
+- OpenAlex 语言过滤和可信排序映射
+- 文献检索 Controller、单 OpenAlex 运行时编排和受控异常响应
+- Spring MVC `Instant` 成功与错误响应序列化回归
 
 ### 尚未开始或尚未完成
 
-- Search Agent
 - Crossref 元数据核验
 - DOI/标题去重
 - 可信度评分
@@ -719,11 +845,12 @@ ResearchPilot 的最终目标是完成一个可由其他用户从 GitHub 下载�
 1. [x] 定义 SearchRequest、SearchPlan、PaperDTO、VerificationResult 和 SearchResponse。
 2. [x] 设计 `POST /api/literature/search`。
 3. [x] 接入 OpenAlex，模型只生成检索策略，不生成论文列表。
-4. [ ] 使用 Flyway 创建检索任务、论文和核验记录表。
-5. [ ] 接入 Crossref 核验 DOI 和元数据。
-6. [ ] 实现 DOI/标题去重。
-7. [ ] 建立可解释的可信度评分。
-8. [ ] 使用固定研究主题建立回归测试。
+4. [x] 实现 Search Agent、五层可信校验和单 OpenAlex 运行时编排。
+5. [ ] 使用 Flyway 创建检索任务、论文和核验记录表。
+6. [ ] 接入 Crossref 核验 DOI 和元数据。
+7. [ ] 实现 DOI/标题去重。
+8. [ ] 建立可解释的可信度评分。
+9. [ ] 使用固定研究主题建立回归测试。
 
 第二阶段完成标准：
 

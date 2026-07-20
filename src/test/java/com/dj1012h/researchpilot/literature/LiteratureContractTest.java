@@ -2,16 +2,25 @@ package com.dj1012h.researchpilot.literature;
 
 import com.dj1012h.researchpilot.literature.api.dto.SearchRequest;
 import com.dj1012h.researchpilot.literature.api.dto.SearchResponse;
+import com.dj1012h.researchpilot.literature.application.SearchPlanDraft;
+import com.dj1012h.researchpilot.literature.application.SearchPlanGenerationContext;
+import com.dj1012h.researchpilot.literature.model.LanguageCode;
 import com.dj1012h.researchpilot.literature.model.PaperDTO;
 import com.dj1012h.researchpilot.literature.model.SearchPlan;
+import com.dj1012h.researchpilot.literature.model.SearchSort;
 import com.dj1012h.researchpilot.literature.model.VerificationResult;
 import jakarta.validation.Validation;
 import jakarta.validation.Validator;
 import org.junit.jupiter.api.Test;
 
+import java.time.Clock;
 import java.time.Instant;
+import java.time.ZoneOffset;
+import java.util.Arrays;
 import java.util.ArrayList;
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -45,7 +54,7 @@ class LiteratureContractTest {
                 "Mamba",
                 "remote sensing change detection"
         ));
-        List<String> languages = new ArrayList<>(List.of("en"));
+        Set<LanguageCode> languages = new LinkedHashSet<>(Set.of(LanguageCode.EN));
         List<String> publicationTypes = new ArrayList<>(List.of("article", "review"));
 
         SearchPlan plan = new SearchPlan(
@@ -55,18 +64,20 @@ class LiteratureContractTest {
                 "Mamba remote sensing change detection",
                 languages,
                 publicationTypes,
+                SearchSort.RELEVANCE,
                 2022,
                 2026,
                 20,
                 10
         );
         keywords.add("state space model");
-        languages.add("zh");
+        languages.add(LanguageCode.ZH);
         publicationTypes.add("preprint");
 
         assertThat(plan.englishKeywords())
                 .containsExactly("Mamba", "remote sensing change detection");
-        assertThat(plan.languages()).containsExactly("en");
+        assertThat(plan.languages()).containsExactly(LanguageCode.EN);
+        assertThat(plan.sort()).isEqualTo(SearchSort.RELEVANCE);
         assertThat(plan.publicationTypes()).containsExactly("article", "review");
         assertThatThrownBy(() -> plan.englishKeywords().add("another keyword"))
                 .isInstanceOf(UnsupportedOperationException.class);
@@ -79,8 +90,9 @@ class LiteratureContractTest {
                 "topic",
                 List.of("keyword"),
                 "keyword",
+                Set.of(),
                 List.of(),
-                List.of(),
+                SearchSort.RELEVANCE,
                 2022,
                 2026,
                 5,
@@ -97,8 +109,9 @@ class LiteratureContractTest {
                 "remote sensing change detection with Mamba",
                 List.of("Mamba", "remote sensing change detection"),
                 "Mamba remote sensing change detection",
-                List.of("en"),
+                Set.of(LanguageCode.EN),
                 List.of("article", "review"),
+                SearchSort.RELEVANCE,
                 2022,
                 2026,
                 20,
@@ -197,8 +210,9 @@ class LiteratureContractTest {
                 "topic",
                 List.of("keyword"),
                 "keyword",
+                Set.of(),
                 List.of(),
-                List.of(),
+                SearchSort.RELEVANCE,
                 2022,
                 2026,
                 10,
@@ -233,5 +247,43 @@ class LiteratureContractTest {
         ))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("evidenceScore");
+    }
+
+    @Test
+    void shouldKeepUntrustedDraftSeparateFromExecutablePlan() {
+        SearchPlanDraft draft = new SearchPlanDraft(
+                "remote sensing change detection",
+                List.of("Mamba", "remote sensing"),
+                "Mamba remote sensing change detection",
+                List.of("en"),
+                List.of("article"),
+                "newest",
+                5,
+                null,
+                null,
+                10
+        );
+
+        assertThat(draft.languages()).containsExactly("en");
+        assertThat(draft.sort()).isEqualTo("newest");
+        assertThat(Arrays.stream(SearchPlanDraft.class.getRecordComponents())
+                .map(component -> component.getName()))
+                .doesNotContain("originalQuery", "candidateLimit");
+    }
+
+    @Test
+    void shouldCreateStableGenerationContextFromInjectedClock() {
+        SearchRequest request = new SearchRequest("Mamba 遥感变化检测", null, null, null);
+        Clock clock = Clock.fixed(
+                Instant.parse("2026-07-20T08:00:00Z"),
+                ZoneOffset.UTC
+        );
+
+        SearchPlanGenerationContext context = SearchPlanGenerationContext.create(request, clock);
+
+        assertThat(context.request()).isSameAs(request);
+        assertThat(context.startedAt()).isEqualTo(Instant.parse("2026-07-20T08:00:00Z"));
+        assertThat(context.currentYear()).isEqualTo(2026);
+        assertThat(context.requestId()).isNotNull();
     }
 }

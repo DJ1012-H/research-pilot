@@ -8,6 +8,8 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.util.Assert;
 
+import java.time.Clock;
+
 @Configuration(proxyBeanMethods = false)
 @EnableConfigurationProperties(AiProperties.class)
 public class AiConfiguration {
@@ -31,5 +33,10 @@ public class AiConfiguration {
                 .logRequests(false)
                 .logResponses(false)
                 .build();
+    }
+
+    @Bean
+    Clock systemClock() {
+        return Clock.systemUTC();
     }
 }

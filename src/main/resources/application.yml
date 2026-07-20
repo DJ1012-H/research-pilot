@@ -33,6 +33,18 @@ app:
     timeout: ${LLM_TIMEOUT:60s}
     max-retries: ${LLM_MAX_RETRIES:2}
     temperature: ${LLM_TEMPERATURE:0.2}
+    structured-output:
+      max-output-length: ${LLM_STRUCTURED_OUTPUT_MAX_LENGTH:32768}
+      max-validation-retries: ${LLM_STRUCTURED_OUTPUT_MAX_RETRIES:1}
+      prompt-version: ${LLM_STRUCTURED_OUTPUT_PROMPT_VERSION:search-plan-v1}
+      schema-version: ${LLM_STRUCTURED_OUTPUT_SCHEMA_VERSION:search-plan-v1}
+  literature:
+    search:
+      default-result-limit: ${LITERATURE_DEFAULT_RESULT_LIMIT:20}
+      max-result-limit: ${LITERATURE_MAX_RESULT_LIMIT:50}
+      candidate-multiplier: ${LITERATURE_CANDIDATE_MULTIPLIER:3}
+      max-candidate-limit: ${LITERATURE_MAX_CANDIDATE_LIMIT:100}
+      earliest-supported-year: ${LITERATURE_EARLIEST_SUPPORTED_YEAR:1900}
   openalex:
     enabled: ${OPENALEX_ENABLED:false}
     base-url: ${OPENALEX_BASE_URL:https://api.openalex.org}
