@@ -11,6 +11,8 @@ import com.dj1012h.researchpilot.integration.openalex.OpenAlexSearchResult;
 import com.dj1012h.researchpilot.literature.api.dto.SearchRequest;
 import com.dj1012h.researchpilot.literature.api.dto.SearchResponse;
 import com.dj1012h.researchpilot.literature.application.LiteratureSearchService;
+import com.dj1012h.researchpilot.literature.application.CrossrefCandidateLookupService;
+import com.dj1012h.researchpilot.literature.application.CrossrefLookupSummary;
 import com.dj1012h.researchpilot.literature.application.LlmQueryPlanner;
 import com.dj1012h.researchpilot.literature.application.OpenAlexQueryFactory;
 import com.dj1012h.researchpilot.literature.application.SearchAgent;
@@ -50,6 +52,7 @@ class LiteratureSearchFlowIntegrationTest {
 
     private final LlmQueryPlanner planner = mock(LlmQueryPlanner.class);
     private final OpenAlexSearchPort openAlexSearchPort = mock(OpenAlexSearchPort.class);
+    private final CrossrefCandidateLookupService crossrefCandidateLookupService = mock(CrossrefCandidateLookupService.class);
     private final AiProperties aiProperties = new AiProperties();
 
     @Test
@@ -59,6 +62,8 @@ class LiteratureSearchFlowIntegrationTest {
         when(planner.generate(any())).thenReturn(validJson());
         when(openAlexSearchPort.search(any()))
                 .thenReturn(new OpenAlexSearchResult(0, List.of(), null));
+        when(crossrefCandidateLookupService.lookup(List.of()))
+                .thenReturn(new CrossrefLookupSummary(0, 0, 0, 0, 0, 0, false, false, List.of()));
 
         SearchResponse response = service().search(request);
 
@@ -136,6 +141,7 @@ class LiteratureSearchFlowIntegrationTest {
                 searchAgent,
                 new OpenAlexQueryFactory(),
                 openAlexSearchPort,
+                crossrefCandidateLookupService,
                 FIXED_CLOCK
         );
     }

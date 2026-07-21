@@ -26,6 +26,7 @@ class SearchConfigurationConsistencyTest {
                 .isEqualTo(SearchPlan.EARLIEST_SUPPORTED_YEAR);
         assertThat(OpenAlexQuery.MAX_PAGE_SIZE)
                 .isGreaterThanOrEqualTo(SearchPlan.MAX_CANDIDATE_LIMIT);
+        assertThat(properties.getMaxCrossrefLookupsPerRequest()).isBetween(1, 5);
     }
 
     @Test

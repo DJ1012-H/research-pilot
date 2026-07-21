@@ -2,6 +2,7 @@ package com.dj1012h.researchpilot.exception;
 
 import com.dj1012h.researchpilot.common.response.ApiErrorResponse;
 import com.dj1012h.researchpilot.integration.openalex.OpenAlexApiException;
+import com.dj1012h.researchpilot.integration.crossref.CrossrefApiException;
 import com.dj1012h.researchpilot.literature.application.SearchPlanGenerationException;
 import jakarta.servlet.http.HttpServletRequest;
 import org.slf4j.Logger;
@@ -180,6 +181,31 @@ public class GlobalExceptionHandler {
                     request,
                     Map.of()
             );
+        };
+    }
+
+    @ExceptionHandler(CrossrefApiException.class)
+    ResponseEntity<ApiErrorResponse> handleCrossref(CrossrefApiException exception,
+                                                     HttpServletRequest request) {
+        return switch (exception.getFailureType()) {
+            case DISABLED, MAILTO_MISSING, USER_AGENT_MISSING -> build(
+                    HttpStatus.SERVICE_UNAVAILABLE, "CROSSREF_NOT_CONFIGURED",
+                    "Crossref 服务未配置或未启用", request, Map.of());
+            case TIMEOUT -> build(HttpStatus.GATEWAY_TIMEOUT, "CROSSREF_TIMEOUT",
+                    "Crossref 响应超时", request, Map.of());
+            case RATE_LIMITED -> build(HttpStatus.SERVICE_UNAVAILABLE, "CROSSREF_RATE_LIMITED",
+                    "Crossref 请求受限，请稍后重试", request, Map.of());
+            case UNAUTHORIZED, FORBIDDEN, CLIENT_ERROR, INVALID_REQUEST -> build(
+                    HttpStatus.BAD_GATEWAY, "CROSSREF_REQUEST_REJECTED",
+                    "Crossref 拒绝了请求", request, Map.of());
+            case SERVER_ERROR, TRANSPORT_ERROR, INTERRUPTED -> build(
+                    HttpStatus.SERVICE_UNAVAILABLE, "CROSSREF_UNAVAILABLE",
+                    "Crossref 服务暂时不可用", request, Map.of());
+            case EMPTY_RESPONSE, INVALID_RESPONSE -> build(
+                    HttpStatus.BAD_GATEWAY, "CROSSREF_INVALID_RESPONSE",
+                    "Crossref 返回了无效响应", request, Map.of());
+            case NOT_FOUND -> build(HttpStatus.BAD_GATEWAY, "CROSSREF_NOT_FOUND",
+                    "Crossref 未找到该记录", request, Map.of());
         };
     }
 

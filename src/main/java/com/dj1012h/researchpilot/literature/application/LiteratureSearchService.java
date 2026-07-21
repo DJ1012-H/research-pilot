@@ -31,17 +31,20 @@ public class LiteratureSearchService {
     private final SearchAgent searchAgent;
     private final OpenAlexQueryFactory queryFactory;
     private final OpenAlexSearchPort openAlexSearchPort;
+    private final CrossrefCandidateLookupService crossrefCandidateLookupService;
     private final Clock clock;
 
     public LiteratureSearchService(
             SearchAgent searchAgent,
             OpenAlexQueryFactory queryFactory,
             OpenAlexSearchPort openAlexSearchPort,
+            CrossrefCandidateLookupService crossrefCandidateLookupService,
             Clock clock
     ) {
         this.searchAgent = searchAgent;
         this.queryFactory = queryFactory;
         this.openAlexSearchPort = openAlexSearchPort;
+        this.crossrefCandidateLookupService = crossrefCandidateLookupService;
         this.clock = clock;
     }
 
@@ -53,6 +56,7 @@ public class LiteratureSearchService {
         SearchPlan plan = searchAgent.createPlan(request);
         OpenAlexQuery query = queryFactory.create(plan);
         OpenAlexSearchResult result = openAlexSearchPort.search(query);
+        CrossrefLookupSummary crossref = crossrefCandidateLookupService.lookup(result.candidates());
 
         int candidateCount = result.candidates().size();
         Instant completedAt = Instant.now(clock);
@@ -65,19 +69,36 @@ public class LiteratureSearchService {
                 0,
                 new SearchResponse.VerificationSummary(0, 0, 0, 0),
                 List.of(),
-                candidateCount == 0
-                        ? "未检索到候选论文"
-                        : "已检索到候选论文，但尚未经过外部核验，当前不返回正式论文",
+                message(candidateCount, crossref),
                 elapsedMs,
                 completedAt
         );
 
         log.info(
-                "event=literature_search_completed taskId={} candidateCount={} formalResultCount=0 elapsedMs={}",
+                "event=literature_search_completed taskId={} candidateCount={} crossrefEligibleCount={} "
+                        + "crossrefAttemptedCount={} crossrefFoundCount={} crossrefNotFoundCount={} "
+                        + "crossrefFailedCount={} crossrefSourceAvailable={} formalResultCount=0 elapsedMs={}",
                 taskId,
                 candidateCount,
+                crossref.doiEligibleCount(),
+                crossref.attemptedCount(),
+                crossref.foundCount(),
+                crossref.notFoundCount(),
+                crossref.failedCount(),
+                crossref.sourceAvailable(),
                 elapsedMs
         );
         return response;
+    }
+
+    private String message(int candidateCount, CrossrefLookupSummary crossref) {
+        if (candidateCount == 0) {
+            return "未检索到候选论文；Crossref 未尝试查询，当前不返回正式论文";
+        }
+        return "已检索到 " + candidateCount + " 篇 OpenAlex 候选论文；Crossref 启用="
+                + crossref.crossrefEnabled() + "，可查询 DOI=" + crossref.doiEligibleCount()
+                + "，尝试=" + crossref.attemptedCount() + "，找到=" + crossref.foundCount()
+                + "，未找到=" + crossref.notFoundCount() + "，失败=" + crossref.failedCount()
+                + "；当前尚未执行字段级核验，且不返回正式论文";
     }
 }

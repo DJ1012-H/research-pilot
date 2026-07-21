@@ -29,10 +29,11 @@ class LiteratureSearchServiceTest {
     private final SearchAgent searchAgent = mock(SearchAgent.class);
     private final OpenAlexQueryFactory queryFactory = mock(OpenAlexQueryFactory.class);
     private final OpenAlexSearchPort openAlexSearchPort = mock(OpenAlexSearchPort.class);
+    private final CrossrefCandidateLookupService crossrefCandidateLookupService = mock(CrossrefCandidateLookupService.class);
     private final Clock clock =
             Clock.fixed(Instant.parse("2026-07-20T08:00:00Z"), ZoneOffset.UTC);
     private final LiteratureSearchService service =
-            new LiteratureSearchService(searchAgent, queryFactory, openAlexSearchPort, clock);
+            new LiteratureSearchService(searchAgent, queryFactory, openAlexSearchPort, crossrefCandidateLookupService, clock);
 
     @Test
     void shouldExecuteOneTrustedOpenAlexSearchWithoutPublishingUnverifiedCandidates() {
@@ -44,6 +45,7 @@ class LiteratureSearchServiceTest {
         when(queryFactory.create(plan)).thenReturn(query);
         when(openAlexSearchPort.search(query))
                 .thenReturn(new OpenAlexSearchResult(42, List.of(candidate), null));
+        when(crossrefCandidateLookupService.lookup(List.of(candidate))).thenReturn(disabledSummary(1));
 
         SearchResponse response = service.search(request);
 
@@ -53,13 +55,14 @@ class LiteratureSearchServiceTest {
         assertThat(response.deduplicatedCount()).isZero();
         assertThat(response.verificationSummary().totalCount()).isZero();
         assertThat(response.papers()).isEmpty();
-        assertThat(response.message()).contains("尚未经过外部核验");
+        assertThat(response.message()).contains("尚未执行字段级核验");
         assertThat(response.elapsedMs()).isZero();
         assertThat(response.completedAt()).isEqualTo(Instant.parse("2026-07-20T08:00:00Z"));
         assertThat(response.taskId()).isNotNull();
         verify(searchAgent).createPlan(request);
         verify(queryFactory).create(plan);
         verify(openAlexSearchPort).search(query);
+        verify(crossrefCandidateLookupService).lookup(List.of(candidate));
         verifyNoMoreInteractions(openAlexSearchPort);
     }
 
@@ -72,12 +75,17 @@ class LiteratureSearchServiceTest {
         when(queryFactory.create(plan)).thenReturn(query);
         when(openAlexSearchPort.search(query))
                 .thenReturn(new OpenAlexSearchResult(0, List.of(), null));
+        when(crossrefCandidateLookupService.lookup(List.of())).thenReturn(disabledSummary(0));
 
         SearchResponse response = service.search(request);
 
         assertThat(response.candidateCount()).isZero();
         assertThat(response.papers()).isEmpty();
-        assertThat(response.message()).isEqualTo("未检索到候选论文");
+        assertThat(response.message()).contains("未检索到候选论文");
+    }
+
+    private CrossrefLookupSummary disabledSummary(int eligible) {
+        return new CrossrefLookupSummary(eligible, 0, 0, 0, 0, 0, false, false, List.of());
     }
 
     private SearchPlan plan(SearchRequest request) {

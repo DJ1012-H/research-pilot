@@ -336,3 +336,15 @@ flowchart TD
 | 07-25 | Controller、完整编排服务、响应组装和集成测试 |
 
 第三阶段的 RAG 只读取已核验并入库的论文，使用 `PaperDTO` 已冻结的标题、摘要、关键词和期刊信息。现有 `/api/chat` 后续迁移为基于这些已核验论文的 RAG 问答入口。
+
+## 11. 2026-07-21 Crossref 候选元数据查询边界
+
+当前运行时链路为：`SearchRequest → SearchAgent → SearchPlan → OpenAlex → CandidatePaper → CrossrefCandidateLookupService → SearchResponse`。
+
+- `CrossrefClient` 只负责 HTTP、状态分类、受控重试和外部 DTO 反序列化；使用 URI Builder 构造 DOI 路径，不记录完整 URL、邮箱、Token 或原始响应。
+- `CrossrefSearchAdapter` 将 404 变为内部 `NOT_FOUND`，其余失败原样传播；只映射书目信息，不比较字段，也不产生核验结论。
+- `CrossrefCandidateLookupService` 保持 OpenAlex 候选顺序，对非空 DOI 稳定去重，按 `max-crossref-lookups-per-request`（1～5）顺序查询。限流、5xx、超时或传输失败会停止后续查询并保留已获得的元数据。
+- `CrossrefRequestGate` 使用公平 `Semaphore` 约束单进程并发，并实施本地请求速率；`Retry-After` 优先于封顶的指数退避。禁用、缺少 `mailto` 或 `User-Agent` 不会发出 HTTP 请求。
+- Crossref 找到记录不表示论文已 `VERIFIED`。`SearchResponse` 固定保持 `NO_VERIFIED_RESULTS`、`deduplicatedCount=0`、零核验统计与空 `papers`；消息和脱敏日志只呈现候选/查询计数。
+
+本阶段明确未实现 DOI 规范化、标题回退、字段级比较、`VerificationResult`、论文去重、持久化或异步任务。

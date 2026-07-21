@@ -7,8 +7,9 @@ ResearchPilot 是一个基于 Java、Spring Boot、LangChain4j 与 RAG 的学术
 第二阶段已完成文献检索数据流、接口契约和五个核心数据结构的冻结。原计划
 2026-07-20 完成的 OpenAlex 候选论文检索模块已于 2026-07-19 提前完成；
 原计划 2026-07-21 完成的 Search Agent 查询规划已于 2026-07-20 提前一天
-完成。本次同时落地公共模型调用器、五层可信校验管线、OpenAlex 语言与排序
-增强以及单数据源运行时编排；Crossref、去重、核验和持久化仍按后续计划开发。
+完成。2026-07-21 原计划中“后续接入 Crossref”的内容已调整为先完成
+Crossref DOI 精确查询基础、访问治理与候选编排：包含默认关闭配置、限流、
+重试、受控错误和内部元数据摘要；字段级核验、去重与持久化仍按后续计划开发。
 
 ## 当前进度
 
@@ -19,7 +20,8 @@ ResearchPilot 是一个基于 Java、Spring Boot、LangChain4j 与 RAG 的学术
 - [x] OpenAlex 候选论文检索模块
 - [x] Search Agent 查询规划与最多一次结构化输出修正
 - [x] JSON 语法、Schema、DTO、业务规则和安全规则五层校验
-- [ ] Crossref 元数据核验
+- [x] Crossref DOI 精确元数据查询、访问治理与候选编排（不等于核验通过）
+- [ ] Crossref 字段级元数据核验与 VERIFIED 准入
 - [ ] DOI/标题去重与可信度评分
 - [ ] MySQL 检索任务、论文和核验记录持久化
 
@@ -59,7 +61,9 @@ src/main/java/com/dj1012h/researchpilot
 │   │   ├── LlmQueryPlanner.java
 │   │   ├── SearchPlanPromptBuilder.java
 │   │   ├── SearchPlanDraft.java
-│   │   └── OpenAlexQueryFactory.java
+│   │   ├── OpenAlexQueryFactory.java
+│   │   ├── CrossrefCandidateLookupService.java
+│   │   └── CrossrefLookupSummary.java
 │   ├── validation
 │   │   ├── JsonSyntaxValidator.java
 │   │   ├── SearchPlanSchemaValidator.java
@@ -82,6 +86,12 @@ src/main/java/com/dj1012h/researchpilot
 │       ├── OpenAlexPaperMapper.java
 │       ├── OpenAlexSearchAdapter.java
 │       └── OpenAlexSearchPort.java
+│   └── crossref
+│       ├── dto
+│       ├── CrossrefClient.java
+│       ├── CrossrefRequestGate.java
+│       ├── CrossrefRetryPolicy.java
+│       └── CrossrefSearchAdapter.java
 ├── common
 │   ├── ai
 │   │   └── ModelInvoker.java
@@ -182,7 +192,8 @@ powershell.exe -NoProfile -ExecutionPolicy Bypass `
 - 搜索成功但零篇通过核验时，返回 HTTP 200、`NO_VERIFIED_RESULTS` 和空列表。
 - `PaperDTO` 与 `VerificationResult` 分离，外部 API DTO 和数据库 Entity 不得替代核心契约。
 
-当前自动测试共 164 个，包含架构约束、Search Agent、五层校验、OpenAlex 和真实 Spring MVC 序列化测试。
+当前自动测试共 184 个（默认关闭的真实 Crossref 冒烟测试除外），包含架构约束、
+Search Agent、五层校验、OpenAlex、Crossref、候选编排和真实 Spring MVC 序列化测试。
 
 ## OpenAlex 候选检索
 
@@ -247,8 +258,31 @@ SearchRequest
   严格 DTO 映射，也确保 `Instant` 类型能够正常写入 HTTP JSON。
 
 当前运行时链路能够接收 `POST /api/literature/search`，生成可信计划并执行一次
-OpenAlex 候选检索。Crossref 核验尚未实现，因此候选只参与统计，不会作为已核验
-正式论文返回；成功但没有正式结果时返回 `NO_VERIFIED_RESULTS`。
+OpenAlex 候选检索；带 DOI 的候选会在 Crossref 启用时按配置预算顺序进行精确
+书目查询。Crossref 找到记录不等于核验通过，因此候选和 Crossref 元数据只参与
+内部统计，不会作为已核验正式论文返回；成功但没有正式结果时返回
+`NO_VERIFIED_RESULTS`。
+
+## Crossref 候选元数据查询
+
+原计划调整日期：2026-07-21
+
+Crossref 默认关闭。启用时必须通过外部环境配置 `CROSSREF_MAILTO` 与
+`CROSSREF_USER_AGENT`；可选的 `CROSSREF_PLUS_TOKEN` 不会写入日志或仓库。
+客户端使用 DOI 精确查询、URI Builder、受控状态映射、公平并发限制、本地速率
+限制，以及 `Retry-After` 优先的有限指数退避。429、5xx、超时和传输错误才会
+重试；404 作为未找到继续处理下一个 DOI。
+
+~~~powershell
+$env:CROSSREF_ENABLED = "true"
+$env:CROSSREF_MAILTO = "your-email@example.com"
+$env:CROSSREF_USER_AGENT = "ResearchPilot/0.1"
+$env:LITERATURE_MAX_CROSSREF_LOOKUPS = "5"
+~~~
+
+一次检索最多查询 5 个稳定去重后的非空 DOI。来源不可用时停止后续 Crossref
+查询并保留已有元数据。当前不执行 DOI 规范化、标题回退、字段比较或 VERIFIED
+准入；`papers` 必须保持为空。
 
 ## 第一阶段验收记录
 
@@ -273,8 +307,8 @@ OpenAlex 候选检索。Crossref 核验尚未实现，因此候选只参与统�
 
 当前尚未实现：
 
-- Crossref 外部调用
-- 候选标准化去重、元数据核验和最终可信排序
+- DOI 规范化、标题回退、字段级 Crossref 核验和 VERIFIED 准入
+- 候选标准化去重和最终可信排序
 - 检索任务、论文和核验记录入库
 - Embedding
 - Qdrant 接入

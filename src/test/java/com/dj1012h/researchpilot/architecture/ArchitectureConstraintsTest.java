@@ -63,6 +63,12 @@ class ArchitectureConstraintsTest {
         assertThat(source(BASE.resolve(Path.of(
                 "literature", "api", "LiteratureSearchController.java"
         )))).doesNotContain("OpenAlex");
+        assertThat(source(BASE.resolve(Path.of(
+                "literature", "application", "SearchAgent.java"
+        )))).doesNotContain("Crossref");
+        assertThat(source(BASE.resolve(Path.of(
+                "literature", "api", "LiteratureSearchController.java"
+        )))).doesNotContain("Crossref");
     }
 
     @Test
@@ -99,6 +105,19 @@ class ArchitectureConstraintsTest {
                 .doesNotContain("Repository")
                 .doesNotContain("MyBatis")
                 .doesNotContain("Persistence");
+    }
+
+    @Test
+    void searchServiceMustUseCandidateLookupBoundaryInsteadOfCrossrefClientOrExternalDtos() throws IOException {
+        String service = source(BASE.resolve(Path.of(
+                "literature", "application", "LiteratureSearchService.java"
+        )));
+        String application = sourceTree(BASE.resolve(Path.of("literature", "application")));
+
+        assertThat(service)
+                .contains("CrossrefCandidateLookupService")
+                .doesNotContain("CrossrefClient");
+        assertThat(application).doesNotContain("integration.crossref.dto");
     }
 
     private Stream<Path> productionJavaFiles() throws IOException {

@@ -11,6 +11,7 @@ public class LiteratureSearchProperties {
     private int maxResultLimit = 50;
     private int candidateMultiplier = 3;
     private int maxCandidateLimit = 100;
+    private int maxCrossrefLookupsPerRequest = 5;
     private int earliestSupportedYear = 1900;
 
     public int getDefaultResultLimit() {
@@ -43,6 +44,17 @@ public class LiteratureSearchProperties {
 
     public void setMaxCandidateLimit(int maxCandidateLimit) {
         this.maxCandidateLimit = maxCandidateLimit;
+    }
+
+    public int getMaxCrossrefLookupsPerRequest() {
+        return maxCrossrefLookupsPerRequest;
+    }
+
+    public void setMaxCrossrefLookupsPerRequest(int maxCrossrefLookupsPerRequest) {
+        if (maxCrossrefLookupsPerRequest < 1 || maxCrossrefLookupsPerRequest > 5) {
+            throw new IllegalArgumentException("max-crossref-lookups-per-request 必须在 1 到 5 之间");
+        }
+        this.maxCrossrefLookupsPerRequest = maxCrossrefLookupsPerRequest;
     }
 
     public int getEarliestSupportedYear() {
