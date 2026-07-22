@@ -1,7 +1,10 @@
 package com.dj1012h.researchpilot.integration.crossref;
 
 import com.dj1012h.researchpilot.integration.crossref.dto.CrossrefWorkResponse;
+import com.dj1012h.researchpilot.literature.normalization.DoiNormalizer;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
@@ -23,6 +26,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.client.match.MockRestRequestMatchers.header;
 import static org.springframework.test.web.client.match.MockRestRequestMatchers.requestTo;
@@ -34,15 +38,20 @@ class CrossrefClientTest {
     private static final String BASE_URL = "https://crossref.test";
     private static final String MAILTO = "test@example.com";
 
-    @Test
-    void shouldBuildEncodedDoiRequestAndMapMinimumResponse() {
+    @ParameterizedTest
+    @ValueSource(strings = {
+            "10.1000/EXAMPLE",
+            " DOI: 10.1000/EXAMPLE ",
+            "https://dx.doi.org/10.1000/EXAMPLE"
+    })
+    void shouldNormalizeAndBuildEncodedDoiRequest(String rawDoi) {
         Fixture fixture = fixture(enabledProperties());
         fixture.server.expect(requestTo(BASE_URL + "/works/10.1000%2Fexample?mailto=test@example.com"))
                 .andExpect(header(HttpHeaders.USER_AGENT, "ResearchPilot-test"))
                 .andExpect(header("Crossref-Plus-API-Token", "Bearer fake-token"))
                 .andRespond(withSuccess(okJson(), MediaType.APPLICATION_JSON));
 
-        CrossrefWorkResponse response = fixture.client.getWorkByDoi("10.1000/example");
+        CrossrefWorkResponse response = fixture.client.getWorkByDoi(rawDoi);
 
         assertThat(response.message().doi()).isEqualTo("10.1000/example");
         fixture.server.verify();
@@ -53,6 +62,7 @@ class CrossrefClientTest {
         assertStatus(HttpStatus.UNAUTHORIZED, CrossrefFailureType.UNAUTHORIZED);
         assertStatus(HttpStatus.FORBIDDEN, CrossrefFailureType.FORBIDDEN);
         assertStatus(HttpStatus.NOT_FOUND, CrossrefFailureType.NOT_FOUND);
+        assertStatus(HttpStatus.FOUND, CrossrefFailureType.INVALID_RESPONSE);
         assertStatus(HttpStatus.BAD_REQUEST, CrossrefFailureType.CLIENT_ERROR);
         assertStatus(HttpStatus.SERVICE_UNAVAILABLE, CrossrefFailureType.SERVER_ERROR);
 
@@ -61,6 +71,18 @@ class CrossrefClientTest {
                 .andRespond(withSuccess("{not-json}", MediaType.APPLICATION_JSON));
         assertFailure(invalid.client, CrossrefFailureType.INVALID_RESPONSE);
         invalid.server.verify();
+
+        Fixture empty = fixture(enabledProperties());
+        empty.server.expect(requestTo(BASE_URL + "/works/10.1000%2Fexample?mailto=test@example.com"))
+                .andRespond(withSuccess("", MediaType.APPLICATION_JSON));
+        assertFailure(empty.client, CrossrefFailureType.EMPTY_RESPONSE);
+        empty.server.verify();
+
+        Fixture invalidStructure = fixture(enabledProperties());
+        invalidStructure.server.expect(requestTo(BASE_URL + "/works/10.1000%2Fexample?mailto=test@example.com"))
+                .andRespond(withSuccess("{\"status\":\"ok\",\"message\":{}}", MediaType.APPLICATION_JSON));
+        assertFailure(invalidStructure.client, CrossrefFailureType.INVALID_RESPONSE);
+        invalidStructure.server.verify();
     }
 
     @Test
@@ -84,13 +106,31 @@ class CrossrefClientTest {
     void shouldRejectDisabledAndMissingConfigurationBeforeHttp() {
         CrossrefProperties disabled = enabledProperties();
         disabled.setEnabled(false);
-        assertFailure(fixture(disabled).client, CrossrefFailureType.DISABLED);
+        assertFailure(fixture(disabled).client, "not-a-doi", CrossrefFailureType.DISABLED);
         CrossrefProperties missingMailto = enabledProperties();
         missingMailto.setMailto(" ");
-        assertFailure(fixture(missingMailto).client, CrossrefFailureType.MAILTO_MISSING);
+        assertFailure(fixture(missingMailto).client, "not-a-doi", CrossrefFailureType.MAILTO_MISSING);
         CrossrefProperties missingAgent = enabledProperties();
         missingAgent.setUserAgent(" ");
-        assertFailure(fixture(missingAgent).client, CrossrefFailureType.USER_AGENT_MISSING);
+        assertFailure(fixture(missingAgent).client, "not-a-doi", CrossrefFailureType.USER_AGENT_MISSING);
+    }
+
+    @Test
+    void shouldRejectInvalidDoiBeforeRequestGateOrRetryPolicy() {
+        CrossrefProperties properties = enabledProperties();
+        CrossrefRequestGate requestGate = mock(CrossrefRequestGate.class);
+        CrossrefRetryPolicy retryPolicy = mock(CrossrefRetryPolicy.class);
+        CrossrefClient client = new CrossrefClient(
+                RestClient.builder().baseUrl(BASE_URL).build(),
+                properties,
+                requestGate,
+                retryPolicy,
+                new DoiNormalizer()
+        );
+
+        assertFailure(client, "10.abc/has space", CrossrefFailureType.INVALID_REQUEST);
+
+        verifyNoInteractions(requestGate, retryPolicy);
     }
 
     @Test
@@ -119,7 +159,11 @@ class CrossrefClientTest {
     }
 
     private void assertFailure(CrossrefClient client, CrossrefFailureType expected) {
-        assertThatThrownBy(() -> client.getWorkByDoi("10.1000/example"))
+        assertFailure(client, "10.1000/example", expected);
+    }
+
+    private void assertFailure(CrossrefClient client, String doi, CrossrefFailureType expected) {
+        assertThatThrownBy(() -> client.getWorkByDoi(doi))
                 .isInstanceOfSatisfying(CrossrefApiException.class,
                         exception -> assertThat(exception.getFailureType()).isEqualTo(expected));
     }
@@ -136,7 +180,7 @@ class CrossrefClientTest {
         CrossrefRequestGate gate = new CrossrefRequestGate(properties,
                 Clock.fixed(Instant.parse("2026-07-21T00:00:00Z"), ZoneOffset.UTC), duration -> { });
         return new CrossrefClient(restClient, properties, gate,
-                new CrossrefRetryPolicy(properties, waits::add));
+                new CrossrefRetryPolicy(properties, waits::add), new DoiNormalizer());
     }
 
     private CrossrefProperties enabledProperties() {

@@ -5,13 +5,13 @@ import com.dj1012h.researchpilot.integration.openalex.dto.OpenAlexLocationDTO;
 import com.dj1012h.researchpilot.integration.openalex.dto.OpenAlexWorkDTO;
 import com.dj1012h.researchpilot.integration.openalex.dto.OpenAlexWorksResponse;
 import com.dj1012h.researchpilot.literature.model.CandidatePaper;
+import com.dj1012h.researchpilot.literature.normalization.DoiNormalizer;
 import org.springframework.stereotype.Component;
 
 import java.time.LocalDate;
 import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Locale;
 import java.util.Map;
 import java.util.TreeMap;
 import java.util.regex.Pattern;
@@ -22,10 +22,14 @@ public class OpenAlexPaperMapper {
     private static final Pattern WHITESPACE = Pattern.compile("\\s+");
     private static final Pattern OPENALEX_PREFIX =
             Pattern.compile("(?i)^https?://openalex\\.org/");
-    private static final Pattern DOI_PREFIX =
-            Pattern.compile("(?i)^(?:https?://(?:dx\\.)?doi\\.org/|doi:\\s*)");
     private static final Pattern ORCID_PREFIX =
             Pattern.compile("(?i)^https?://orcid\\.org/");
+
+    private final DoiNormalizer doiNormalizer;
+
+    public OpenAlexPaperMapper(DoiNormalizer doiNormalizer) {
+        this.doiNormalizer = doiNormalizer;
+    }
 
     public List<CandidatePaper> map(OpenAlexWorksResponse response) {
         if (response == null || response.results() == null) {
@@ -38,6 +42,7 @@ public class OpenAlexPaperMapper {
     }
 
     public CandidatePaper map(OpenAlexWorkDTO work) {
+        String normalizedDoi = doiNormalizer.normalize(work.doi());
         LocalDate publicationDate = parseDate(work.publicationDate());
         Integer publicationYear = work.publicationYear() != null
                 ? work.publicationYear()
@@ -48,7 +53,7 @@ public class OpenAlexPaperMapper {
         String landingPageUrl = firstNonBlank(
                 locationLandingPage(preferredLocation),
                 locationLandingPage(fallbackLocation),
-                doiLandingPage(work.doi())
+                doiLandingPage(normalizedDoi)
         );
         String pdfUrl = firstNonBlank(
                 locationPdf(preferredLocation),
@@ -58,7 +63,7 @@ public class OpenAlexPaperMapper {
         return new CandidatePaper(
                 //返回candidatepaper列表
                 normalizeIdentifier(work.id(), OPENALEX_PREFIX),
-                normalizeDoi(work.doi()),
+                normalizedDoi,
                 normalizeWhitespace(work.title()),
                 mapAuthors(work.authorships()),
                 sourceName(work.primaryLocation(), work.bestOpenAccessLocation()),
@@ -147,14 +152,8 @@ public class OpenAlexPaperMapper {
         return location == null ? null : location.pdfUrl();
     }
 
-    private String doiLandingPage(String doi) {
-        String normalizedDoi = normalizeDoi(doi);
+    private String doiLandingPage(String normalizedDoi) {
         return normalizedDoi == null ? null : "https://doi.org/" + normalizedDoi;
-    }
-
-    private String normalizeDoi(String doi) {
-        String normalized = normalizeIdentifier(doi, DOI_PREFIX);
-        return normalized == null ? null : normalized.toLowerCase(Locale.ROOT);
     }
 
     private String normalizeIdentifier(String value, Pattern prefix) {

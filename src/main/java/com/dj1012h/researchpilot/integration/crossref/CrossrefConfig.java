@@ -6,6 +6,8 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.http.client.SimpleClientHttpRequestFactory;
 import org.springframework.web.client.RestClient;
 
+import java.io.IOException;
+import java.net.HttpURLConnection;
 import java.time.Duration;
 
 @Configuration(proxyBeanMethods = false)
@@ -15,7 +17,13 @@ public class CrossrefConfig {
     @Bean
     RestClient crossrefRestClient(RestClient.Builder builder, CrossrefProperties properties) {
         validate(properties);
-        SimpleClientHttpRequestFactory requestFactory = new SimpleClientHttpRequestFactory();
+        SimpleClientHttpRequestFactory requestFactory = new SimpleClientHttpRequestFactory() {
+            @Override
+            protected void prepareConnection(HttpURLConnection connection, String httpMethod) throws IOException {
+                super.prepareConnection(connection, httpMethod);
+                connection.setInstanceFollowRedirects(false);
+            }
+        };
         requestFactory.setConnectTimeout(properties.getConnectTimeout());
         requestFactory.setReadTimeout(properties.getReadTimeout());
         return builder.baseUrl(properties.getBaseUrl().trim()).requestFactory(requestFactory).build();

@@ -4,6 +4,7 @@ import com.dj1012h.researchpilot.integration.crossref.dto.CrossrefAuthor;
 import com.dj1012h.researchpilot.integration.crossref.dto.CrossrefDate;
 import com.dj1012h.researchpilot.integration.crossref.dto.CrossrefWorkMessage;
 import com.dj1012h.researchpilot.integration.crossref.dto.CrossrefWorkResponse;
+import com.dj1012h.researchpilot.literature.normalization.DoiNormalizer;
 import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
 
@@ -15,8 +16,12 @@ import java.util.List;
 public class CrossrefSearchAdapter implements CrossrefSearchPort {
 
     private final CrossrefClient client;
+    private final DoiNormalizer doiNormalizer;
 
-    public CrossrefSearchAdapter(CrossrefClient client) { this.client = client; }
+    public CrossrefSearchAdapter(CrossrefClient client, DoiNormalizer doiNormalizer) {
+        this.client = client;
+        this.doiNormalizer = doiNormalizer;
+    }
 
     @Override
     public CrossrefLookupResult findByDoi(String doi) {
@@ -31,8 +36,15 @@ public class CrossrefSearchAdapter implements CrossrefSearchPort {
     }
 
     private CrossrefWorkMetadata map(CrossrefWorkMessage message) {
+        String normalizedDoi = doiNormalizer.normalize(message.doi());
+        if (normalizedDoi == null) {
+            throw new CrossrefApiException(
+                    CrossrefFailureType.INVALID_RESPONSE,
+                    "Crossref 响应包含无效 DOI"
+            );
+        }
         return new CrossrefWorkMetadata(
-                message.doi().trim(),
+                normalizedDoi,
                 firstText(message.title()),
                 authorNames(message.author()),
                 publicationYear(message),

@@ -1,5 +1,6 @@
 package com.dj1012h.researchpilot.integration.crossref;
 
+import com.dj1012h.researchpilot.literature.normalization.DoiNormalizer;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.condition.EnabledIfEnvironmentVariable;
 import org.springframework.web.client.RestClient;
@@ -21,9 +22,10 @@ class CrossrefRealApiSmokeTest {
         properties.setPlusToken(System.getenv("CROSSREF_PLUS_TOKEN"));
         CrossrefConfig.validate(properties);
         CrossrefRequestGate gate = new CrossrefRequestGate(properties);
+        DoiNormalizer doiNormalizer = new DoiNormalizer();
         CrossrefClient client = new CrossrefClient(RestClient.builder().baseUrl(properties.getBaseUrl()).build(),
-                properties, gate, new CrossrefRetryPolicy(properties));
-        CrossrefSearchAdapter adapter = new CrossrefSearchAdapter(client);
+                properties, gate, new CrossrefRetryPolicy(properties), doiNormalizer);
+        CrossrefSearchAdapter adapter = new CrossrefSearchAdapter(client, doiNormalizer);
 
         CrossrefLookupResult result = adapter.findByDoi("10.1038/s41586-021-03819-2");
 

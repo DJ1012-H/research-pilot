@@ -5,6 +5,7 @@ import com.dj1012h.researchpilot.integration.openalex.dto.OpenAlexLocationDTO;
 import com.dj1012h.researchpilot.integration.openalex.dto.OpenAlexWorkDTO;
 import com.dj1012h.researchpilot.integration.openalex.dto.OpenAlexWorksResponse;
 import com.dj1012h.researchpilot.literature.model.CandidatePaper;
+import com.dj1012h.researchpilot.literature.normalization.DoiNormalizer;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.Test;
 
@@ -15,10 +16,13 @@ import java.util.List;
 import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
 class OpenAlexPaperMapperTest {
 
-    private final OpenAlexPaperMapper mapper = new OpenAlexPaperMapper();
+    private final OpenAlexPaperMapper mapper = new OpenAlexPaperMapper(new DoiNormalizer());
 
     @Test
     void shouldMapNormalPaperAndPreferBestOpenAccessLocation() throws IOException {
@@ -56,6 +60,36 @@ class OpenAlexPaperMapperTest {
 
         assertThat(paper.doi()).isNull();
         assertThat(paper.landingPageUrl()).isNull();
+    }
+
+    @Test
+    void shouldUseSharedDoiNormalizationForDoiAndFallbackLandingPage() {
+        CandidatePaper paper = mapper.map(work(
+                "DOI: 10.1038/S41586-021-03819-2。", List.of(), null, null, null
+        ));
+
+        assertThat(paper.doi()).isEqualTo("10.1038/s41586-021-03819-2");
+        assertThat(paper.landingPageUrl())
+                .isEqualTo("https://doi.org/10.1038/s41586-021-03819-2");
+    }
+
+    @Test
+    void shouldMapInvalidDoiToNullWithoutFailingTheWork() {
+        CandidatePaper paper = mapper.map(work("10.abc/example", List.of(), null, null, null));
+
+        assertThat(paper.doi()).isNull();
+        assertThat(paper.landingPageUrl()).isNull();
+    }
+
+    @Test
+    void shouldNormalizeDoiOnlyOncePerWork() {
+        DoiNormalizer normalizer = mock(DoiNormalizer.class);
+        when(normalizer.normalize("raw-doi")).thenReturn("10.1000/example");
+        OpenAlexPaperMapper mapperWithMock = new OpenAlexPaperMapper(normalizer);
+
+        mapperWithMock.map(work("raw-doi", List.of(), null, null, null));
+
+        verify(normalizer).normalize("raw-doi");
     }
 
     @Test

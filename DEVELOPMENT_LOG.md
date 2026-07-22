@@ -942,3 +942,49 @@ Spring Boot 的条件装配回退，使它成为 MVC 使用的全局 Mapper；�
 - Crossref 与检索链定向回归：通过。
 - `mvn test`：184 通过、0 失败、0 错误、1 跳过（默认关闭的真实 Crossref 冒烟测试）。
 - `mvn clean verify`：184 通过、0 失败、0 错误、1 跳过，并成功重新打包 JAR。
+
+## 2026-07-22｜共享 DOI 规范化与 Crossref 精确查询收敛
+
+### 当日目标
+
+- 提取共享 `DoiNormalizer`，让 OpenAlex 映射、Crossref 请求和 Crossref 响应采用同一规范化入口。
+- 在不扩展到标题回退或字段级核验的前提下，收紧非法 DOI 与非预期 HTTP 响应边界。
+
+### 实际实现
+
+- 新增共享 DOI 规范化组件：支持原始 DOI、`doi:`、`doi.org`、`dx.doi.org`、HTTP/HTTPS、大小写和外层空白。
+- 对明确的外层中文句号、逗号、分号、引号与未匹配右括号进行有限清理；保留 DOI 后缀内部合法标点，不使用粗暴的尾部标点删除。
+- OpenAlex 每个 Work 只计算一次规范化 DOI，`CandidatePaper.doi` 与 DOI 回退 Landing Page 使用同一结果；缺失或非法 DOI 保持为 `null`。
+- Crossref 保持配置错误优先级，在请求门控、重试与 HTTP 调用前规范化并校验 DOI；重试循环只使用规范化值，路径继续由 URI Builder 安全编码。
+- Crossref 专用 HTTP Client 禁止自动跟随重定向，非预期 3xx 复用 `INVALID_RESPONSE`，不会伪装成 404 或触发无边界重试。
+- Crossref 响应 DOI 在 Adapter 边界通过同一 Normalizer；无效响应 DOI 转换为 `INVALID_RESPONSE`，不进入 `CrossrefWorkMetadata`。
+- 建立 `eval/crossref-verification-v1` 离线评测数据集骨架，固定案例 Schema、来源 provenance、父子 lineage、DOI 规范化变异和元数据扰动清单。
+- 种子集保持为空，等待人工批准且可追踪的候选与 Crossref 快照；不以虚构书目数据填充 ground truth。
+
+### 主要代码与测试变更
+
+- 新增 `DoiNormalizer` 与参数化测试，覆盖常见包装形式、非法输入、中文外层标点、未匹配右括号和平衡括号保留。
+- 更新 `OpenAlexPaperMapper`、`CrossrefClient`、`CrossrefConfig`、`CrossrefSearchAdapter` 的构造器注入和行为测试。
+- 修正旧测试中的 `10/example`、`10/missing` 为具备基本 DOI 结构的 `10.1000/example`、`10.1000/missing`。
+- 增加请求前拦截、门控/重试零交互、3xx、空体、非法结构、响应 DOI 规范化与受控异常不伪装为未找到的回归测试。
+- 新增评测数据集结构测试，校验 JSON Schema、fixture 引用、SHA-256、评审状态与变异谱系约束。
+
+### 验证结果
+
+- DOI、Crossref 与评测结构定向测试：50 通过、0 失败、0 错误、0 跳过。
+- Crossref 与检索链定向回归：31 通过、0 失败、0 错误、1 跳过。
+- `mvn test`：218 通过、0 失败、0 错误、1 跳过。
+- `mvn clean verify` 最终：218 通过、0 失败、0 错误、1 跳过，并成功重新打包 JAR。
+- 真实 Crossref 冒烟测试未执行；环境开关未启用，测试按设计跳过。
+
+### 范围边界与技术决策
+
+- DOI 语法规范化只证明输入可安全识别，不证明 DOI 已注册或论文已通过核验。
+- Crossref lookup `FOUND` 不等于 `VerificationResult.VERIFIED`，本次修改不向 `SearchResponse.papers` 写入正式论文。
+- 评测目录只是离线数据结构骨架，尚未实现 benchmark runner、字段核验器或在线数据采集，不覆盖 HTTP、重试、预算和编排行为。
+- 今日未实现标题回退、歧义候选表示、字段级核验、正式论文准入、候选去重、可信度评分、持久化、缓存、Agent 状态机或 RAG。
+- 复用既有 `INVALID_RESPONSE`，避免为 3xx 或非法响应 DOI 增加不必要的失败类型；仅修改 Crossref 专用重定向策略，不影响其他集成。
+
+### 下一步
+
+- 2026-07-23：实现 Crossref 标题回退查询与歧义候选表示；仍不得把 `FOUND` 自动升级为 `VERIFIED`。

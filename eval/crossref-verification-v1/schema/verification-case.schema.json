@@ -1,0 +1,103 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "verification-case.schema.json",
+  "title": "Crossref Verification Case v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "case_id", "task_type", "input", "expected", "provenance", "lineage", "tags", "notes"],
+  "properties": {
+    "schema_version": {"const": "crossref-verification-v1"},
+    "case_id": {"type": "string", "pattern": "^crv1-draft-[0-9]{4}$"},
+    "task_type": {"const": "BIBLIOGRAPHIC_VERIFICATION"},
+    "input": {"$ref": "#/$defs/input"},
+    "expected": {"$ref": "#/$defs/expected"},
+    "provenance": {"$ref": "https://researchpilot.local/crossref-verification-v1/source-provenance.schema.json#/$defs/provenance"},
+    "lineage": {"$ref": "#/$defs/lineage"},
+    "tags": {"type": "array", "items": {"type": "string", "minLength": 1}, "uniqueItems": true},
+    "notes": {"type": ["string", "null"]}
+  },
+  "allOf": [
+    {
+      "if": {"properties": {"expected": {"properties": {"review_state": {"const": "REVIEWED"}}}}},
+      "then": {
+        "properties": {
+          "expected": {
+            "properties": {
+              "verification_status": {"type": "string"},
+              "formal_result_eligible": {"type": "boolean"},
+              "rationale": {"type": "string", "minLength": 1}
+            }
+          },
+          "provenance": {
+            "properties": {"review": {"type": "object"}}
+          }
+        }
+      },
+      "else": {
+        "properties": {
+          "expected": {
+            "properties": {
+              "verification_status": {"type": "null"},
+              "formal_result_eligible": {"type": "null"}
+            }
+          },
+          "provenance": {"properties": {"review": {"type": "null"}}}
+        }
+      }
+    }
+  ],
+  "$defs": {
+    "input": {
+      "type": "object", "additionalProperties": false, "required": ["candidate", "reference"],
+      "properties": {"candidate": {"$ref": "#/$defs/candidate"}, "reference": {"$ref": "#/$defs/reference"}}
+    },
+    "candidate": {
+      "type": "object", "additionalProperties": false,
+      "required": ["openalex_id", "doi", "title", "authors", "publication_year", "venue", "work_type"],
+      "properties": {
+        "openalex_id": {"type": ["string", "null"]}, "doi": {"type": ["string", "null"]}, "title": {"type": ["string", "null"]},
+        "authors": {"type": "array", "items": {"$ref": "#/$defs/candidate_author"}},
+        "publication_year": {"type": ["integer", "null"]}, "venue": {"type": ["string", "null"]}, "work_type": {"type": ["string", "null"]}
+      }
+    },
+    "candidate_author": {
+      "type": "object", "additionalProperties": false, "required": ["display_name", "orcid"],
+      "properties": {"display_name": {"type": "string", "minLength": 1}, "orcid": {"type": ["string", "null"]}}
+    },
+    "reference": {
+      "type": "object", "additionalProperties": false,
+      "required": ["source", "doi", "title", "authors", "publication_year", "venue", "work_type", "publisher"],
+      "properties": {
+        "source": {"const": "CROSSREF"}, "doi": {"type": "string", "minLength": 1}, "title": {"type": ["string", "null"]},
+        "authors": {"type": "array", "items": {"type": "string", "minLength": 1}}, "publication_year": {"type": ["integer", "null"]},
+        "venue": {"type": ["string", "null"]}, "work_type": {"type": ["string", "null"]}, "publisher": {"type": ["string", "null"]}
+      }
+    },
+    "expected": {
+      "type": "object", "additionalProperties": false,
+      "required": ["review_state", "verification_status", "formal_result_eligible", "evidence_score_range", "field_results", "rationale"],
+      "properties": {
+        "review_state": {"enum": ["NEEDS_REVIEW", "REVIEWED"]},
+        "verification_status": {"type": ["string", "null"], "enum": ["VERIFIED", "PARTIALLY_VERIFIED", "CONFLICTED", "NOT_FOUND", "SOURCE_UNAVAILABLE", "REJECTED", null]},
+        "formal_result_eligible": {"type": ["boolean", "null"]},
+        "evidence_score_range": {"$ref": "#/$defs/evidence_score_range"},
+        "field_results": {"type": "object", "additionalProperties": false, "required": ["doi", "title", "first_author", "publication_year", "venue"],
+          "properties": {"doi": {"$ref": "#/$defs/field_result"}, "title": {"$ref": "#/$defs/field_result"}, "first_author": {"$ref": "#/$defs/field_result"}, "publication_year": {"$ref": "#/$defs/field_result"}, "venue": {"$ref": "#/$defs/field_result"}}},
+        "rationale": {"type": ["string", "null"]}
+      }
+    },
+    "evidence_score_range": {
+      "type": "object", "additionalProperties": false, "required": ["min", "max"],
+      "properties": {"min": {"type": "number", "minimum": 0, "maximum": 1}, "max": {"type": "number", "minimum": 0, "maximum": 1}}
+    },
+    "field_result": {
+      "type": "object", "additionalProperties": false, "required": ["status", "oracle", "rule_id", "reason"],
+      "properties": {"status": {"enum": ["MATCHED", "EXPLAINABLE_DIFFERENCE", "MISMATCHED", "UNKNOWN"]}, "oracle": {"enum": ["HUMAN", "RULE", "FIXTURE"]}, "rule_id": {"type": ["string", "null"]}, "reason": {"type": ["string", "null"]}}
+    },
+    "lineage": {
+      "type": "object", "additionalProperties": false, "required": ["is_mutation", "parent_case_id", "mutation_id", "mutation_version"],
+      "properties": {"is_mutation": {"type": "boolean"}, "parent_case_id": {"type": ["string", "null"]}, "mutation_id": {"type": ["string", "null"]}, "mutation_version": {"type": ["string", "null"]}},
+      "allOf": [{"if": {"properties": {"is_mutation": {"const": true}}}, "then": {"properties": {"parent_case_id": {"type": "string", "minLength": 1}, "mutation_id": {"type": "string", "minLength": 1}, "mutation_version": {"type": "string", "minLength": 1}}}, "else": {"properties": {"parent_case_id": {"type": "null"}, "mutation_id": {"type": "null"}, "mutation_version": {"type": "null"}}}}]
+    }
+  }
+}

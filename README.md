@@ -9,7 +9,9 @@ ResearchPilot 是一个基于 Java、Spring Boot、LangChain4j 与 RAG 的学术
 原计划 2026-07-21 完成的 Search Agent 查询规划已于 2026-07-20 提前一天
 完成。2026-07-21 原计划中“后续接入 Crossref”的内容已调整为先完成
 Crossref DOI 精确查询基础、访问治理与候选编排：包含默认关闭配置、限流、
-重试、受控错误和内部元数据摘要；字段级核验、去重与持久化仍按后续计划开发。
+重试、受控错误和内部元数据摘要。2026-07-22 已完成 OpenAlex 与 Crossref 共用的
+DOI 规范化入口、精确查询收敛，以及字段核验评测数据集的离线结构骨架；字段级
+核验器、去重与持久化仍按后续计划开发。
 
 ## 当前进度
 
@@ -21,6 +23,8 @@ Crossref DOI 精确查询基础、访问治理与候选编排：包含默认关�
 - [x] Search Agent 查询规划与最多一次结构化输出修正
 - [x] JSON 语法、Schema、DTO、业务规则和安全规则五层校验
 - [x] Crossref DOI 精确元数据查询、访问治理与候选编排（不等于核验通过）
+- [x] OpenAlex 与 Crossref 共享 DOI 规范化、请求前校验和响应 DOI 收敛
+- [x] Crossref 字段核验评测数据集骨架、来源追踪与变异谱系约束（不等于字段核验已实现）
 - [ ] Crossref 字段级元数据核验与 VERIFIED 准入
 - [ ] DOI/标题去重与可信度评分
 - [ ] MySQL 检索任务、论文和核验记录持久化
@@ -192,8 +196,8 @@ powershell.exe -NoProfile -ExecutionPolicy Bypass `
 - 搜索成功但零篇通过核验时，返回 HTTP 200、`NO_VERIFIED_RESULTS` 和空列表。
 - `PaperDTO` 与 `VerificationResult` 分离，外部 API DTO 和数据库 Entity 不得替代核心契约。
 
-当前自动测试共 184 个（默认关闭的真实 Crossref 冒烟测试除外），包含架构约束、
-Search Agent、五层校验、OpenAlex、Crossref、候选编排和真实 Spring MVC 序列化测试。
+当前自动测试共 218 个通过，另有 1 个默认关闭的真实 Crossref 冒烟测试按预期跳过，包含架构约束、
+Search Agent、五层校验、OpenAlex、Crossref、候选编排、评测数据集结构和真实 Spring MVC 序列化测试。
 
 ## OpenAlex 候选检索
 
@@ -271,7 +275,7 @@ Crossref 默认关闭。启用时必须通过外部环境配置 `CROSSREF_MAILTO
 `CROSSREF_USER_AGENT`；可选的 `CROSSREF_PLUS_TOKEN` 不会写入日志或仓库。
 客户端使用 DOI 精确查询、URI Builder、受控状态映射、公平并发限制、本地速率
 限制，以及 `Retry-After` 优先的有限指数退避。429、5xx、超时和传输错误才会
-重试；404 作为未找到继续处理下一个 DOI。
+重试；404 作为未找到继续处理下一个 DOI；非预期 3xx 不跟随并归类为非法响应。
 
 ~~~powershell
 $env:CROSSREF_ENABLED = "true"
@@ -280,9 +284,21 @@ $env:CROSSREF_USER_AGENT = "ResearchPilot/0.1"
 $env:LITERATURE_MAX_CROSSREF_LOOKUPS = "5"
 ~~~
 
-一次检索最多查询 5 个稳定去重后的非空 DOI。来源不可用时停止后续 Crossref
-查询并保留已有元数据。当前不执行 DOI 规范化、标题回退、字段比较或 VERIFIED
-准入；`papers` 必须保持为空。
+一次检索最多查询 5 个稳定去重后的非空 DOI。OpenAlex 映射、Crossref 请求和
+Crossref 响应共用同一 DOI 规范化入口；非法请求在 HTTP 门控前拒绝，非法响应
+不会进入内部元数据。来源不可用时停止后续 Crossref 查询并保留已有元数据。
+当前不执行标题回退、字段比较或 VERIFIED 准入；`papers` 必须保持为空。
+
+## Crossref 字段核验评测数据集
+
+`eval/crossref-verification-v1` 提供离线、可复现的数据集目录骨架，用于后续验证
+`CandidatePaper + CrossrefWorkMetadata -> VerificationResult` 的字段匹配逻辑。
+当前已固定案例 Schema、来源 provenance、父子 lineage、DOI 规范化变异和元数据
+扰动清单，并由结构测试校验引用路径、SHA-256 与状态约束。
+
+当前 `draft/seed-cases.jsonl` 保持为空，因为仓库内尚无经过人工批准、可成对追踪的
+Crossref 快照；不得为了填充数量伪造 ground truth。该目录目前不包含 benchmark
+runner、字段核验器或在线 Crossref 调用，也不评测 HTTP、重试、预算和编排行为。
 
 ## 第一阶段验收记录
 
@@ -307,7 +323,7 @@ $env:LITERATURE_MAX_CROSSREF_LOOKUPS = "5"
 
 当前尚未实现：
 
-- DOI 规范化、标题回退、字段级 Crossref 核验和 VERIFIED 准入
+- Crossref 标题回退、歧义候选表示、字段级核验和 VERIFIED 准入
 - 候选标准化去重和最终可信排序
 - 检索任务、论文和核验记录入库
 - Embedding

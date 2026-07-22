@@ -1,0 +1,61 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://researchpilot.local/crossref-verification-v1/source-provenance.schema.json",
+  "title": "Crossref Verification Source Provenance",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "sources"],
+  "properties": {
+    "schema_version": {"const": "crossref-verification-v1"},
+    "sources": {
+      "type": "array",
+      "items": {"$ref": "#/$defs/source"}
+    }
+  },
+  "$defs": {
+    "provenance": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["origin_type", "source_path", "origin_test", "source_url", "retrieved_at", "source_sha256", "review"],
+      "properties": {
+        "origin_type": {"enum": ["EXISTING_FIXTURE", "EXISTING_TEST", "LIVE_SMOKE_SEED", "MANUAL_SNAPSHOT"]},
+        "source_path": {"type": ["string", "null"], "pattern": "^(?![A-Za-z]:|/|\\\\).*$"},
+        "origin_test": {"type": ["string", "null"]},
+        "source_url": {"type": ["string", "null"], "format": "uri"},
+        "retrieved_at": {"type": ["string", "null"], "format": "date-time"},
+        "source_sha256": {"type": ["string", "null"], "pattern": "^[A-Fa-f0-9]{64}$"},
+        "review": {"$ref": "#/$defs/review"}
+      },
+      "allOf": [
+        {
+          "if": {"properties": {"origin_type": {"const": "EXISTING_FIXTURE"}}},
+          "then": {
+            "properties": {
+              "source_path": {"type": "string", "minLength": 1},
+              "source_sha256": {"type": "string", "pattern": "^[A-Fa-f0-9]{64}$"}
+            }
+          }
+        }
+      ]
+    },
+    "review": {
+      "type": ["object", "null"],
+      "additionalProperties": false,
+      "required": ["reviewer", "reviewed_at", "review_version"],
+      "properties": {
+        "reviewer": {"type": "string", "minLength": 1},
+        "reviewed_at": {"type": "string", "format": "date-time"},
+        "review_version": {"type": "string", "minLength": 1}
+      }
+    },
+    "source": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["source_id", "provenance"],
+      "properties": {
+        "source_id": {"type": "string", "minLength": 1},
+        "provenance": {"$ref": "#/$defs/provenance"}
+      }
+    }
+  }
+}

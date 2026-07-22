@@ -1,6 +1,7 @@
 package com.dj1012h.researchpilot.integration.crossref;
 
 import com.dj1012h.researchpilot.integration.crossref.dto.CrossrefWorkResponse;
+import com.dj1012h.researchpilot.literature.normalization.DoiNormalizer;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatusCode;
@@ -26,26 +27,33 @@ public class CrossrefClient {
     private final CrossrefProperties properties;
     private final CrossrefRequestGate requestGate;
     private final CrossrefRetryPolicy retryPolicy;
+    private final DoiNormalizer doiNormalizer;
 
     public CrossrefClient(
             @Qualifier("crossrefRestClient") RestClient restClient,
             CrossrefProperties properties,
             CrossrefRequestGate requestGate,
-            CrossrefRetryPolicy retryPolicy
+            CrossrefRetryPolicy retryPolicy,
+            DoiNormalizer doiNormalizer
     ) {
         this.restClient = restClient;
         this.properties = properties;
         this.requestGate = requestGate;
         this.retryPolicy = retryPolicy;
+        this.doiNormalizer = doiNormalizer;
     }
 
     public CrossrefWorkResponse getWorkByDoi(String doi) {
-        ensureConfigured(doi);
+        ensureConfigured();
+        String normalizedDoi = doiNormalizer.normalize(doi);
+        if (normalizedDoi == null) {
+            throw new CrossrefApiException(CrossrefFailureType.INVALID_REQUEST, "Crossref DOI 格式无效");
+        }
         int completedRequests = 0;
         while (true) {
             try {
                 completedRequests++;
-                return requestGate.execute(() -> requestWork(doi));
+                return requestGate.execute(() -> requestWork(normalizedDoi));
             } catch (CrossrefApiException exception) {
                 if (!retryPolicy.shouldRetry(exception, completedRequests)) {
                     throw exception;
@@ -62,6 +70,8 @@ public class CrossrefClient {
                     .header(HttpHeaders.USER_AGENT, properties.getUserAgent().trim())
                     .headers(headers -> addPlusToken(headers))
                     .retrieve()
+                    .onStatus(HttpStatusCode::is3xxRedirection,
+                            (request, clientResponse) -> fail(CrossrefFailureType.INVALID_RESPONSE))
                     .onStatus(status -> status.value() == 401, (request, clientResponse) -> fail(CrossrefFailureType.UNAUTHORIZED))
                     .onStatus(status -> status.value() == 403, (request, clientResponse) -> fail(CrossrefFailureType.FORBIDDEN))
                     .onStatus(status -> status.value() == 404, (request, clientResponse) -> fail(CrossrefFailureType.NOT_FOUND))
@@ -108,7 +118,7 @@ public class CrossrefClient {
         }
     }
 
-    private void ensureConfigured(String doi) {
+    private void ensureConfigured() {
         if (!properties.isEnabled()) {
             throw new CrossrefApiException(CrossrefFailureType.DISABLED, "Crossref 检索未启用");
         }
@@ -117,9 +127,6 @@ public class CrossrefClient {
         }
         if (!StringUtils.hasText(properties.getUserAgent())) {
             throw new CrossrefApiException(CrossrefFailureType.USER_AGENT_MISSING, "Crossref User-Agent 未配置");
-        }
-        if (!StringUtils.hasText(doi)) {
-            throw new CrossrefApiException(CrossrefFailureType.INVALID_REQUEST, "Crossref DOI 不能为空");
         }
     }
 
