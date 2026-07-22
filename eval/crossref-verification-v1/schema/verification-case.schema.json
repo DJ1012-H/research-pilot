@@ -7,11 +7,11 @@
   "required": ["schema_version", "case_id", "task_type", "input", "expected", "provenance", "lineage", "tags", "notes"],
   "properties": {
     "schema_version": {"const": "crossref-verification-v1"},
-    "case_id": {"type": "string", "pattern": "^crv1-draft-[0-9]{4}$"},
+    "case_id": {"type": "string", "pattern": "^crv1-case-[0-9]{4}$"},
     "task_type": {"const": "BIBLIOGRAPHIC_VERIFICATION"},
     "input": {"$ref": "#/$defs/input"},
     "expected": {"$ref": "#/$defs/expected"},
-    "provenance": {"$ref": "https://researchpilot.local/crossref-verification-v1/source-provenance.schema.json#/$defs/provenance"},
+    "provenance": {"$ref": "#/$defs/case_provenance"},
     "lineage": {"$ref": "#/$defs/lineage"},
     "tags": {"type": "array", "items": {"type": "string", "minLength": 1}, "uniqueItems": true},
     "notes": {"type": ["string", "null"]}
@@ -28,9 +28,7 @@
               "rationale": {"type": "string", "minLength": 1}
             }
           },
-          "provenance": {
-            "properties": {"review": {"type": "object"}}
-          }
+          "provenance": {"properties": {"review": {"type": "object"}}}
         }
       },
       "else": {
@@ -78,7 +76,7 @@
       "required": ["review_state", "verification_status", "formal_result_eligible", "evidence_score_range", "field_results", "rationale"],
       "properties": {
         "review_state": {"enum": ["NEEDS_REVIEW", "REVIEWED"]},
-        "verification_status": {"type": ["string", "null"], "enum": ["VERIFIED", "PARTIALLY_VERIFIED", "CONFLICTED", "NOT_FOUND", "SOURCE_UNAVAILABLE", "REJECTED", null]},
+        "verification_status": {"type": ["string", "null"], "enum": ["VERIFIED", "PARTIALLY_VERIFIED", "CONFLICTED", "REJECTED", null]},
         "formal_result_eligible": {"type": ["boolean", "null"]},
         "evidence_score_range": {"$ref": "#/$defs/evidence_score_range"},
         "field_results": {"type": "object", "additionalProperties": false, "required": ["doi", "title", "first_author", "publication_year", "venue"],
@@ -87,8 +85,17 @@
       }
     },
     "evidence_score_range": {
-      "type": "object", "additionalProperties": false, "required": ["min", "max"],
+      "type": ["object", "null"], "additionalProperties": false, "required": ["min", "max"],
       "properties": {"min": {"type": "number", "minimum": 0, "maximum": 1}, "max": {"type": "number", "minimum": 0, "maximum": 1}}
+    },
+    "case_provenance": {
+      "type": "object", "additionalProperties": false,
+      "required": ["candidate_source_id", "reference_source_id", "review"],
+      "properties": {
+        "candidate_source_id": {"type": "string", "minLength": 1},
+        "reference_source_id": {"type": "string", "minLength": 1},
+        "review": {"$ref": "https://researchpilot.local/crossref-verification-v1/source-provenance.schema.json#/$defs/review"}
+      }
     },
     "field_result": {
       "type": "object", "additionalProperties": false, "required": ["status", "oracle", "rule_id", "reason"],

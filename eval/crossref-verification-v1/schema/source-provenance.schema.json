@@ -16,15 +16,14 @@
     "provenance": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["origin_type", "source_path", "origin_test", "source_url", "retrieved_at", "source_sha256", "review"],
+      "required": ["origin_type", "source_path", "origin_test", "source_url", "retrieved_at", "source_sha256"],
       "properties": {
         "origin_type": {"enum": ["EXISTING_FIXTURE", "EXISTING_TEST", "LIVE_SMOKE_SEED", "MANUAL_SNAPSHOT"]},
         "source_path": {"type": ["string", "null"], "pattern": "^(?![A-Za-z]:|/|\\\\).*$"},
         "origin_test": {"type": ["string", "null"]},
         "source_url": {"type": ["string", "null"], "format": "uri"},
         "retrieved_at": {"type": ["string", "null"], "format": "date-time"},
-        "source_sha256": {"type": ["string", "null"], "pattern": "^[A-Fa-f0-9]{64}$"},
-        "review": {"$ref": "#/$defs/review"}
+        "source_sha256": {"type": ["string", "null"], "pattern": "^[A-Fa-f0-9]{64}$"}
       },
       "allOf": [
         {
