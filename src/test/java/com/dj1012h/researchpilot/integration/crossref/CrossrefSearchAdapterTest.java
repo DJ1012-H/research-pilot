@@ -4,6 +4,7 @@ import com.dj1012h.researchpilot.integration.crossref.dto.CrossrefAuthor;
 import com.dj1012h.researchpilot.integration.crossref.dto.CrossrefDate;
 import com.dj1012h.researchpilot.integration.crossref.dto.CrossrefWorkMessage;
 import com.dj1012h.researchpilot.integration.crossref.dto.CrossrefWorkResponse;
+import com.dj1012h.researchpilot.integration.crossref.dto.CrossrefWorksResponse;
 import com.dj1012h.researchpilot.literature.normalization.DoiNormalizer;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -45,6 +46,52 @@ class CrossrefSearchAdapterTest {
     }
 
     @Test
+    void shouldKeepSingleAndMultipleBibliographicCandidatesDistinct() {
+        CrossrefBibliographicQuery query = new CrossrefBibliographicQuery("A title", "Ada", 2026, "Journal");
+        when(client.getWorksByBibliographic(query)).thenReturn(new com.dj1012h.researchpilot.integration.crossref.dto.CrossrefWorksResponse(
+                "ok", null, null, new com.dj1012h.researchpilot.integration.crossref.dto.CrossrefWorksResponse.CrossrefWorksMessage(List.of(
+                        new CrossrefWorkMessage("10.1000/a", List.of("A"), List.of(), null, null, null, null,
+                                List.of("Journal"), "article", null),
+                        new CrossrefWorkMessage("10.1000/b", List.of("B"), List.of(), null, null, null, null,
+                                List.of("Journal"), "article", null)
+                ))));
+
+        CrossrefBibliographicLookupResult result = adapter.findByBibliographic(query);
+
+        assertThat(result.status()).isEqualTo(CrossrefBibliographicLookupResult.Status.FOUND_MULTIPLE);
+        assertThat(result.candidates()).extracting(CrossrefWorkMetadata::doi).containsExactly("10.1000/a", "10.1000/b");
+    }
+
+    @Test
+    void shouldRepresentSingleEmptyAndNotFoundBibliographicResultsWithoutSelectingACandidate() {
+        CrossrefBibliographicQuery singleQuery = new CrossrefBibliographicQuery("Single", null, null, null);
+        CrossrefBibliographicQuery emptyQuery = new CrossrefBibliographicQuery("Empty", null, null, null);
+        CrossrefBibliographicQuery missingQuery = new CrossrefBibliographicQuery("Missing", null, null, null);
+        when(client.getWorksByBibliographic(singleQuery)).thenReturn(works(List.of(work("10.1000/single", "Single"))));
+        when(client.getWorksByBibliographic(emptyQuery)).thenReturn(works(List.of()));
+        when(client.getWorksByBibliographic(missingQuery))
+                .thenThrow(new CrossrefApiException(CrossrefFailureType.NOT_FOUND, "not found"));
+
+        assertThat(adapter.findByBibliographic(singleQuery).status())
+                .isEqualTo(CrossrefBibliographicLookupResult.Status.FOUND_SINGLE);
+        assertThat(adapter.findByBibliographic(emptyQuery).status())
+                .isEqualTo(CrossrefBibliographicLookupResult.Status.NOT_FOUND);
+        assertThat(adapter.findByBibliographic(missingQuery).status())
+                .isEqualTo(CrossrefBibliographicLookupResult.Status.NOT_FOUND);
+    }
+
+    @Test
+    void shouldRejectInvalidBibliographicItemsInsteadOfPromotingThemToFound() {
+        CrossrefBibliographicQuery query = new CrossrefBibliographicQuery("Invalid", null, null, null);
+        when(client.getWorksByBibliographic(query)).thenReturn(works(List.of(work("invalid-doi", "Invalid"))));
+
+        assertThatThrownBy(() -> adapter.findByBibliographic(query))
+                .isInstanceOfSatisfying(CrossrefApiException.class,
+                        exception -> assertThat(exception.getFailureType())
+                                .isEqualTo(CrossrefFailureType.INVALID_RESPONSE));
+    }
+
+    @Test
     void shouldRejectInvalidResponseDoi() {
         when(client.getWorkByDoi("10.1000/example")).thenReturn(new CrossrefWorkResponse("ok", null, null,
                 new CrossrefWorkMessage("10.invalid/example", List.of("A title"), List.of(),
@@ -70,4 +117,14 @@ class CrossrefSearchAdapterTest {
     }
 
     private CrossrefDate date(int year) { return new CrossrefDate(List.of(List.of(year))); }
+
+    private CrossrefWorksResponse works(List<CrossrefWorkMessage> items) {
+        return new CrossrefWorksResponse("ok", null, null,
+                new CrossrefWorksResponse.CrossrefWorksMessage(items));
+    }
+
+    private CrossrefWorkMessage work(String doi, String title) {
+        return new CrossrefWorkMessage(doi, List.of(title), List.of(), null, null, null, null,
+                List.of("Journal"), "article", null);
+    }
 }

@@ -63,7 +63,7 @@ class LiteratureSearchFlowIntegrationTest {
         when(openAlexSearchPort.search(any()))
                 .thenReturn(new OpenAlexSearchResult(0, List.of(), null));
         when(crossrefCandidateLookupService.lookup(List.of()))
-                .thenReturn(new CrossrefLookupSummary(0, 0, 0, 0, 0, 0, false, false, List.of()));
+                .thenReturn(new CrossrefLookupSummary(0, 0, 0, 0, 0, 0, 0, false, false, List.of(), List.of()));
 
         SearchResponse response = service().search(request);
 

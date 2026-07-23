@@ -19,6 +19,7 @@ public class CrossrefProperties {
     private int maxRetries = 2;
     private Duration initialBackoff = Duration.ofMillis(250);
     private Duration maxBackoff = Duration.ofSeconds(2);
+    private int bibliographicRows = 5;
 
     public boolean isEnabled() { return enabled; }
     public void setEnabled(boolean enabled) { this.enabled = enabled; }
@@ -44,4 +45,6 @@ public class CrossrefProperties {
     public void setInitialBackoff(Duration initialBackoff) { this.initialBackoff = initialBackoff; }
     public Duration getMaxBackoff() { return maxBackoff; }
     public void setMaxBackoff(Duration maxBackoff) { this.maxBackoff = maxBackoff; }
+    public int getBibliographicRows() { return bibliographicRows; }
+    public void setBibliographicRows(int bibliographicRows) { this.bibliographicRows = bibliographicRows; }
 }

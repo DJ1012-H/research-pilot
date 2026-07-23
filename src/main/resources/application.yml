@@ -66,6 +66,7 @@ app:
     max-retries: ${CROSSREF_MAX_RETRIES:2}
     initial-backoff: ${CROSSREF_INITIAL_BACKOFF:250ms}
     max-backoff: ${CROSSREF_MAX_BACKOFF:2s}
+    bibliographic-rows: ${CROSSREF_BIBLIOGRAPHIC_ROWS:5}
 
 management:
   endpoints:
