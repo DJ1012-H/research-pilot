@@ -1,6 +1,7 @@
 package com.dj1012h.researchpilot.integration.crossref;
 
 import com.dj1012h.researchpilot.integration.crossref.dto.CrossrefWorkResponse;
+import com.dj1012h.researchpilot.integration.crossref.dto.CrossrefWorksResponse;
 import com.dj1012h.researchpilot.literature.normalization.DoiNormalizer;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -10,6 +11,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.client.ClientHttpRequestFactory;
 import org.springframework.test.web.client.MockRestServiceServer;
+import org.springframework.test.web.client.ResponseCreator;
 import org.springframework.web.client.RestClient;
 
 import java.net.SocketTimeoutException;
@@ -148,6 +150,93 @@ class CrossrefClientTest {
                 });
     }
 
+    @Test
+    void shouldBuildBoundedEncodedBibliographicRequestAndKeepSharedHeaders() {
+        CrossrefProperties properties = enabledProperties();
+        properties.setBibliographicRows(5);
+        Fixture fixture = fixture(properties);
+        fixture.server.expect(request -> {
+                    assertThat(request.getURI().getPath()).isEqualTo("/works");
+                    String rawQuery = request.getURI().getRawQuery();
+                    String decodedQuery = java.net.URLDecoder.decode(rawQuery, java.nio.charset.StandardCharsets.UTF_8);
+                    assertThat(decodedQuery).contains("query.bibliographic=Mamba: A/B Ada 2026 Journal")
+                            .contains("rows=5")
+                            .contains("select=DOI,title,author,published")
+                            .contains("mailto=" + MAILTO);
+                    assertThat(rawQuery).contains("%20");
+                })
+                .andExpect(header(HttpHeaders.USER_AGENT, "ResearchPilot-test"))
+                .andExpect(header("Crossref-Plus-API-Token", "Bearer fake-token"))
+                .andRespond(withSuccess(worksJson(), MediaType.APPLICATION_JSON));
+
+        CrossrefWorksResponse response = fixture.client.getWorksByBibliographic(
+                new CrossrefBibliographicQuery("Mamba: A/B", "Ada", 2026, "Journal"));
+
+        assertThat(response.message().items()).hasSize(2);
+        fixture.server.verify();
+    }
+
+    @Test
+    void shouldRejectOutOfRangeBibliographicRowsBeforeRequestGate() {
+        CrossrefProperties properties = enabledProperties();
+        properties.setBibliographicRows(11);
+        CrossrefRequestGate gate = mock(CrossrefRequestGate.class);
+        CrossrefRetryPolicy retryPolicy = mock(CrossrefRetryPolicy.class);
+        CrossrefClient client = new CrossrefClient(RestClient.builder().baseUrl(BASE_URL).build(), properties, gate,
+                retryPolicy, new DoiNormalizer());
+
+        assertThatThrownBy(() -> client.getWorksByBibliographic(new CrossrefBibliographicQuery("Title", null, null, null)))
+                .isInstanceOf(IllegalStateException.class);
+        verifyNoInteractions(gate, retryPolicy);
+    }
+
+    @Test
+    void shouldClassifyBibliographic404RedirectAndInvalidBodiesWithoutFollowingRedirects() {
+        CrossrefProperties properties = enabledProperties();
+        properties.setMaxRetries(0);
+
+        Fixture missing = fixture(properties);
+        expectBibliographic(missing, withStatus(HttpStatus.NOT_FOUND));
+        assertBibliographicFailure(missing.client, CrossrefFailureType.NOT_FOUND);
+        missing.server.verify();
+
+        Fixture redirect = fixture(properties);
+        expectBibliographic(redirect, withStatus(HttpStatus.FOUND));
+        assertBibliographicFailure(redirect.client, CrossrefFailureType.INVALID_RESPONSE);
+        redirect.server.verify();
+
+        Fixture invalid = fixture(properties);
+        expectBibliographic(invalid, withSuccess("{\"status\":\"ok\",\"message\":{}}", MediaType.APPLICATION_JSON));
+        assertBibliographicFailure(invalid.client, CrossrefFailureType.INVALID_RESPONSE);
+        invalid.server.verify();
+    }
+
+    @Test
+    void shouldAllowAnEmptyBibliographicItemsArrayForTheAdapterToRepresentAsNotFound() {
+        Fixture fixture = fixture(enabledProperties());
+        expectBibliographic(fixture, withSuccess("{\"status\":\"ok\",\"message\":{\"items\":[]}}", MediaType.APPLICATION_JSON));
+
+        CrossrefWorksResponse response = fixture.client.getWorksByBibliographic(bibliographicQuery());
+
+        assertThat(response.message().items()).isEmpty();
+        fixture.server.verify();
+    }
+
+    @Test
+    void shouldReuseRetryPolicyForBibliographicRequests() {
+        CrossrefProperties properties = enabledProperties();
+        List<Duration> waits = new ArrayList<>();
+        Fixture fixture = fixture(properties, waits);
+        expectBibliographic(fixture, withStatus(HttpStatus.TOO_MANY_REQUESTS).header(HttpHeaders.RETRY_AFTER, "1"));
+        expectBibliographic(fixture, withSuccess(worksJson(), MediaType.APPLICATION_JSON));
+
+        CrossrefWorksResponse response = fixture.client.getWorksByBibliographic(bibliographicQuery());
+
+        assertThat(response.message().items()).hasSize(2);
+        assertThat(waits).containsExactly(Duration.ofSeconds(1));
+        fixture.server.verify();
+    }
+
     private void assertStatus(HttpStatus status, CrossrefFailureType expected) {
         CrossrefProperties properties = enabledProperties();
         properties.setMaxRetries(0);
@@ -166,6 +255,24 @@ class CrossrefClientTest {
         assertThatThrownBy(() -> client.getWorkByDoi(doi))
                 .isInstanceOfSatisfying(CrossrefApiException.class,
                         exception -> assertThat(exception.getFailureType()).isEqualTo(expected));
+    }
+
+    private void assertBibliographicFailure(CrossrefClient client, CrossrefFailureType expected) {
+        assertThatThrownBy(() -> client.getWorksByBibliographic(bibliographicQuery()))
+                .isInstanceOfSatisfying(CrossrefApiException.class,
+                        exception -> assertThat(exception.getFailureType()).isEqualTo(expected));
+    }
+
+    private void expectBibliographic(Fixture fixture, ResponseCreator responseCreator) {
+        fixture.server.expect(request -> {
+                    assertThat(request.getURI().getPath()).isEqualTo("/works");
+                    assertThat(request.getURI().getRawQuery()).contains("query.bibliographic=");
+                })
+                .andRespond(responseCreator);
+    }
+
+    private CrossrefBibliographicQuery bibliographicQuery() {
+        return new CrossrefBibliographicQuery("Mamba title", "Ada", 2026, "Journal");
     }
 
     private Fixture fixture(CrossrefProperties properties) { return fixture(properties, new ArrayList<>()); }
@@ -195,6 +302,12 @@ class CrossrefClientTest {
 
     private String okJson() {
         return "{\"status\":\"ok\",\"message\":{\"DOI\":\"10.1000/example\",\"title\":[\"Example\"]}}";
+    }
+
+    private String worksJson() {
+        return "{\"status\":\"ok\",\"message\":{\"items\":["
+                + "{\"DOI\":\"10.1000/a\",\"title\":[\"A\"]},"
+                + "{\"DOI\":\"10.1000/b\",\"title\":[\"B\"]}]}}";
     }
 
     private record Fixture(CrossrefClient client, MockRestServiceServer server) { }

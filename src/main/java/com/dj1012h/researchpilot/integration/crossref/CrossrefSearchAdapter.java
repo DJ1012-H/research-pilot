@@ -35,7 +35,28 @@ public class CrossrefSearchAdapter implements CrossrefSearchPort {
         }
     }
 
+    @Override
+    public CrossrefBibliographicLookupResult findByBibliographic(CrossrefBibliographicQuery query) {
+        try {
+            List<CrossrefWorkMetadata> candidates = client.getWorksByBibliographic(query).message().items().stream()
+                    .map(this::map)
+                    .toList();
+            return candidates.isEmpty()
+                    ? CrossrefBibliographicLookupResult.notFound()
+                    : CrossrefBibliographicLookupResult.found(candidates);
+        } catch (CrossrefApiException exception) {
+            if (exception.getFailureType() == CrossrefFailureType.NOT_FOUND) {
+                return CrossrefBibliographicLookupResult.notFound();
+            }
+            throw exception;
+        }
+    }
+
     private CrossrefWorkMetadata map(CrossrefWorkMessage message) {
+        if (message == null) {
+            throw new CrossrefApiException(CrossrefFailureType.INVALID_RESPONSE,
+                    "Crossref response contains an invalid work item");
+        }
         String normalizedDoi = doiNormalizer.normalize(message.doi());
         if (normalizedDoi == null) {
             throw new CrossrefApiException(

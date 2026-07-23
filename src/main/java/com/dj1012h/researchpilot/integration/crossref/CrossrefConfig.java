@@ -30,6 +30,7 @@ public class CrossrefConfig {
     }
 
     static void validate(CrossrefProperties properties) {
+        validateBibliographicRows(properties);
         requireText(properties.getBaseUrl(), "base-url");
         positive(properties.getConnectTimeout(), "connect-timeout");
         positive(properties.getReadTimeout(), "read-timeout");
@@ -46,6 +47,12 @@ public class CrossrefConfig {
         }
         if (properties.getMaxRetries() < 0) {
             throw new IllegalStateException("app.crossref.max-retries 不能小于 0");
+        }
+    }
+
+    private static void validateBibliographicRows(CrossrefProperties properties) {
+        if (properties.getBibliographicRows() < 1 || properties.getBibliographicRows() > 10) {
+            throw new IllegalStateException("app.crossref.bibliographic-rows must be between 1 and 10");
         }
     }
 

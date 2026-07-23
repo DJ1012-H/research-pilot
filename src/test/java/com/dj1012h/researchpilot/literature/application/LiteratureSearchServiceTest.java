@@ -85,7 +85,7 @@ class LiteratureSearchServiceTest {
     }
 
     private CrossrefLookupSummary disabledSummary(int eligible) {
-        return new CrossrefLookupSummary(eligible, 0, 0, 0, 0, 0, false, false, List.of());
+        return new CrossrefLookupSummary(eligible, 0, 0, 0, 0, 0, 0, false, false, List.of(), List.of());
     }
 
     private SearchPlan plan(SearchRequest request) {

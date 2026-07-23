@@ -1,6 +1,7 @@
 package com.dj1012h.researchpilot.integration.crossref;
 
 import com.dj1012h.researchpilot.integration.crossref.dto.CrossrefWorkResponse;
+import com.dj1012h.researchpilot.integration.crossref.dto.CrossrefWorksResponse;
 import com.dj1012h.researchpilot.literature.normalization.DoiNormalizer;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.http.HttpHeaders;
@@ -19,9 +20,12 @@ import java.time.Duration;
 import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
 
-/** Performs guarded Crossref DOI lookups without logging request-sensitive values. */
+/** Performs guarded Crossref DOI and bibliographic lookups without logging request-sensitive values. */
 @Component
 public class CrossrefClient {
+
+    private static final String BIBLIOGRAPHIC_SELECT =
+            "DOI,title,author,published,published-online,published-print,issued,container-title,type,publisher";
 
     private final RestClient restClient;
     private final CrossrefProperties properties;
@@ -47,17 +51,24 @@ public class CrossrefClient {
         ensureConfigured();
         String normalizedDoi = doiNormalizer.normalize(doi);
         if (normalizedDoi == null) {
-            throw new CrossrefApiException(CrossrefFailureType.INVALID_REQUEST, "Crossref DOI 格式无效");
+            throw new CrossrefApiException(CrossrefFailureType.INVALID_REQUEST, "Invalid Crossref DOI");
         }
+        return executeWithRetry(() -> requestWork(normalizedDoi));
+    }
+
+    public CrossrefWorksResponse getWorksByBibliographic(CrossrefBibliographicQuery query) {
+        ensureConfigured();
+        return executeWithRetry(() -> requestWorks(query));
+    }
+
+    private <T> T executeWithRetry(CrossrefRequestGate.CheckedSupplier<T> request) {
         int completedRequests = 0;
         while (true) {
             try {
                 completedRequests++;
-                return requestGate.execute(() -> requestWork(normalizedDoi));
+                return requestGate.execute(request);
             } catch (CrossrefApiException exception) {
-                if (!retryPolicy.shouldRetry(exception, completedRequests)) {
-                    throw exception;
-                }
+                if (!retryPolicy.shouldRetry(exception, completedRequests)) throw exception;
                 retryPolicy.backoff(exception, completedRequests);
             }
         }
@@ -66,48 +77,66 @@ public class CrossrefClient {
     private CrossrefWorkResponse requestWork(String doi) {
         try {
             CrossrefWorkResponse response = restClient.get()
-                    .uri(uriBuilder -> buildUri(uriBuilder, doi))
+                    .uri(uriBuilder -> buildDoiUri(uriBuilder, doi))
                     .header(HttpHeaders.USER_AGENT, properties.getUserAgent().trim())
-                    .headers(headers -> addPlusToken(headers))
+                    .headers(this::addPlusToken)
                     .retrieve()
-                    .onStatus(HttpStatusCode::is3xxRedirection,
-                            (request, clientResponse) -> fail(CrossrefFailureType.INVALID_RESPONSE))
+                    .onStatus(HttpStatusCode::is3xxRedirection, (request, clientResponse) -> fail(CrossrefFailureType.INVALID_RESPONSE))
                     .onStatus(status -> status.value() == 401, (request, clientResponse) -> fail(CrossrefFailureType.UNAUTHORIZED))
                     .onStatus(status -> status.value() == 403, (request, clientResponse) -> fail(CrossrefFailureType.FORBIDDEN))
                     .onStatus(status -> status.value() == 404, (request, clientResponse) -> fail(CrossrefFailureType.NOT_FOUND))
-                    .onStatus(status -> status.value() == 429, (request, clientResponse) -> {
-                        throw new CrossrefApiException(
-                                CrossrefFailureType.RATE_LIMITED,
-                                "Crossref 请求受到限流",
-                                parseRetryAfter(clientResponse.getHeaders().getFirst(HttpHeaders.RETRY_AFTER))
-                        );
-                    })
+                    .onStatus(status -> status.value() == 429, (request, clientResponse) -> rateLimited(clientResponse.getHeaders()))
                     .onStatus(HttpStatusCode::is4xxClientError, (request, clientResponse) -> fail(CrossrefFailureType.CLIENT_ERROR))
-                    .onStatus(HttpStatusCode::is5xxServerError, (request, clientResponse) -> {
-                        throw new CrossrefApiException(
-                                CrossrefFailureType.SERVER_ERROR,
-                                "Crossref 返回服务端错误",
-                                parseRetryAfter(clientResponse.getHeaders().getFirst(HttpHeaders.RETRY_AFTER))
-                        );
-                    })
+                    .onStatus(HttpStatusCode::is5xxServerError, (request, clientResponse) -> serverError(clientResponse.getHeaders()))
                     .body(CrossrefWorkResponse.class);
-            validateResponse(response);
+            validateWorkResponse(response);
             return response;
         } catch (CrossrefApiException exception) {
             throw exception;
         } catch (ResourceAccessException exception) {
-            if (hasCause(exception, SocketTimeoutException.class)
-                    || hasCause(exception, HttpTimeoutException.class)) {
-                throw new CrossrefApiException(CrossrefFailureType.TIMEOUT, "Crossref 请求超时");
-            }
-            throw new CrossrefApiException(CrossrefFailureType.TRANSPORT_ERROR, "无法连接 Crossref");
+            throw transportFailure(exception);
         } catch (HttpMessageConversionException | RestClientException exception) {
-            throw new CrossrefApiException(CrossrefFailureType.INVALID_RESPONSE, "Crossref 响应无法解析");
+            throw new CrossrefApiException(CrossrefFailureType.INVALID_RESPONSE, "Crossref response could not be parsed");
         }
     }
 
-    private java.net.URI buildUri(UriBuilder uriBuilder, String doi) {
+    private CrossrefWorksResponse requestWorks(CrossrefBibliographicQuery query) {
+        try {
+            CrossrefWorksResponse response = restClient.get()
+                    .uri(uriBuilder -> buildBibliographicUri(uriBuilder, query))
+                    .header(HttpHeaders.USER_AGENT, properties.getUserAgent().trim())
+                    .headers(this::addPlusToken)
+                    .retrieve()
+                    .onStatus(HttpStatusCode::is3xxRedirection, (request, clientResponse) -> fail(CrossrefFailureType.INVALID_RESPONSE))
+                    .onStatus(status -> status.value() == 401, (request, clientResponse) -> fail(CrossrefFailureType.UNAUTHORIZED))
+                    .onStatus(status -> status.value() == 403, (request, clientResponse) -> fail(CrossrefFailureType.FORBIDDEN))
+                    .onStatus(status -> status.value() == 404, (request, clientResponse) -> fail(CrossrefFailureType.NOT_FOUND))
+                    .onStatus(status -> status.value() == 429, (request, clientResponse) -> rateLimited(clientResponse.getHeaders()))
+                    .onStatus(HttpStatusCode::is4xxClientError, (request, clientResponse) -> fail(CrossrefFailureType.CLIENT_ERROR))
+                    .onStatus(HttpStatusCode::is5xxServerError, (request, clientResponse) -> serverError(clientResponse.getHeaders()))
+                    .body(CrossrefWorksResponse.class);
+            validateWorksResponse(response);
+            return response;
+        } catch (CrossrefApiException exception) {
+            throw exception;
+        } catch (ResourceAccessException exception) {
+            throw transportFailure(exception);
+        } catch (HttpMessageConversionException | RestClientException exception) {
+            throw new CrossrefApiException(CrossrefFailureType.INVALID_RESPONSE, "Crossref response could not be parsed");
+        }
+    }
+
+    private java.net.URI buildDoiUri(UriBuilder uriBuilder, String doi) {
         return uriBuilder.pathSegment("works", doi)
+                .queryParam("mailto", properties.getMailto().trim())
+                .build();
+    }
+
+    private java.net.URI buildBibliographicUri(UriBuilder uriBuilder, CrossrefBibliographicQuery query) {
+        return uriBuilder.path("/works")
+                .queryParam("query.bibliographic", query.queryText())
+                .queryParam("rows", properties.getBibliographicRows())
+                .queryParam("select", BIBLIOGRAPHIC_SELECT)
                 .queryParam("mailto", properties.getMailto().trim())
                 .build();
     }
@@ -119,30 +148,52 @@ public class CrossrefClient {
     }
 
     private void ensureConfigured() {
-        if (!properties.isEnabled()) {
-            throw new CrossrefApiException(CrossrefFailureType.DISABLED, "Crossref 检索未启用");
-        }
+        if (!properties.isEnabled()) throw new CrossrefApiException(CrossrefFailureType.DISABLED, "Crossref is disabled");
         if (!StringUtils.hasText(properties.getMailto())) {
-            throw new CrossrefApiException(CrossrefFailureType.MAILTO_MISSING, "Crossref mailto 未配置");
+            throw new CrossrefApiException(CrossrefFailureType.MAILTO_MISSING, "Crossref mailto is missing");
         }
         if (!StringUtils.hasText(properties.getUserAgent())) {
-            throw new CrossrefApiException(CrossrefFailureType.USER_AGENT_MISSING, "Crossref User-Agent 未配置");
+            throw new CrossrefApiException(CrossrefFailureType.USER_AGENT_MISSING, "Crossref User-Agent is missing");
+        }
+        if (properties.getBibliographicRows() < 1 || properties.getBibliographicRows() > 10) {
+            throw new IllegalStateException("app.crossref.bibliographic-rows must be between 1 and 10");
         }
     }
 
-    private void validateResponse(CrossrefWorkResponse response) {
-        if (response == null) {
-            throw new CrossrefApiException(CrossrefFailureType.EMPTY_RESPONSE, "Crossref 返回空响应体");
-        }
-        if (!"ok".equalsIgnoreCase(response.status())
-                || response.message() == null
+    private void validateWorkResponse(CrossrefWorkResponse response) {
+        if (response == null) throw new CrossrefApiException(CrossrefFailureType.EMPTY_RESPONSE, "Crossref returned an empty body");
+        if (!"ok".equalsIgnoreCase(response.status()) || response.message() == null
                 || !StringUtils.hasText(response.message().doi())) {
-            throw new CrossrefApiException(CrossrefFailureType.INVALID_RESPONSE, "Crossref 响应结构无效");
+            throw new CrossrefApiException(CrossrefFailureType.INVALID_RESPONSE, "Crossref response structure is invalid");
         }
+    }
+
+    private void validateWorksResponse(CrossrefWorksResponse response) {
+        if (response == null) throw new CrossrefApiException(CrossrefFailureType.EMPTY_RESPONSE, "Crossref returned an empty body");
+        if (!"ok".equalsIgnoreCase(response.status()) || response.message() == null || response.message().items() == null) {
+            throw new CrossrefApiException(CrossrefFailureType.INVALID_RESPONSE, "Crossref response structure is invalid");
+        }
+    }
+
+    private CrossrefApiException transportFailure(ResourceAccessException exception) {
+        if (hasCause(exception, SocketTimeoutException.class) || hasCause(exception, HttpTimeoutException.class)) {
+            return new CrossrefApiException(CrossrefFailureType.TIMEOUT, "Crossref request timed out");
+        }
+        return new CrossrefApiException(CrossrefFailureType.TRANSPORT_ERROR, "Crossref could not be reached");
+    }
+
+    private void rateLimited(HttpHeaders headers) {
+        throw new CrossrefApiException(CrossrefFailureType.RATE_LIMITED, "Crossref rate limited the request",
+                parseRetryAfter(headers.getFirst(HttpHeaders.RETRY_AFTER)));
+    }
+
+    private void serverError(HttpHeaders headers) {
+        throw new CrossrefApiException(CrossrefFailureType.SERVER_ERROR, "Crossref returned a server error",
+                parseRetryAfter(headers.getFirst(HttpHeaders.RETRY_AFTER)));
     }
 
     private void fail(CrossrefFailureType type) {
-        throw new CrossrefApiException(type, "Crossref 请求未成功完成");
+        throw new CrossrefApiException(type, "Crossref request did not complete");
     }
 
     private Duration parseRetryAfter(String value) {

@@ -1,5 +1,16 @@
 # ResearchPilot
 
+## 2026-07-23：Crossref 书目回退查询
+
+当 OpenAlex 候选论文没有可用 DOI 时，系统现在会先对标题执行确定性的本地资格校验；只有合格标题才会请求 Crossref `/works` 的 `query.bibliographic`。有效 DOI 仍只走精确 DOI 查询，DOI `NOT_FOUND` 不会自动回退标题查询。
+
+- 查询模型由 Java 确定性地按“标题、第一作者、年份、来源”构造；默认返回上限为 5，`CROSSREF_BIBLIOGRAPHIC_ROWS` 可配置为 1–10。
+- 返回值明确区分 `NOT_FOUND`、`FOUND_SINGLE` 和 `FOUND_MULTIPLE`，保留全部上限内候选，不默认选择第一条。
+- 空白、纯符号、超长、控制字符、URL、JSON/XML/HTML、Markdown 代码块和异常重复标题会在 HTTP、限流与重试之前被拒绝。
+- Crossref 候选发现不等于字段验证：本阶段不会产生 `VERIFIED`，`SearchResponse.papers` 仍保持为空。
+
+相关回归测试共 249 项通过，另有 1 项显式开关控制的真实 Crossref 烟测按预期跳过。
+
 ResearchPilot 是一个基于 Java、Spring Boot、LangChain4j 与 RAG 的学术文献检索 Agent。
 
 第一阶段已经完成工程骨架、MySQL、Redis、真实模型调用、统一异常处理、Swagger 和自动测试。
@@ -196,7 +207,7 @@ powershell.exe -NoProfile -ExecutionPolicy Bypass `
 - 搜索成功但零篇通过核验时，返回 HTTP 200、`NO_VERIFIED_RESULTS` 和空列表。
 - `PaperDTO` 与 `VerificationResult` 分离，外部 API DTO 和数据库 Entity 不得替代核心契约。
 
-当前自动测试共 218 个通过，另有 1 个默认关闭的真实 Crossref 冒烟测试按预期跳过，包含架构约束、
+当前自动测试共 249 个通过，另有 1 个默认关闭的真实 Crossref 冒烟测试按预期跳过，包含架构约束、
 Search Agent、五层校验、OpenAlex、Crossref、候选编排、评测数据集结构和真实 Spring MVC 序列化测试。
 
 ## OpenAlex 候选检索
@@ -287,7 +298,7 @@ $env:LITERATURE_MAX_CROSSREF_LOOKUPS = "5"
 一次检索最多查询 5 个稳定去重后的非空 DOI。OpenAlex 映射、Crossref 请求和
 Crossref 响应共用同一 DOI 规范化入口；非法请求在 HTTP 门控前拒绝，非法响应
 不会进入内部元数据。来源不可用时停止后续 Crossref 查询并保留已有元数据。
-当前不执行标题回退、字段比较或 VERIFIED 准入；`papers` 必须保持为空。
+当前对缺失有效 DOI 的候选执行受控标题书目回退，但不执行字段比较或 VERIFIED 准入；`papers` 必须保持为空。
 
 ## Crossref 字段核验评测数据集
 
@@ -323,7 +334,7 @@ runner、字段核验器或在线 Crossref 调用，也不评测 HTTP、重试�
 
 当前尚未实现：
 
-- Crossref 标题回退、歧义候选表示、字段级核验和 VERIFIED 准入
+- Crossref 字段级核验、歧义候选的字段匹配与 VERIFIED 准入
 - 候选标准化去重和最终可信排序
 - 检索任务、论文和核验记录入库
 - Embedding
