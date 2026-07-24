@@ -1006,3 +1006,25 @@ Spring Boot 的条件装配回退，使它成为 MVC 使用的全局 Mapper；�
 - `FOUND` 仍不等于 `VERIFIED`；`SearchResponse.papers` 继续保持为空，未引入自动选择、字段级核验或正式论文准入。
 - 未实现持久化、缓存、Agent 状态机、RAG 或在线测评采集。
 - 本次代码提交不包含 `eval/` 下的测评数据集变更；相关文件继续仅保留在本地工作区。
+
+## 2026-07-24｜Crossref 固定回放与应用/评测分支分离
+
+### 实际进展
+
+- 在 `main` 增加 `CrossrefPaperMapper`，将 Crossref 外部 DTO 映射到既有 `CrossrefWorkMetadata`；出版日期按 print、online、issued、created 的顺序回退。
+- 保持 `CrossrefWorkMetadata` 的全部字段和 public record 构造器不变；外部 DTO 可以接收 URL，但 Mapper 不映射 URL，也不创建仅保存 URL 的重复内部模型。
+- 普通测试复用一份经过人工审核的真实 Crossref 响应快照，覆盖 DTO 反序列化与 Mapper 回放。原始响应未重新抓取或改写：Captured date 为 2026-07-22，Integrated/reused date 为 2026-07-24；审核日期无法确认，未填写。
+- 将应用代码、普通测试和两份计划文档归入 `main`；将 `eval/crossref-verification-v1/**` 与其结构测试归入同名评测分支，避免评测数据资产混入主线。
+- 为原先混合的开发历史创建只读保留标签 `archive/crossref-mixed-20260724-retain-until-20261022`，保留至 2026-10-22；不执行 Git 垃圾回收或历史改写。
+
+### 验证结果
+
+- `main`：`mvn clean verify` 成功，250 通过、0 失败、0 错误、2 跳过（默认关闭的真实 Crossref smoke test），并完成 JAR 打包。
+- `eval/crossref-verification-v1`：`mvn clean test` 成功，255 通过、0 失败、0 错误、2 跳过。
+- 固定快照用于 DTO deserialization、Mapper replay 和离线回归；本次常规测试未访问真实 Crossref，live smoke 结果不会覆盖 Fixture。
+
+### 范围边界
+
+- `FOUND` 仍不等于 `VERIFIED`，不会向 `SearchResponse.papers` 写入正式论文。
+- 本阶段未实现字段级核验、去重、可信度评分、持久化、缓存、Agent 状态机、RAG 或在线 benchmark runner。
+- URL 暂未进入内部契约；只有出现明确展示或跳转需求时，才通过兼容性设计扩展。
