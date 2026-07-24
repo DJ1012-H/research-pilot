@@ -16,6 +16,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
+import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -31,23 +32,88 @@ class CrossrefVerificationDatasetStructureTest {
             "https://researchpilot.local/crossref-verification-v1/source-provenance.schema.json";
     private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
 
+    private static final List<Path> CASE_FILES = List.of(
+            DATASET.resolve("draft/seed-cases.jsonl"),
+            DATASET.resolve("generated/doi-normalization-cases.jsonl")
+    );
+
     @Test
-    void shouldValidateEveryNonBlankSeedCase() throws Exception {
+    void shouldValidateEveryNonBlankDatasetCase() throws Exception {
         Schema caseSchema = schema("verification-case.schema.json");
         Set<String> sourceIds = sourceIds();
-        List<String> lines = Files.readAllLines(DATASET.resolve("draft/seed-cases.jsonl"), StandardCharsets.UTF_8);
         Set<String> caseIds = new HashSet<>();
+        List<JsonNode> caseNodes = new ArrayList<>();
 
-        for (String line : lines) {
-            if (line.isBlank()) continue;
-            JsonNode caseNode = OBJECT_MAPPER.readTree(line);
-            validateCase(caseSchema, caseNode, sourceIds);
-            assertThat(caseIds.add(caseNode.path("case_id").asText())).isTrue();
-            assertThat(caseNode.has("kind")).isFalse();
+        for (Path caseFile : CASE_FILES) {
+            assertThat(Files.exists(caseFile))
+                    .as("Dataset case file must exist: %s", caseFile)
+                    .isTrue();
+
+            List<String> lines =
+                    Files.readAllLines(caseFile, StandardCharsets.UTF_8);
+
+            long nonBlankLineCount = lines.stream()
+                    .filter(line -> !line.isBlank())
+                    .count();
+
+            assertThat(nonBlankLineCount)
+                    .as("Dataset case file must contain at least one case: %s", caseFile)
+                    .isPositive();
+
+            for (int index = 0; index < lines.size(); index++) {
+                String line = lines.get(index);
+
+                if (line.isBlank()) {
+                    continue;
+                }
+
+                JsonNode caseNode = OBJECT_MAPPER.readTree(line);
+                validateCase(caseSchema, caseNode, sourceIds);
+
+                String caseId = caseNode.path("case_id").asText();
+
+                assertThat(caseIds.add(caseId))
+                        .as(
+                                "Duplicate case_id '%s' at %s:%d",
+                                caseId,
+                                caseFile,
+                                index + 1
+                        )
+                        .isTrue();
+
+                assertThat(caseNode.has("kind"))
+                        .as("Legacy kind field must not appear in %s", caseId)
+                        .isFalse();
+
+                caseNodes.add(caseNode);
+            }
         }
 
-        assertThat(lines.stream().filter(line -> !line.isBlank())).isNotEmpty();
-        assertThat(Files.exists(DATASET.resolve("draft/review-queue.jsonl"))).isFalse();
+        for (JsonNode caseNode : caseNodes) {
+            JsonNode lineage = caseNode.path("lineage");
+
+            if (!lineage.path("is_mutation").asBoolean()) {
+                continue;
+            }
+
+            String caseId = caseNode.path("case_id").asText();
+            String parentCaseId = lineage.path("parent_case_id").asText();
+
+            assertThat(caseIds)
+                    .as(
+                            "Mutation %s references unresolved parent %s",
+                            caseId,
+                            parentCaseId
+                    )
+                    .contains(parentCaseId);
+
+            assertThat(parentCaseId)
+                    .as("Mutation cannot reference itself: %s", caseId)
+                    .isNotEqualTo(caseId);
+        }
+
+        assertThat(Files.exists(DATASET.resolve("draft/review-queue.jsonl")))
+                .isFalse();
     }
 
     @Test
@@ -142,12 +208,34 @@ class CrossrefVerificationDatasetStructureTest {
         assertThat(provenanceSchema.validate(manifest)).isEmpty();
 
         for (JsonNode source : manifest.path("sources")) {
+            String sourceId = source.path("source_id").asText();
             JsonNode provenance = source.path("provenance");
-            assertThat(provenance.has("review")).isFalse();
-            if (!"EXISTING_FIXTURE".equals(provenance.path("origin_type").asText())) continue;
+
+            assertThat(provenance.has("review"))
+                    .as("Source provenance must not contain review: %s", sourceId)
+                    .isFalse();
+
             String sourcePath = provenance.path("source_path").asText();
-            assertThat(Path.of(sourcePath).isAbsolute()).isFalse();
-            assertThat(sha256(Path.of(sourcePath))).isEqualToIgnoringCase(provenance.path("source_sha256").asText());
+
+            assertThat(sourcePath)
+                    .as("source_path must be present for %s", sourceId)
+                    .isNotBlank();
+
+            Path fixturePath = Path.of(sourcePath);
+
+            assertThat(fixturePath.isAbsolute())
+                    .as("source_path must be repository-relative for %s", sourceId)
+                    .isFalse();
+
+            assertThat(Files.exists(fixturePath))
+                    .as("Source file must exist for %s: %s", sourceId, fixturePath)
+                    .isTrue();
+
+            assertThat(sha256(fixturePath))
+                    .as("SHA-256 mismatch for source %s", sourceId)
+                    .isEqualToIgnoringCase(
+                            provenance.path("source_sha256").asText()
+                    );
         }
     }
 
