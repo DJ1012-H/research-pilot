@@ -50,3 +50,37 @@ mutations:
     expected_effect:
       field_status: MISMATCHED
       verification_status_change: POLICY_DECIDES
+  - id: TITLE_CASE_VARIANT
+    version: "1"
+    category: EQUIVALENT
+    target: candidate.title
+    precondition: Candidate title is non-empty.
+    operation: Change letter case without changing title text.
+    parameters:
+      form: uppercase
+    expected_effect:
+      field_status: MATCHED
+      verification_status_change: NONE
+  - id: TITLE_SURROUNDING_WHITESPACE
+    version: "1"
+    category: EQUIVALENT
+    target: candidate.title
+    precondition: Candidate title is non-empty.
+    operation: Add ASCII whitespace before and after the title.
+    parameters:
+      leading_spaces: 2
+      trailing_spaces: 2
+    expected_effect:
+      field_status: MATCHED
+      verification_status_change: NONE
+  - id: TITLE_REPEATED_WHITESPACE
+    version: "1"
+    category: EQUIVALENT
+    target: candidate.title
+    precondition: Candidate title contains at least one internal ASCII space.
+    operation: Replace one internal single space with repeated ASCII spaces.
+    parameters:
+      repeated_spaces: 2
+    expected_effect:
+      field_status: MATCHED
+      verification_status_change: NONE
