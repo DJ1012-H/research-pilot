@@ -1,7 +1,0 @@
-{
-  "schema_version": "crossref-verification-v1",
-  "mutation_sets": [
-    {"path": "eval/crossref-verification-v1/mutations/doi-normalization.yaml", "schema": "eval/crossref-verification-v1/schema/mutation.schema.json"},
-    {"path": "eval/crossref-verification-v1/mutations/metadata-perturbations.yaml", "schema": "eval/crossref-verification-v1/schema/mutation.schema.json"}
-  ]
-}
