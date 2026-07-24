@@ -25,11 +25,34 @@ class CrossrefRealApiSmokeTest {
         DoiNormalizer doiNormalizer = new DoiNormalizer();
         CrossrefClient client = new CrossrefClient(RestClient.builder().baseUrl(properties.getBaseUrl()).build(),
                 properties, gate, new CrossrefRetryPolicy(properties), doiNormalizer);
-        CrossrefSearchAdapter adapter = new CrossrefSearchAdapter(client, doiNormalizer);
+        CrossrefSearchAdapter adapter = new CrossrefSearchAdapter(client, new CrossrefPaperMapper(doiNormalizer));
 
         CrossrefLookupResult result = adapter.findByDoi("10.1038/s41586-021-03819-2");
 
         assertThat(result.status()).isEqualTo(CrossrefLookupResult.Status.FOUND);
         assertThat(result.metadata().doi()).isNotBlank();
+    }
+
+    @Test
+    void shouldReturnKnownTitleAsBibliographicCandidatesWithoutVerification() {
+        CrossrefProperties properties = new CrossrefProperties();
+        properties.setEnabled(true);
+        properties.setMailto(System.getenv("CROSSREF_MAILTO"));
+        properties.setUserAgent(System.getenv().getOrDefault("CROSSREF_USER_AGENT", "ResearchPilot/0.1"));
+        properties.setPlusToken(System.getenv("CROSSREF_PLUS_TOKEN"));
+        CrossrefConfig.validate(properties);
+        CrossrefRequestGate gate = new CrossrefRequestGate(properties);
+        DoiNormalizer doiNormalizer = new DoiNormalizer();
+        CrossrefClient client = new CrossrefClient(RestClient.builder().baseUrl(properties.getBaseUrl()).build(),
+                properties, gate, new CrossrefRetryPolicy(properties), doiNormalizer);
+        CrossrefSearchAdapter adapter = new CrossrefSearchAdapter(client, new CrossrefPaperMapper(doiNormalizer));
+
+        CrossrefBibliographicLookupResult result = adapter.findByBibliographic(new CrossrefBibliographicQuery(
+                "Highly accurate protein structure prediction with AlphaFold", "Jumper", 2021, "Nature"));
+
+        assertThat(result.status()).isIn(CrossrefBibliographicLookupResult.Status.FOUND_SINGLE,
+                CrossrefBibliographicLookupResult.Status.FOUND_MULTIPLE);
+        assertThat(result.candidates()).extracting(CrossrefWorkMetadata::doi)
+                .contains("10.1038/s41586-021-03819-2");
     }
 }

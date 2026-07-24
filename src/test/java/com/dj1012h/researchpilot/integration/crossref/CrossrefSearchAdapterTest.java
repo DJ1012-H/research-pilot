@@ -5,7 +5,6 @@ import com.dj1012h.researchpilot.integration.crossref.dto.CrossrefDate;
 import com.dj1012h.researchpilot.integration.crossref.dto.CrossrefWorkMessage;
 import com.dj1012h.researchpilot.integration.crossref.dto.CrossrefWorkResponse;
 import com.dj1012h.researchpilot.integration.crossref.dto.CrossrefWorksResponse;
-import com.dj1012h.researchpilot.literature.normalization.DoiNormalizer;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.EnumSource;
@@ -20,10 +19,10 @@ import static org.mockito.Mockito.when;
 class CrossrefSearchAdapterTest {
 
     private final CrossrefClient client = mock(CrossrefClient.class);
-    private final CrossrefSearchAdapter adapter = new CrossrefSearchAdapter(client, new DoiNormalizer());
+    private final CrossrefSearchAdapter adapter = new CrossrefSearchAdapter(client, paperMapper());
 
     @Test
-    void shouldMapFoundMetadataWithOnlineDatePriorityAndMissingOptionalFields() {
+    void shouldMapFoundMetadataWithPrintDatePriorityAndMissingOptionalFields() {
         when(client.getWorkByDoi("10.1000/example")).thenReturn(new CrossrefWorkResponse("ok", null, null,
                 new CrossrefWorkMessage("HTTPS://DOI.ORG/10.1000/EXAMPLE", List.of("A title"),
                         List.of(new CrossrefAuthor("Ada", "Lovelace", null), new CrossrefAuthor(null, null, "Group")),
@@ -33,7 +32,7 @@ class CrossrefSearchAdapterTest {
 
         assertThat(result.status()).isEqualTo(CrossrefLookupResult.Status.FOUND);
         assertThat(result.metadata().doi()).isEqualTo("10.1000/example");
-        assertThat(result.metadata().publicationYear()).isEqualTo(2024);
+        assertThat(result.metadata().publicationYear()).isEqualTo(2023);
         assertThat(result.metadata().authorNames()).containsExactly("Ada Lovelace", "Group");
     }
 
@@ -117,6 +116,10 @@ class CrossrefSearchAdapterTest {
     }
 
     private CrossrefDate date(int year) { return new CrossrefDate(List.of(List.of(year))); }
+
+    private CrossrefPaperMapper paperMapper() {
+        return new CrossrefPaperMapper(new com.dj1012h.researchpilot.literature.normalization.DoiNormalizer());
+    }
 
     private CrossrefWorksResponse works(List<CrossrefWorkMessage> items) {
         return new CrossrefWorksResponse("ok", null, null,

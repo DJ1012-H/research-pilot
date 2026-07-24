@@ -25,7 +25,7 @@ import java.time.format.DateTimeFormatter;
 public class CrossrefClient {
 
     private static final String BIBLIOGRAPHIC_SELECT =
-            "DOI,title,author,published,published-online,published-print,issued,container-title,type,publisher";
+            "DOI,title,author,published,published-online,published-print,issued,created,container-title,type,publisher";
 
     private final RestClient restClient;
     private final CrossrefProperties properties;
