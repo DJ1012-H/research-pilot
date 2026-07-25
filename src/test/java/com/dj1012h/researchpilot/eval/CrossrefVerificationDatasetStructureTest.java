@@ -19,6 +19,7 @@ import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -35,8 +36,9 @@ class CrossrefVerificationDatasetStructureTest {
     private static final List<Path> CASE_FILES = List.of(
             DATASET.resolve("draft/seed-cases.jsonl"),
             DATASET.resolve("generated/doi-normalization-cases.jsonl"),
-        DATASET.resolve("generated/title-normalization-cases.jsonl"),
-            DATASET.resolve("generated/conflict-cases.jsonl")
+            DATASET.resolve("generated/title-normalization-cases.jsonl"),
+            DATASET.resolve("generated/conflict-cases.jsonl"),
+            DATASET.resolve("generated/online-first-and-unicode-hyphen-cases.jsonl")
     );
 
     @Test
@@ -201,6 +203,79 @@ class CrossrefVerificationDatasetStructureTest {
         mutation.with("lineage").put("mutation_id", "DOI_CASE_VARIANT");
         mutation.with("lineage").put("mutation_version", "1");
         validateCase(caseSchema, mutation, sourceIds);
+    }
+
+    @Test
+    void shouldEnforceMutationTargetsAndParentFieldIsolation() throws Exception {
+        Map<String, String> mutationTargets = Map.ofEntries(
+                Map.entry("DOI_URL_PREFIX", "candidate.doi"),
+                Map.entry("DOI_CASE_VARIANT", "candidate.doi"),
+                Map.entry("DOI_SURROUNDING_WHITESPACE", "candidate.doi"),
+                Map.entry("DOI_LABEL_PREFIX", "candidate.doi"),
+                Map.entry("TITLE_CASE_VARIANT", "candidate.title"),
+                Map.entry("TITLE_SURROUNDING_WHITESPACE", "candidate.title"),
+                Map.entry("TITLE_REPEATED_WHITESPACE", "candidate.title"),
+                Map.entry("TITLE_TERMINAL_PUNCTUATION", "candidate.title"),
+                Map.entry("FIRST_AUTHOR_REPLACEMENT", "candidate.authors[0]"),
+                Map.entry("DISTINCT_TITLE_REPLACEMENT", "candidate.title"),
+                Map.entry("ONLINE_FIRST_YEAR", "candidate.publication_year"),
+                Map.entry("TITLE_UNICODE_HYPHEN", "candidate.title")
+        );
+        Map<String, JsonNode> cases = new java.util.HashMap<>();
+
+        for (Path caseFile : CASE_FILES) {
+            for (String line : Files.readAllLines(caseFile, StandardCharsets.UTF_8)) {
+                if (!line.isBlank()) {
+                    JsonNode caseNode = OBJECT_MAPPER.readTree(line);
+                    cases.put(caseNode.path("case_id").asText(), caseNode);
+                }
+            }
+        }
+
+        for (JsonNode child : cases.values()) {
+            JsonNode lineage = child.path("lineage");
+            if (!lineage.path("is_mutation").asBoolean()) continue;
+
+            String caseId = child.path("case_id").asText();
+            String mutationId = lineage.path("mutation_id").asText();
+            String target = mutationTargets.get(mutationId);
+            assertThat(target)
+                    .as("Mutation must be declared in metadata-perturbations.yaml or doi-normalization.yaml: %s", caseId)
+                    .isNotNull();
+            assertThat(lineage.path("mutation_version").asText())
+                    .as("Mutation version must match the current YAML rule: %s", caseId)
+                    .isEqualTo("1");
+
+            JsonNode parent = cases.get(lineage.path("parent_case_id").asText());
+            assertThat(parent).as("Mutation parent must resolve: %s", caseId).isNotNull();
+            assertThat(child.path("input").path("reference"))
+                    .as("Mutation must not change reference metadata: %s", caseId)
+                    .isEqualTo(parent.path("input").path("reference"));
+
+            JsonNode childCandidate = child.path("input").path("candidate");
+            JsonNode parentCandidate = parent.path("input").path("candidate");
+            for (String field : List.of("openalex_id", "doi", "title", "publication_year", "venue", "work_type")) {
+                if (target.equals("candidate." + field)) continue;
+                assertThat(childCandidate.path(field))
+                        .as("Mutation changed non-target candidate field %s: %s", field, caseId)
+                        .isEqualTo(parentCandidate.path(field));
+            }
+
+            if (!target.equals("candidate.authors[0]")) {
+                assertThat(childCandidate.path("authors"))
+                        .as("Mutation changed non-target candidate authors: %s", caseId)
+                        .isEqualTo(parentCandidate.path("authors"));
+            } else {
+                JsonNode childAuthors = childCandidate.path("authors");
+                JsonNode parentAuthors = parentCandidate.path("authors");
+                assertThat(childAuthors.size()).isEqualTo(parentAuthors.size());
+                for (int index = 1; index < parentAuthors.size(); index++) {
+                    assertThat(childAuthors.get(index))
+                            .as("Mutation changed non-target author index %d: %s", index, caseId)
+                            .isEqualTo(parentAuthors.get(index));
+                }
+            }
+        }
     }
 
     @Test
