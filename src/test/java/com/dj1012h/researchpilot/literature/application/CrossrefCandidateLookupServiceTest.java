@@ -9,6 +9,7 @@ import com.dj1012h.researchpilot.integration.crossref.CrossrefProperties;
 import com.dj1012h.researchpilot.integration.crossref.CrossrefSearchPort;
 import com.dj1012h.researchpilot.integration.crossref.CrossrefWorkMetadata;
 import com.dj1012h.researchpilot.literature.model.CandidatePaper;
+import com.dj1012h.researchpilot.literature.model.DeduplicationReason;
 import com.dj1012h.researchpilot.literature.normalization.DoiNormalizer;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
@@ -44,12 +45,50 @@ class CrossrefCandidateLookupServiceTest {
         assertThat(summary.doiEligibleCount()).isEqualTo(2);
         assertThat(summary.titleEligibleCount()).isOne();
         assertThat(summary.attemptedCount()).isEqualTo(2);
+        assertThat(summary.candidateDeduplication().inputCount()).isEqualTo(4);
+        assertThat(summary.candidateDeduplication().uniqueCount()).isEqualTo(3);
+        assertThat(summary.candidateDeduplication().removedCount()).isOne();
         assertThat(summary.foundCount()).isOne();
         assertThat(summary.notFoundCount()).isOne();
         assertThat(summary.skippedByLimitCount()).isOne();
         verify(port).findByDoi("10.1000/a");
         verify(port).findByDoi("10.1000/b");
         verify(port, never()).findByBibliographic(org.mockito.ArgumentMatchers.any());
+    }
+
+    @Test
+    void shouldQueryOnlyTwoUniqueCandidatesFromFiveOriginalCandidates() {
+        crossref.setEnabled(true);
+        when(port.findByDoi("10.1000/a")).thenReturn(CrossrefLookupResult.notFound());
+        when(port.findByBibliographic(org.mockito.ArgumentMatchers.any()))
+                .thenReturn(CrossrefBibliographicLookupResult.notFound());
+
+        CrossrefLookupSummary summary = service.lookup(List.of(
+                identityCandidate("W100", "10.1000/a", "DOI paper", "Jane Doe"),
+                identityCandidate("W101", "doi:10.1000/A", "DOI duplicate", "J. Doe"),
+                identityCandidate(null, null, "Exact Study", "Jane Doe"),
+                identityCandidate(null, null, " exact study ", "Jane Doe"),
+                identityCandidate(null, null, "Exact Study", "Jane Doe")
+        ));
+
+        assertThat(summary.candidateDeduplication().inputCount()).isEqualTo(5);
+        assertThat(summary.candidateDeduplication().uniqueCount()).isEqualTo(2);
+        assertThat(summary.candidateDeduplication().removedCount()).isEqualTo(3);
+        assertThat(summary.candidateDeduplication().duplicateGroups()).hasSize(2);
+        assertThat(summary.candidateDeduplication().duplicateGroups())
+                .extracting(group -> group.reason())
+                .containsExactlyInAnyOrder(
+                        DeduplicationReason.SAME_NORMALIZED_DOI,
+                        DeduplicationReason.SAME_EXACT_BIBLIOGRAPHIC_KEY
+                );
+        int representedOriginals = summary.candidateDeduplication().uniqueCount()
+                + summary.candidateDeduplication().duplicateGroups().stream()
+                .mapToInt(group -> group.removedCandidateIds().size())
+                .sum();
+        assertThat(representedOriginals).isEqualTo(5);
+        assertThat(summary.attemptedCount()).isEqualTo(2);
+        verify(port).findByDoi("10.1000/a");
+        verify(port).findByBibliographic(org.mockito.ArgumentMatchers.any());
     }
 
     @Test
@@ -145,6 +184,13 @@ class CrossrefCandidateLookupServiceTest {
     private CandidatePaper candidate(String doi, String title) {
         return new CandidatePaper("id-" + title, doi, title, List.of(), "Journal", null, 2026, null,
                 null, 0, null, null, null, false, CandidatePaper.CandidateSource.OPENALEX);
+    }
+
+    private CandidatePaper identityCandidate(String openAlexId, String doi, String title, String firstAuthor) {
+        return new CandidatePaper(openAlexId, doi, title,
+                List.of(new CandidatePaper.Author(null, firstAuthor, null)),
+                "Journal", null, 2026, "article", "en", 0,
+                null, null, null, false, CandidatePaper.CandidateSource.OPENALEX);
     }
 
     private CrossrefWorkMetadata metadata(String doi) {

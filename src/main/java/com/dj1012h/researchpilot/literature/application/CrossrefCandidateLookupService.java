@@ -9,8 +9,14 @@ import com.dj1012h.researchpilot.integration.crossref.CrossrefLookupResult;
 import com.dj1012h.researchpilot.integration.crossref.CrossrefProperties;
 import com.dj1012h.researchpilot.integration.crossref.CrossrefSearchPort;
 import com.dj1012h.researchpilot.integration.crossref.CrossrefWorkMetadata;
+import com.dj1012h.researchpilot.literature.model.CandidateDeduplicationResult;
 import com.dj1012h.researchpilot.literature.model.CandidatePaper;
+import com.dj1012h.researchpilot.literature.model.NormalizedCandidate;
 import com.dj1012h.researchpilot.literature.normalization.DoiNormalizer;
+import com.dj1012h.researchpilot.literature.normalization.AuthorNormalizer;
+import com.dj1012h.researchpilot.literature.normalization.OpenAlexIdNormalizer;
+import com.dj1012h.researchpilot.literature.normalization.TitleNormalizer;
+import com.dj1012h.researchpilot.literature.normalization.VenueNormalizer;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
@@ -28,8 +34,8 @@ public class CrossrefCandidateLookupService {
     private final CrossrefSearchPort crossrefSearchPort;
     private final CrossrefProperties crossrefProperties;
     private final LiteratureSearchProperties searchProperties;
-    private final DoiNormalizer doiNormalizer;
     private final CrossrefTitleQueryGuard titleQueryGuard;
+    private final CandidateDeduplicationService candidateDeduplicationService;
 
     /** Compatibility constructor for direct callers from the DOI-only stage. */
     public CrossrefCandidateLookupService(
@@ -38,7 +44,18 @@ public class CrossrefCandidateLookupService {
             LiteratureSearchProperties searchProperties
     ) {
         this(crossrefSearchPort, crossrefProperties, searchProperties,
-                new DoiNormalizer(), new CrossrefTitleQueryGuard());
+                new DoiNormalizer(), new CrossrefTitleQueryGuard(), defaultDeduplicationService());
+    }
+
+    public CrossrefCandidateLookupService(
+            CrossrefSearchPort crossrefSearchPort,
+            CrossrefProperties crossrefProperties,
+            LiteratureSearchProperties searchProperties,
+            DoiNormalizer doiNormalizer,
+            CrossrefTitleQueryGuard titleQueryGuard
+    ) {
+        this(crossrefSearchPort, crossrefProperties, searchProperties, doiNormalizer, titleQueryGuard,
+                defaultDeduplicationService(doiNormalizer));
     }
 
     @Autowired
@@ -47,21 +64,27 @@ public class CrossrefCandidateLookupService {
             CrossrefProperties crossrefProperties,
             LiteratureSearchProperties searchProperties,
             DoiNormalizer doiNormalizer,
-            CrossrefTitleQueryGuard titleQueryGuard
+            CrossrefTitleQueryGuard titleQueryGuard,
+            CandidateDeduplicationService candidateDeduplicationService
     ) {
         this.crossrefSearchPort = crossrefSearchPort;
         this.crossrefProperties = crossrefProperties;
         this.searchProperties = searchProperties;
-        this.doiNormalizer = doiNormalizer;
         this.titleQueryGuard = titleQueryGuard;
+        this.candidateDeduplicationService = candidateDeduplicationService;
     }
 
     public CrossrefLookupSummary lookup(List<CandidatePaper> candidates) {
         Objects.requireNonNull(candidates, "candidates must not be null");
-        LookupTargets targets = targets(candidates);
+        return lookup(candidateDeduplicationService.deduplicate(candidates));
+    }
+
+    public CrossrefLookupSummary lookup(CandidateDeduplicationResult deduplication) {
+        Objects.requireNonNull(deduplication, "deduplication must not be null");
+        LookupTargets targets = targets(deduplication);
         if (!crossrefProperties.isEnabled()) {
             // A disabled source performs no port, gate, retry, or HTTP operation.
-            return summary(targets, 0, 0, 0, 0, 0, false, false, List.of(), List.of());
+            return summary(targets, 0, 0, 0, 0, 0, false, false, List.of(), List.of(), deduplication);
         }
 
         int attempted = 0;
@@ -102,16 +125,16 @@ public class CrossrefCandidateLookupService {
             }
         }
         return summary(targets, attempted, found, notFound, failed, skipped, true, sourceAvailable,
-                metadata, bibliographicResults);
+                metadata, bibliographicResults, deduplication);
     }
 
-    private LookupTargets targets(List<CandidatePaper> candidates) {
+    private LookupTargets targets(CandidateDeduplicationResult deduplication) {
         // Keep valid DOI values stable and deduplicated before any external request.
         LinkedHashSet<String> dois = new LinkedHashSet<>();
         Map<String, CrossrefBibliographicQuery> queries = new LinkedHashMap<>();
-        for (CandidatePaper candidate : candidates) {
-            if (candidate == null) continue;
-            String doi = doiNormalizer.normalize(candidate.doi());
+        for (NormalizedCandidate normalizedCandidate : deduplication.uniqueCandidates()) {
+            CandidatePaper candidate = normalizedCandidate.originalCandidate();
+            String doi = normalizedCandidate.normalizedDoi();
             if (doi != null) {
                 // Valid DOIs always use the exact DOI route; no title fallback is added.
                 dois.add(doi);
@@ -163,10 +186,25 @@ public class CrossrefCandidateLookupService {
     private CrossrefLookupSummary summary(
             LookupTargets targets, int attempted, int found, int notFound, int failed, int skipped,
             boolean enabled, boolean available, List<CrossrefWorkMetadata> metadata,
-            List<CrossrefBibliographicLookupResult> bibliographicResults
+            List<CrossrefBibliographicLookupResult> bibliographicResults,
+            CandidateDeduplicationResult deduplication
     ) {
         return new CrossrefLookupSummary(targets.dois().size(), targets.queries().size(), attempted, found,
-                notFound, failed, skipped, enabled, available, metadata, bibliographicResults);
+                notFound, failed, skipped, enabled, available, metadata, bibliographicResults, deduplication);
+    }
+
+    private static CandidateDeduplicationService defaultDeduplicationService() {
+        return defaultDeduplicationService(new DoiNormalizer());
+    }
+
+    private static CandidateDeduplicationService defaultDeduplicationService(DoiNormalizer doiNormalizer) {
+        return new CandidateDeduplicationService(new CandidateNormalizationService(
+                doiNormalizer,
+                new OpenAlexIdNormalizer(),
+                new TitleNormalizer(),
+                new AuthorNormalizer(),
+                new VenueNormalizer()
+        ));
     }
 
     private record LookupTargets(List<String> dois, List<CrossrefBibliographicQuery> queries) {
