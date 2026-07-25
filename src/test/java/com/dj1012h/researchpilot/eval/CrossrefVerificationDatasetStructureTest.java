@@ -35,7 +35,8 @@ class CrossrefVerificationDatasetStructureTest {
     private static final List<Path> CASE_FILES = List.of(
             DATASET.resolve("draft/seed-cases.jsonl"),
             DATASET.resolve("generated/doi-normalization-cases.jsonl"),
-        DATASET.resolve("generated/title-normalization-cases.jsonl")
+        DATASET.resolve("generated/title-normalization-cases.jsonl"),
+            DATASET.resolve("generated/conflict-cases.jsonl")
     );
 
     @Test
