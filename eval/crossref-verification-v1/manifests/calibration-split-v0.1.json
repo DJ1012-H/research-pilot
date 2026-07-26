@@ -1,0 +1,24 @@
+{
+  "version": "v0.1",
+  "dataset_version": "crossref-verification-v1",
+  "calibration_case_ids": [
+    "crv1-case-0001",
+    "crv1-case-0003",
+    "crv1-case-0004",
+    "crv1-case-0005",
+    "crv1-case-0006",
+    "crv1-case-0007",
+    "crv1-case-0008",
+    "crv1-case-0009",
+    "crv1-case-0012",
+    "crv1-case-0014"
+  ],
+  "acceptance_case_ids": [
+    "crv1-case-0002",
+    "crv1-case-0010",
+    "crv1-case-0011",
+    "crv1-case-0013"
+  ],
+  "excluded_cases": [],
+  "notes": "Acceptance cases are frozen and must not be used for threshold tuning."
+}
