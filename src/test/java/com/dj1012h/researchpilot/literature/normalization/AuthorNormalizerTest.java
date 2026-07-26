@@ -30,4 +30,19 @@ class AuthorNormalizerTest {
         assertThat(normalizer.normalizeFirstAuthor(List.of())).isNull();
         assertThat(normalizer.normalizeFirstAuthor(null)).isNull();
     }
+
+    @Test
+    void shouldProduceEquivalentComparisonKeysForSurnameOrderAndInitialVariants() {
+        assertThat(normalizer.normalizeForComparison("John P. Smith"))
+                .isEqualTo(normalizer.normalizeForComparison("Smith, John P"))
+                .isEqualTo(normalizer.normalizeForComparison("J P Smith"));
+        assertThat(normalizer.normalizeForComparison("Jane Smith"))
+                .isNotEqualTo(normalizer.normalizeForComparison("John P Smith"));
+    }
+
+    @Test
+    void shouldDocumentSurnameAndInitialComparisonCollisionWithoutClaimingIdentity() {
+        assertThat(normalizer.normalizeForComparison("John Smith"))
+                .isEqualTo(normalizer.normalizeForComparison("James Smith"));
+    }
 }
