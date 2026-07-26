@@ -67,6 +67,13 @@ app:
     initial-backoff: ${CROSSREF_INITIAL_BACKOFF:250ms}
     max-backoff: ${CROSSREF_MAX_BACKOFF:2s}
     bibliographic-rows: ${CROSSREF_BIBLIOGRAPHIC_ROWS:5}
+    verification:
+      thresholds:
+        title-strong-match: ${CROSSREF_VERIFICATION_TITLE_STRONG_MATCH:0.92}
+        title-possible-match: ${CROSSREF_VERIFICATION_TITLE_POSSIBLE_MATCH:0.85}
+        author-overlap: ${CROSSREF_VERIFICATION_AUTHOR_OVERLAP:0.60}
+        source-match: ${CROSSREF_VERIFICATION_SOURCE_MATCH:0.85}
+        publication-year-tolerance: ${CROSSREF_VERIFICATION_PUBLICATION_YEAR_TOLERANCE:1}
 
 management:
   endpoints:

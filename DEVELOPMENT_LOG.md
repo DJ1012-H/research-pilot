@@ -1,11 +1,11 @@
 # ResearchPilot 开发日志
 
-> 日志覆盖时间：2026-07-13 ～ 2026-07-21
+> 日志覆盖时间：2026-07-13 ～ 2026-07-25
 > 第一阶段状态：已完成，较原计划 2026-07-18 提前一天
 > 第二阶段进展：已提前完成原计划 2026-07-19 的数据流与接口契约
 > OpenAlex 进展：已提前完成原计划 2026-07-20 的候选论文检索模块
 > Search Agent 进展：已提前完成原计划 2026-07-21 的查询规划与可信校验链路
-> Crossref 进展：2026-07-21 完成 DOI 精确查询基础、访问治理与候选编排；原计划中的字段级核验、去重和持久化顺延至后续独立阶段
+> Crossref 进展：2026-07-25 已完成统一候选标准化、分层精确去重和调用前预算保护；字段相似度与最终核验决策仍按后续独立阶段推进
 > 里程碑版本：`v0.1.0-phase1`
 > 第一阶段提交：`3c84ef4a6dd6043320c95bc9655701a52d52ce3b`
 > 远程仓库：<https://github.com/DJ1012-H/research-pilot>
@@ -72,6 +72,7 @@ ResearchPilot 的最终目标是完成一个可由其他用户从 GitHub 下载�
 | 2026-07-17（原计划 07-19） | 确定文献检索数据流、接口契约、模块职责和冻结规则 | 第二阶段查询契约落地，完整测试增至 31 个 |
 | 2026-07-19（原计划 07-20） | 实现 OpenAlex 候选论文检索、映射、异常治理和真实 API 验收 | 候选召回模块提前完成，完整测试增至 67 个 |
 | 2026-07-20（原计划 07-21） | 实现 Search Agent、五层可信校验和单 OpenAlex 运行时链路 | 查询规划提前完成，完整测试增至 164 个 |
+| 2026-07-25 | 实现统一字段标准化、分层精确去重和 Crossref 调用前预算保护 | 保守去重链路完成，字段核验证据结构就绪，未提前实现相似度或最终业务判定 |
 
 ## 5. 每日开发记录
 
@@ -1006,3 +1007,69 @@ Spring Boot 的条件装配回退，使它成为 MVC 使用的全局 Mapper；�
 - `FOUND` 仍不等于 `VERIFIED`；`SearchResponse.papers` 继续保持为空，未引入自动选择、字段级核验或正式论文准入。
 - 未实现持久化、缓存、Agent 状态机、RAG 或在线测评采集。
 - 本次代码提交不包含 `eval/` 下的测评数据集变更；相关文件继续仅保留在本地工作区。
+
+## 2026-07-24｜Crossref 固定回放与应用/评测分支分离
+
+### 实际进展
+
+- 在 `main` 增加 `CrossrefPaperMapper`，将 Crossref 外部 DTO 映射到既有 `CrossrefWorkMetadata`；出版日期按 print、online、issued、created 的顺序回退。
+- 保持 `CrossrefWorkMetadata` 的全部字段和 public record 构造器不变；外部 DTO 可以接收 URL，但 Mapper 不映射 URL，也不创建仅保存 URL 的重复内部模型。
+- 普通测试复用一份经过人工审核的真实 Crossref 响应快照，覆盖 DTO 反序列化与 Mapper 回放。原始响应未重新抓取或改写：Captured date 为 2026-07-22，Integrated/reused date 为 2026-07-24；审核日期无法确认，未填写。
+- 将应用代码、普通测试和两份计划文档归入 `main`；将 `eval/crossref-verification-v1/**` 与其结构测试归入同名评测分支，避免评测数据资产混入主线。
+- 为原先混合的开发历史创建只读保留标签 `archive/crossref-mixed-20260724-retain-until-20261022`，保留至 2026-10-22；不执行 Git 垃圾回收或历史改写。
+
+### 验证结果
+
+- `main`：`mvn clean verify` 成功，250 通过、0 失败、0 错误、2 跳过（默认关闭的真实 Crossref smoke test），并完成 JAR 打包。
+- `eval/crossref-verification-v1`：`mvn clean test` 成功，255 通过、0 失败、0 错误、2 跳过。
+- 固定快照用于 DTO deserialization、Mapper replay 和离线回归；本次常规测试未访问真实 Crossref，live smoke 结果不会覆盖 Fixture。
+
+### 范围边界
+
+- `FOUND` 仍不等于 `VERIFIED`，不会向 `SearchResponse.papers` 写入正式论文。
+- 本阶段未实现字段级核验、去重、可信度评分、持久化、缓存、Agent 状态机、RAG 或在线 benchmark runner。
+- URL 暂未进入内部契约；只有出现明确展示或跳转需求时，才通过兼容性设计扩展。
+
+## 2026-07-25｜统一字段标准化与 Crossref 调用前去重
+
+### 当日目标
+
+- 在 OpenAlex 候选映射之后、Crossref 外部调用之前完成确定性的本地标准化和保守去重。
+- 让重复候选不再重复消耗 DOI 查询或书目回退预算，同时保留原始候选和可解释的去重证据。
+- 只建立后续字段相似度所需的证据结构，不提前实现阈值校准或最终核验状态。
+
+### 实际进展
+
+- 新增标题、第一作者、来源、OpenAlex Work ID 标准化器，并继续复用既有共享 `DoiNormalizer`；标准化值与原始 `CandidatePaper` 分离保存。
+- 新增 `CandidateNormalizationService`，生成稳定候选标识、标准化 DOI/OpenAlex ID/标题/第一作者/年份/来源及输入顺序。
+- 新增 `CandidateDeduplicationService`，按 `DOI > OpenAlex ID > 精确书目键（标题 + 第一作者 + 年份）` 选择单一身份键。书目三要素不全的候选不合并。
+- 去重结果同时返回唯一候选、重复分组、去重原因、原始候选总数和移除数量；组内择优和最终顺序均具有确定性。
+- 将去重接入 `LiteratureSearchService` 与 `CrossrefCandidateLookupService` 之间。Crossref 只处理唯一候选，重复项不消耗共享查询预算。
+- 扩展 Crossref 查询摘要，记录原始候选数、去重后候选数、移除数和重复组数，但不改变 `FOUND` 与 `VERIFIED` 的业务边界。
+- 新增 `VerificationEvidence`、字段证据和字段匹配状态模型，供后续相似度计算使用；本次没有产生最终 `VerificationResult`。
+
+### 验证结果
+
+- 标准化器参数化测试覆盖 Unicode、空白、大小写、破折号、作者缩写保守边界、来源符号和 OpenAlex URL/ID 形式。
+- 去重测试覆盖相同 DOI、相同 OpenAlex ID、精确书目键、字段缺失、不同 DOI、预印本/正式版保留、确定性与幂等性。
+- 生产调用链测试可复现验证：5 个原始候选去重为 2 个唯一候选，Crossref 实际调用 2 次，重复证据仍保留全部 5 个原始候选。
+- 最终执行 `.\mvnw.cmd clean test`：279 项通过、0 失败、0 错误、2 项按显式开关控制的真实 Crossref smoke test 跳过。
+
+### 范围边界与技术决策
+
+- 标准化只负责稳定表示；相似度只负责字段比较；论文身份和正式准入必须由后续业务判定层完成，三者不互相替代。
+- 只按标题合并会误伤同名论文；DOI、OpenAlex ID 和完整精确书目键按可靠性分层，缺字段时优先保留候选。
+- 作者名不在字符串标准化层推断同一性；`John Smith`、`Smith, John` 和 `J. Smith` 默认保持不同。
+- 预印本与正式出版版本可能具有不同 DOI 或论文类型，当前不会仅凭标题接近自动合并。
+- 近期不计划加入多源核验，因此跨不同键类型建立连通分组的能力暂不纳入范围。
+- `FOUND` 继续不等于 `VERIFIED`；`SearchResponse.papers` 仍保持为空。
+
+### 后续阶段改进项
+
+以下项目安排在标题/作者/年份/来源相似度与字段核验阶段处理，不阻塞 7 月 25 日验收：
+
+- 统一并文档化“第一作者”契约，使 Crossref 书目查询参数与候选身份标准化复用同一条抽取/归一化路径。
+- 将 `openAccess` 从元数据完整度评分中移除或单独建模，避免把可访问性误当成字段完整性。
+- 区分候选出现标识与来源 OpenAlex ID，避免非法来源 ID 削弱 `candidateId` 的语义。
+- 在相似度与最终业务判定层评估 venue、work type 等冲突信号；不把它们提前塞入字符串标准化或模糊去重层。
+- 暂不安排跨键去重；只有未来恢复多源候选融合并出现真实样本时再重新评估。

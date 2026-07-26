@@ -11,7 +11,7 @@ import java.net.HttpURLConnection;
 import java.time.Duration;
 
 @Configuration(proxyBeanMethods = false)
-@EnableConfigurationProperties(CrossrefProperties.class)
+@EnableConfigurationProperties({CrossrefProperties.class, VerificationThresholdProperties.class})
 public class CrossrefConfig {
 
     @Bean

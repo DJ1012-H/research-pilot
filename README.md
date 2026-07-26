@@ -1,15 +1,30 @@
 # ResearchPilot
 
-## 2026-07-23：Crossref 书目回退查询
+## 2026-07-25：统一标准化与 Crossref 调用前去重
+
+OpenAlex 原始候选现在会在 Crossref 外部调用前经过确定性的本地标准化和保守去重。原始 `CandidatePaper` 不被覆盖，标准化值、去重键、重复原因和原始候选证据由独立模型保存。
+
+- DOI 继续复用共享 `DoiNormalizer`；标题、第一作者、来源和 OpenAlex Work ID 分别由窄职责标准化器处理。标准化只生成稳定比较值，不推断论文同一性。
+- 去重键按 `DOI > OpenAlex ID > 精确书目键（标题 + 第一作者 + 年份）` 分层选择。书目三要素不全时不生成回退键，候选会被保留。
+- 组内保留规则和最终输出顺序完全确定；重复组保留被选候选、所有原始成员、使用的键和去重原因。
+- `LiteratureSearchService` 先完成候选标准化与去重，再把唯一候选交给 Crossref。重复候选不会重复消耗 DOI 查询或书目回退预算。
+- `VerificationEvidence`、字段证据和匹配状态仅为下一阶段建立结构；本阶段不计算模糊相似度、不设置阈值，也不产生 `VERIFIED`。
+
+本阶段坚持保守边界：标题近似、作者名顺序/缩写变体、预印本与正式出版版本不会仅凭字符串相似而自动合并。近期没有多源核验计划，因此暂不扩展跨键连通去重。
+
+## 2026-07-24：Crossref 映射、固定回放与分支整理
 
 当 OpenAlex 候选论文没有可用 DOI 时，系统现在会先对标题执行确定性的本地资格校验；只有合格标题才会请求 Crossref `/works` 的 `query.bibliographic`。有效 DOI 仍只走精确 DOI 查询，DOI `NOT_FOUND` 不会自动回退标题查询。
 
 - 查询模型由 Java 确定性地按“标题、第一作者、年份、来源”构造；默认返回上限为 5，`CROSSREF_BIBLIOGRAPHIC_ROWS` 可配置为 1–10。
 - 返回值明确区分 `NOT_FOUND`、`FOUND_SINGLE` 和 `FOUND_MULTIPLE`，保留全部上限内候选，不默认选择第一条。
 - 空白、纯符号、超长、控制字符、URL、JSON/XML/HTML、Markdown 代码块和异常重复标题会在 HTTP、限流与重试之前被拒绝。
+- `CrossrefPaperMapper` 将外部响应收敛为既有内部字段；日期优先级为 print、online、issued、created。`CrossrefWorkMetadata` 的字段与 public record 构造器保持不变，外部 URL 不进入内部契约。
+- 普通测试复用经过人工审核的真实 Crossref 响应快照：Captured date 为 2026-07-22，Integrated/reused date 为 2026-07-24；用途为 DTO 反序列化、Mapper 回放和离线回归，不会被在线 smoke test 覆盖。
+- 仓库只保留两条业务分支：`main` 维护应用代码、普通测试和计划文档；`eval/crossref-verification-v1` 维护评测数据集与结构测试。
 - Crossref 候选发现不等于字段验证：本阶段不会产生 `VERIFIED`，`SearchResponse.papers` 仍保持为空。
 
-相关回归测试共 249 项通过，另有 1 项显式开关控制的真实 Crossref 烟测按预期跳过。
+`main` 的 `mvn clean verify`：250 项通过、0 失败、0 错误，2 项显式开关控制的真实 Crossref smoke test 按预期跳过，并完成 JAR 打包。
 
 ResearchPilot 是一个基于 Java、Spring Boot、LangChain4j 与 RAG 的学术文献检索 Agent。
 
@@ -35,9 +50,10 @@ DOI 规范化入口、精确查询收敛，以及字段核验评测数据集的�
 - [x] JSON 语法、Schema、DTO、业务规则和安全规则五层校验
 - [x] Crossref DOI 精确元数据查询、访问治理与候选编排（不等于核验通过）
 - [x] OpenAlex 与 Crossref 共享 DOI 规范化、请求前校验和响应 DOI 收敛
-- [x] Crossref 字段核验评测数据集骨架、来源追踪与变异谱系约束（不等于字段核验已实现）
+- [x] `eval/crossref-verification-v1` 分支中的 Crossref 字段核验评测数据集骨架、来源追踪与变异谱系约束（不等于字段核验已实现）
+- [x] 候选字段标准化、分层精确去重和 Crossref 调用前预算保护
 - [ ] Crossref 字段级元数据核验与 VERIFIED 准入
-- [ ] DOI/标题去重与可信度评分
+- [ ] 标题/作者/年份/来源相似度、阈值校准与可信度评分
 - [ ] MySQL 检索任务、论文和核验记录持久化
 
 ## 技术栈
@@ -104,6 +120,7 @@ src/main/java/com/dj1012h/researchpilot
 │   └── crossref
 │       ├── dto
 │       ├── CrossrefClient.java
+│       ├── CrossrefPaperMapper.java
 │       ├── CrossrefRequestGate.java
 │       ├── CrossrefRetryPolicy.java
 │       └── CrossrefSearchAdapter.java
@@ -207,8 +224,8 @@ powershell.exe -NoProfile -ExecutionPolicy Bypass `
 - 搜索成功但零篇通过核验时，返回 HTTP 200、`NO_VERIFIED_RESULTS` 和空列表。
 - `PaperDTO` 与 `VerificationResult` 分离，外部 API DTO 和数据库 Entity 不得替代核心契约。
 
-当前自动测试共 249 个通过，另有 1 个默认关闭的真实 Crossref 冒烟测试按预期跳过，包含架构约束、
-Search Agent、五层校验、OpenAlex、Crossref、候选编排、评测数据集结构和真实 Spring MVC 序列化测试。
+`main` 当前自动测试共 250 个通过，另有 2 个默认关闭的真实 Crossref 冒烟测试按预期跳过，包含架构约束、
+Search Agent、五层校验、OpenAlex、Crossref、候选编排、固定快照回放和真实 Spring MVC 序列化测试。
 
 ## OpenAlex 候选检索
 
@@ -273,10 +290,10 @@ SearchRequest
   严格 DTO 映射，也确保 `Instant` 类型能够正常写入 HTTP JSON。
 
 当前运行时链路能够接收 `POST /api/literature/search`，生成可信计划并执行一次
-OpenAlex 候选检索；带 DOI 的候选会在 Crossref 启用时按配置预算顺序进行精确
-书目查询。Crossref 找到记录不等于核验通过，因此候选和 Crossref 元数据只参与
-内部统计，不会作为已核验正式论文返回；成功但没有正式结果时返回
-`NO_VERIFIED_RESULTS`。
+OpenAlex 候选检索；候选经过统一标准化和分层精确去重后，唯一候选会在 Crossref
+启用时按配置预算顺序执行 DOI 精确查询或受控书目回退。Crossref 找到记录不等于
+核验通过，因此候选和 Crossref 元数据只参与内部统计，不会作为已核验正式论文
+返回；成功但没有正式结果时返回 `NO_VERIFIED_RESULTS`。
 
 ## Crossref 候选元数据查询
 
@@ -295,21 +312,19 @@ $env:CROSSREF_USER_AGENT = "ResearchPilot/0.1"
 $env:LITERATURE_MAX_CROSSREF_LOOKUPS = "5"
 ~~~
 
-一次检索最多查询 5 个稳定去重后的非空 DOI。OpenAlex 映射、Crossref 请求和
-Crossref 响应共用同一 DOI 规范化入口；非法请求在 HTTP 门控前拒绝，非法响应
-不会进入内部元数据。来源不可用时停止后续 Crossref 查询并保留已有元数据。
-当前对缺失有效 DOI 的候选执行受控标题书目回退，但不执行字段比较或 VERIFIED 准入；`papers` 必须保持为空。
+一次检索最多执行 5 次 Crossref 候选查询，DOI 精确查询和书目回退共享预算。
+OpenAlex 映射、候选去重、Crossref 请求和 Crossref 响应共用同一 DOI 规范化入口；
+非法请求在 HTTP 门控前拒绝，非法响应不会进入内部元数据。来源不可用时停止后续
+Crossref 查询并保留已有元数据。当前对缺失有效 DOI 的唯一候选执行受控标题书目
+回退，但不执行字段比较或 VERIFIED 准入；`papers` 必须保持为空。外部响应中的
+URL 目前不映射到内部模型，待有明确展示或跳转需求时再以兼容性设计扩展。
 
 ## Crossref 字段核验评测数据集
 
-`eval/crossref-verification-v1` 提供离线、可复现的数据集目录骨架，用于后续验证
-`CandidatePaper + CrossrefWorkMetadata -> VerificationResult` 的字段匹配逻辑。
-当前已固定案例 Schema、来源 provenance、父子 lineage、DOI 规范化变异和元数据
-扰动清单，并由结构测试校验引用路径、SHA-256 与状态约束。
+评测资产仅位于 `eval/crossref-verification-v1` 分支，不进入 `main`。该分支提供离线、可复现的数据集目录，用于后续验证
+`CandidatePaper + CrossrefWorkMetadata -> VerificationResult` 的字段匹配逻辑；其中包含固定案例 Schema、来源 provenance、父子 lineage、DOI 规范化变异和元数据扰动清单，并由结构测试校验引用路径、SHA-256 与状态约束。
 
-当前 `draft/seed-cases.jsonl` 保持为空，因为仓库内尚无经过人工批准、可成对追踪的
-Crossref 快照；不得为了填充数量伪造 ground truth。该目录目前不包含 benchmark
-runner、字段核验器或在线 Crossref 调用，也不评测 HTTP、重试、预算和编排行为。
+该分支复用既有、已人工审核的 Crossref 快照，不为任务日期重新抓取或改写原始响应。快照 Captured date 为 2026-07-22，Integrated/reused date 为 2026-07-24；Purpose 为 DTO deserialization、Mapper replay 和离线回归测试。无法确认审核日期时不填写 Reviewed date。数据集不包含 benchmark runner、字段核验器或在线 Crossref 调用，也不评测 HTTP、重试、预算和编排行为。
 
 ## 第一阶段验收记录
 
@@ -335,7 +350,7 @@ runner、字段核验器或在线 Crossref 调用，也不评测 HTTP、重试�
 当前尚未实现：
 
 - Crossref 字段级核验、歧义候选的字段匹配与 VERIFIED 准入
-- 候选标准化去重和最终可信排序
+- 标题、作者、年份与来源相似度计算、阈值校准和最终可信排序
 - 检索任务、论文和核验记录入库
 - Embedding
 - Qdrant 接入

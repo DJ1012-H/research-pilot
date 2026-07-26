@@ -2,6 +2,7 @@ package com.dj1012h.researchpilot.literature.application;
 
 import com.dj1012h.researchpilot.integration.crossref.CrossrefBibliographicLookupResult;
 import com.dj1012h.researchpilot.integration.crossref.CrossrefWorkMetadata;
+import com.dj1012h.researchpilot.literature.model.CandidateDeduplicationResult;
 
 import java.util.List;
 import java.util.Objects;
@@ -18,7 +19,8 @@ public record CrossrefLookupSummary(
         boolean crossrefEnabled,
         boolean sourceAvailable,
         List<CrossrefWorkMetadata> foundMetadata,
-        List<CrossrefBibliographicLookupResult> bibliographicResults
+        List<CrossrefBibliographicLookupResult> bibliographicResults,
+        CandidateDeduplicationResult candidateDeduplication
 ) {
     /** Compatibility constructor for callers that only observe DOI lookup accounting. */
     public CrossrefLookupSummary(
@@ -27,7 +29,20 @@ public record CrossrefLookupSummary(
             List<CrossrefWorkMetadata> foundMetadata
     ) {
         this(doiEligibleCount, 0, attemptedCount, foundCount, notFoundCount, failedCount,
-                skippedByLimitCount, crossrefEnabled, sourceAvailable, foundMetadata, List.of());
+                skippedByLimitCount, crossrefEnabled, sourceAvailable, foundMetadata, List.of(),
+                CandidateDeduplicationResult.empty());
+    }
+
+    /** Compatibility constructor for the pre-deduplication summary shape. */
+    public CrossrefLookupSummary(
+            int doiEligibleCount, int titleEligibleCount, int attemptedCount, int foundCount,
+            int notFoundCount, int failedCount, int skippedByLimitCount, boolean crossrefEnabled,
+            boolean sourceAvailable, List<CrossrefWorkMetadata> foundMetadata,
+            List<CrossrefBibliographicLookupResult> bibliographicResults
+    ) {
+        this(doiEligibleCount, titleEligibleCount, attemptedCount, foundCount, notFoundCount, failedCount,
+                skippedByLimitCount, crossrefEnabled, sourceAvailable, foundMetadata, bibliographicResults,
+                CandidateDeduplicationResult.empty());
     }
 
     public CrossrefLookupSummary {
@@ -41,5 +56,7 @@ public record CrossrefLookupSummary(
         foundMetadata = List.copyOf(Objects.requireNonNull(foundMetadata, "foundMetadata must not be null"));
         bibliographicResults = List.copyOf(Objects.requireNonNull(
                 bibliographicResults, "bibliographicResults must not be null"));
+        candidateDeduplication = Objects.requireNonNull(
+                candidateDeduplication, "candidateDeduplication must not be null");
     }
 }
