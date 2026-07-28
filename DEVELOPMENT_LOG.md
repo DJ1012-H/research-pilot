@@ -5,7 +5,7 @@
 > 第二阶段进展：已提前完成原计划 2026-07-19 的数据流与接口契约
 > OpenAlex 进展：已提前完成原计划 2026-07-20 的候选论文检索模块
 > Search Agent 进展：已提前完成原计划 2026-07-21 的查询规划与可信校验链路
-> Crossref 进展：2026-07-25 已完成统一候选标准化、分层精确去重和调用前预算保护；字段相似度与最终核验决策仍按后续独立阶段推进
+> Crossref 进展：2026-07-27 已完成候选级查询关联、字段核验证据解释、最终核验策略和 VERIFIED 正式结果准入，并通过真实 Swagger 端到端验收
 > 里程碑版本：`v0.1.0-phase1`
 > 第一阶段提交：`3c84ef4a6dd6043320c95bc9655701a52d52ce3b`
 > 远程仓库：<https://github.com/DJ1012-H/research-pilot>
@@ -1073,3 +1073,37 @@ Spring Boot 的条件装配回退，使它成为 MVC 使用的全局 Mapper；�
 - 区分候选出现标识与来源 OpenAlex ID，避免非法来源 ID 削弱 `candidateId` 的语义。
 - 在相似度与最终业务判定层评估 venue、work type 等冲突信号；不把它们提前塞入字符串标准化或模糊去重层。
 - 暂不安排跨键去重；只有未来恢复多源候选融合并出现真实样本时再重新评估。
+
+## 2026-07-27｜可信论文核验闭环与正式结果准入
+
+### 今日目标
+
+- 建立去重候选与 Crossref 查询结果的显式关联，禁止通过列表下标配对跨源记录。
+- 将既有字段级证据转换为最终 `VerificationResult`，并为正式论文建立只允许 `VERIFIED` 的准入 Gate。
+- 将核验闭环接入 `LiteratureSearchService`，使 `POST /api/literature/search` 可以返回真实、经 Crossref 核验且具有规范化 DOI 的论文。
+
+### 实际进展
+
+- 新增 `CandidateLookupResult`，为每个去重候选保留查询路由、状态、Crossref references 和安全 reason；覆盖禁用、未找到、来源不可用、失败、预算跳过和本地不合格状态。
+- 改造 `CrossrefCandidateLookupService` 与 `CrossrefLookupSummary`，保持稳定候选顺序和原有统计，同时确保候选级结果数等于去重候选数。
+- 新增 `VerificationPolicy`：有 DOI 路径以 DOI 精确一致为主证据，并由标题、作者和年份阻止明显错误匹配；无 DOI 路径只允许唯一强匹配且取得 Crossref DOI 时进入 `VERIFIED`。
+- 新增 `PaperVerificationService`，只对 `FOUND` references 生成字段证据，保留每个候选的最终状态与唯一选中 reference。
+- 新增 `EligiblePaperFilter`，只接纳 `VERIFIED` 且 DOI 可规范化的论文；保持 OpenAlex 元数据优先、按 DOI 全局去重，并使用与核验分分离的 rank-derived 展示分。
+- 修正 `SearchResponse`：`PaperResult` 不再允许 `PARTIALLY_VERIFIED`；`NO_VERIFIED_RESULTS` 允许存在部分核验统计，但要求正式论文为空且 `verifiedCount=0`。
+- 将正式核验统计与结果准入接入 `LiteratureSearchService`，候选数、去重数、核验分类总数和正式输出数量保持可解释且一致。
+
+### 验证结果
+
+- 聚焦测试：`VerificationPolicyTest`、`PaperVerificationServiceTest`、`EligiblePaperFilterTest` 共 8 项通过，0 失败、0 错误。
+- `.\mvnw.cmd test`：308 项测试通过，0 失败、0 错误，2 项显式开关控制的真实 Crossref smoke test 按预期跳过。
+- `.\mvnw.cmd clean verify`：从空 `target` 重新编译成功，308 项测试通过并完成 JAR 打包。
+- `git diff --check` 通过；提交范围未包含 `eval/**` 或 `src/test/java/com/dj1012h/researchpilot/eval/**`。
+- 真实 Swagger 请求返回 HTTP 200 与 `COMPLETED`：15 个 OpenAlex 候选、15 个去重候选；Crossref 尝试 5 次、找到 5 次、失败 0 次；正式返回 5 篇 `VERIFIED` 论文。
+- 5 篇正式论文的 `paper.doi` 均已规范化，并与各自 `verification.referenceDoi` 一致。
+
+### 范围边界
+
+- 未修改或合并评测数据集资产；`eval/crossref-verification-v1` 继续独立维护。
+- 未加入多轮 Agent、ReAct、持久化、缓存、RAG、Qdrant、PDF、前端或新的外部数据源。
+- Crossref 来源不可用只表示外部核验暂时不可执行，不解释为论文造假或字段冲突。
+- `evidenceScore` 保持工程证据分语义，不作为统计概率或查询相关性分数。

@@ -1,5 +1,16 @@
 # ResearchPilot
 
+## 2026-07-27：可信论文核验闭环与正式结果准入
+
+自然语言请求现在会经过可信 `SearchPlan`、OpenAlex 候选检索、候选标准化与去重、Crossref 查询、字段级证据比较、`VerificationPolicy` 判定和 `EligiblePaperFilter` 正式准入。每个去重候选都保留独立的 Crossref 查询结果，不再依赖列表下标关联候选与参考记录。
+
+- 有规范化 DOI 的候选只走 Crossref DOI 精确查询；DOI 一致且标题、作者、年份无明确冲突时才可判定为 `VERIFIED`。
+- 无 DOI 候选只有在唯一、无歧义、强字段匹配且取得可规范化 Crossref DOI 时才可判定为 `VERIFIED`。
+- `PARTIALLY_VERIFIED`、`CONFLICTED`、`NOT_FOUND`、`SOURCE_UNAVAILABLE`、`NOT_CHECKED` 和 `REJECTED` 仅用于诊断与统计，不进入正式 `papers`。
+- 正式结果按规范化 DOI 再次全局去重，并保持 OpenAlex 候选顺序；`relevanceScore` 是基于原始排名的展示分，不是概率或 Crossref 核验分。
+- `.\mvnw.cmd clean verify` 共运行 308 项测试，0 失败、0 错误，2 项显式启用的真实 Crossref smoke test按预期跳过，并成功完成 JAR 打包。
+- 真实 Swagger 验收返回 HTTP 200：15 个 OpenAlex 候选、15 个去重候选、5 次 Crossref 查询全部找到，正式返回 5 篇具有规范化 DOI 的 `VERIFIED` 论文。
+
 ## 2026-07-25：统一标准化与 Crossref 调用前去重
 
 OpenAlex 原始候选现在会在 Crossref 外部调用前经过确定性的本地标准化和保守去重。原始 `CandidatePaper` 不被覆盖，标准化值、去重键、重复原因和原始候选证据由独立模型保存。
@@ -22,9 +33,9 @@ OpenAlex 原始候选现在会在 Crossref 外部调用前经过确定性的本�
 - `CrossrefPaperMapper` 将外部响应收敛为既有内部字段；日期优先级为 print、online、issued、created。`CrossrefWorkMetadata` 的字段与 public record 构造器保持不变，外部 URL 不进入内部契约。
 - 普通测试复用经过人工审核的真实 Crossref 响应快照：Captured date 为 2026-07-22，Integrated/reused date 为 2026-07-24；用途为 DTO 反序列化、Mapper 回放和离线回归，不会被在线 smoke test 覆盖。
 - 仓库只保留两条业务分支：`main` 维护应用代码、普通测试和计划文档；`eval/crossref-verification-v1` 维护评测数据集与结构测试。
-- Crossref 候选发现不等于字段验证：本阶段不会产生 `VERIFIED`，`SearchResponse.papers` 仍保持为空。
+- Crossref 候选发现不等于字段验证：在 2026-07-24 阶段不会产生 `VERIFIED`，当时的 `SearchResponse.papers` 保持为空。
 
-`main` 的 `mvn clean verify`：250 项通过、0 失败、0 错误，2 项显式开关控制的真实 Crossref smoke test 按预期跳过，并完成 JAR 打包。
+2026-07-24 阶段的 `main` 执行 `mvn clean verify`：250 项通过、0 失败、0 错误，2 项显式开关控制的真实 Crossref smoke test 按预期跳过，并完成 JAR 打包。
 
 ResearchPilot 是一个基于 Java、Spring Boot、LangChain4j 与 RAG 的学术文献检索 Agent。
 
@@ -52,7 +63,7 @@ DOI 规范化入口、精确查询收敛，以及字段核验评测数据集的�
 - [x] OpenAlex 与 Crossref 共享 DOI 规范化、请求前校验和响应 DOI 收敛
 - [x] `eval/crossref-verification-v1` 分支中的 Crossref 字段核验评测数据集骨架、来源追踪与变异谱系约束（不等于字段核验已实现）
 - [x] 候选字段标准化、分层精确去重和 Crossref 调用前预算保护
-- [ ] Crossref 字段级元数据核验与 VERIFIED 准入
+- [x] Crossref 字段级元数据核验与 VERIFIED 准入
 - [ ] 标题/作者/年份/来源相似度、阈值校准与可信度评分
 - [ ] MySQL 检索任务、论文和核验记录持久化
 
@@ -224,7 +235,7 @@ powershell.exe -NoProfile -ExecutionPolicy Bypass `
 - 搜索成功但零篇通过核验时，返回 HTTP 200、`NO_VERIFIED_RESULTS` 和空列表。
 - `PaperDTO` 与 `VerificationResult` 分离，外部 API DTO 和数据库 Entity 不得替代核心契约。
 
-`main` 当前自动测试共 250 个通过，另有 2 个默认关闭的真实 Crossref 冒烟测试按预期跳过，包含架构约束、
+`main` 当前自动测试共 308 个通过，另有 2 个默认关闭的真实 Crossref 冒烟测试按预期跳过，包含架构约束、
 Search Agent、五层校验、OpenAlex、Crossref、候选编排、固定快照回放和真实 Spring MVC 序列化测试。
 
 ## OpenAlex 候选检索
@@ -316,7 +327,8 @@ $env:LITERATURE_MAX_CROSSREF_LOOKUPS = "5"
 OpenAlex 映射、候选去重、Crossref 请求和 Crossref 响应共用同一 DOI 规范化入口；
 非法请求在 HTTP 门控前拒绝，非法响应不会进入内部元数据。来源不可用时停止后续
 Crossref 查询并保留已有元数据。当前对缺失有效 DOI 的唯一候选执行受控标题书目
-回退，但不执行字段比较或 VERIFIED 准入；`papers` 必须保持为空。外部响应中的
+回退，并通过字段比较、最终核验策略和正式准入 Gate 只向 `papers` 写入具有规范化
+DOI 的 `VERIFIED` 论文。外部响应中的
 URL 目前不映射到内部模型，待有明确展示或跳转需求时再以兼容性设计扩展。
 
 ## Crossref 字段核验评测数据集
@@ -349,8 +361,7 @@ URL 目前不映射到内部模型，待有明确展示或跳转需求时再以�
 
 当前尚未实现：
 
-- Crossref 字段级核验、歧义候选的字段匹配与 VERIFIED 准入
-- 标题、作者、年份与来源相似度计算、阈值校准和最终可信排序
+- 更大规模的阈值校准、多源交叉核验和正式结果相关性排序
 - 检索任务、论文和核验记录入库
 - Embedding
 - Qdrant 接入
