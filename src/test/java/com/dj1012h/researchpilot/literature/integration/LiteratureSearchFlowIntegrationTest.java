@@ -11,6 +11,8 @@ import com.dj1012h.researchpilot.integration.openalex.OpenAlexSearchResult;
 import com.dj1012h.researchpilot.literature.api.dto.SearchRequest;
 import com.dj1012h.researchpilot.literature.api.dto.SearchResponse;
 import com.dj1012h.researchpilot.literature.application.LiteratureSearchService;
+import com.dj1012h.researchpilot.literature.application.PaperVerificationService;
+import com.dj1012h.researchpilot.literature.application.EligiblePaperFilter;
 import com.dj1012h.researchpilot.literature.application.CrossrefCandidateLookupService;
 import com.dj1012h.researchpilot.literature.application.CrossrefLookupSummary;
 import com.dj1012h.researchpilot.literature.application.LlmQueryPlanner;
@@ -53,6 +55,8 @@ class LiteratureSearchFlowIntegrationTest {
     private final LlmQueryPlanner planner = mock(LlmQueryPlanner.class);
     private final OpenAlexSearchPort openAlexSearchPort = mock(OpenAlexSearchPort.class);
     private final CrossrefCandidateLookupService crossrefCandidateLookupService = mock(CrossrefCandidateLookupService.class);
+    private final PaperVerificationService paperVerificationService = mock(PaperVerificationService.class);
+    private final EligiblePaperFilter eligiblePaperFilter = mock(EligiblePaperFilter.class);
     private final AiProperties aiProperties = new AiProperties();
 
     @Test
@@ -64,6 +68,8 @@ class LiteratureSearchFlowIntegrationTest {
                 .thenReturn(new OpenAlexSearchResult(0, List.of(), null));
         when(crossrefCandidateLookupService.lookup(List.of()))
                 .thenReturn(new CrossrefLookupSummary(0, 0, 0, 0, 0, 0, 0, false, false, List.of(), List.of()));
+        when(paperVerificationService.verify(any())).thenReturn(List.of());
+        when(eligiblePaperFilter.filter(List.of(), 10)).thenReturn(List.of());
 
         SearchResponse response = service().search(request);
 
@@ -142,6 +148,8 @@ class LiteratureSearchFlowIntegrationTest {
                 new OpenAlexQueryFactory(),
                 openAlexSearchPort,
                 crossrefCandidateLookupService,
+                paperVerificationService,
+                eligiblePaperFilter,
                 FIXED_CLOCK
         );
     }

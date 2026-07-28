@@ -5,10 +5,17 @@ import com.dj1012h.researchpilot.integration.openalex.OpenAlexSearchResult;
 import com.dj1012h.researchpilot.literature.api.dto.SearchRequest;
 import com.dj1012h.researchpilot.literature.api.dto.SearchResponse;
 import com.dj1012h.researchpilot.literature.model.CandidatePaper;
+import com.dj1012h.researchpilot.literature.model.CandidateDeduplicationResult;
+import com.dj1012h.researchpilot.literature.model.CandidateLookupResult;
+import com.dj1012h.researchpilot.literature.model.CandidateVerificationOutcome;
 import com.dj1012h.researchpilot.literature.model.LanguageCode;
+import com.dj1012h.researchpilot.literature.model.NormalizedCandidate;
 import com.dj1012h.researchpilot.literature.model.OpenAlexQuery;
+import com.dj1012h.researchpilot.literature.model.PaperDTO;
 import com.dj1012h.researchpilot.literature.model.SearchPlan;
 import com.dj1012h.researchpilot.literature.model.SearchSort;
+import com.dj1012h.researchpilot.literature.model.VerificationResult;
+import com.dj1012h.researchpilot.integration.crossref.CrossrefWorkMetadata;
 import org.junit.jupiter.api.Test;
 
 import java.time.Clock;
@@ -30,10 +37,13 @@ class LiteratureSearchServiceTest {
     private final OpenAlexQueryFactory queryFactory = mock(OpenAlexQueryFactory.class);
     private final OpenAlexSearchPort openAlexSearchPort = mock(OpenAlexSearchPort.class);
     private final CrossrefCandidateLookupService crossrefCandidateLookupService = mock(CrossrefCandidateLookupService.class);
+    private final PaperVerificationService paperVerificationService = mock(PaperVerificationService.class);
+    private final EligiblePaperFilter eligiblePaperFilter = mock(EligiblePaperFilter.class);
     private final Clock clock =
             Clock.fixed(Instant.parse("2026-07-20T08:00:00Z"), ZoneOffset.UTC);
     private final LiteratureSearchService service =
-            new LiteratureSearchService(searchAgent, queryFactory, openAlexSearchPort, crossrefCandidateLookupService, clock);
+            new LiteratureSearchService(searchAgent, queryFactory, openAlexSearchPort, crossrefCandidateLookupService,
+                    paperVerificationService, eligiblePaperFilter, clock);
 
     @Test
     void shouldExecuteOneTrustedOpenAlexSearchWithoutPublishingUnverifiedCandidates() {
@@ -46,6 +56,8 @@ class LiteratureSearchServiceTest {
         when(openAlexSearchPort.search(query))
                 .thenReturn(new OpenAlexSearchResult(42, List.of(candidate), null));
         when(crossrefCandidateLookupService.lookup(List.of(candidate))).thenReturn(disabledSummary(1));
+        when(paperVerificationService.verify(org.mockito.ArgumentMatchers.any())).thenReturn(List.of());
+        when(eligiblePaperFilter.filter(List.of(), 10)).thenReturn(List.of());
 
         SearchResponse response = service.search(request);
 
@@ -76,6 +88,8 @@ class LiteratureSearchServiceTest {
         when(openAlexSearchPort.search(query))
                 .thenReturn(new OpenAlexSearchResult(0, List.of(), null));
         when(crossrefCandidateLookupService.lookup(List.of())).thenReturn(disabledSummary(0));
+        when(paperVerificationService.verify(org.mockito.ArgumentMatchers.any())).thenReturn(List.of());
+        when(eligiblePaperFilter.filter(List.of(), 10)).thenReturn(List.of());
 
         SearchResponse response = service.search(request);
 
@@ -84,8 +98,57 @@ class LiteratureSearchServiceTest {
         assertThat(response.message()).contains("未检索到候选论文");
     }
 
+    @Test
+    void shouldPublishOnlyTheVerifiedPapersReturnedByTheFormalGate() {
+        SearchRequest request = new SearchRequest("Mamba", null, null, 10);
+        SearchPlan plan = plan(request);
+        OpenAlexQuery query = query();
+        CandidatePaper candidate = candidate();
+        CandidateVerificationOutcome verified = verifiedOutcome(candidate);
+        SearchResponse.PaperResult paper = new SearchResponse.PaperResult(
+                new PaperDTO("W1", "10.1000/example", "Example paper", List.of(), 2026, "Example Journal",
+                        List.of(), "article", null, "Abstract", "en", List.of(), 10,
+                        PaperDTO.LiteratureSource.OPENALEX),
+                1.0, verified.verification());
+        when(searchAgent.createPlan(request)).thenReturn(plan);
+        when(queryFactory.create(plan)).thenReturn(query);
+        when(openAlexSearchPort.search(query)).thenReturn(new OpenAlexSearchResult(1, List.of(candidate), null));
+        when(crossrefCandidateLookupService.lookup(List.of(candidate))).thenReturn(oneCandidateSummary(candidate));
+        when(paperVerificationService.verify(org.mockito.ArgumentMatchers.any())).thenReturn(List.of(verified));
+        when(eligiblePaperFilter.filter(org.mockito.ArgumentMatchers.anyList(), org.mockito.ArgumentMatchers.eq(10)))
+                .thenReturn(List.of(paper));
+
+        SearchResponse response = service.search(request);
+
+        assertThat(response.status()).isEqualTo(SearchResponse.SearchStatus.PARTIAL_SUCCESS);
+        assertThat(response.papers()).containsExactly(paper);
+        assertThat(response.verificationSummary().verifiedCount()).isOne();
+        assertThat(response.deduplicatedCount()).isOne();
+    }
+
     private CrossrefLookupSummary disabledSummary(int eligible) {
         return new CrossrefLookupSummary(eligible, 0, 0, 0, 0, 0, 0, false, false, List.of(), List.of());
+    }
+
+    private CrossrefLookupSummary oneCandidateSummary(CandidatePaper candidate) {
+        NormalizedCandidate normalized = new NormalizedCandidate("W1", candidate, "10.1000/example", "W1",
+                "example paper", null, 2026, "example journal", 0);
+        CandidateLookupResult lookup = new CandidateLookupResult(normalized, CandidateLookupResult.LookupRoute.DOI,
+                CandidateLookupResult.LookupStatus.FOUND,
+                List.of(new CrossrefWorkMetadata("10.1000/example", "Example paper", List.of(), 2026,
+                        "Example Journal", "article", "Publisher")), "TEST");
+        CandidateDeduplicationResult deduplication = new CandidateDeduplicationResult(
+                List.of(normalized), List.of(), 1, 1, 0);
+        return new CrossrefLookupSummary(1, 0, 1, 1, 0, 0, 0, true, true, lookup.references(), List.of(),
+                List.of(lookup), deduplication);
+    }
+
+    private CandidateVerificationOutcome verifiedOutcome(CandidatePaper candidate) {
+        CrossrefWorkMetadata reference = new CrossrefWorkMetadata("10.1000/example", "Example paper", List.of(),
+                2026, "Example Journal", "article", "Publisher");
+        VerificationResult result = new VerificationResult(VerificationResult.VerificationStatus.VERIFIED, 1.0,
+                VerificationResult.VerificationSource.CROSSREF, "10.1000/example", List.of(), List.of("TEST"));
+        return new CandidateVerificationOutcome(candidate, reference, result);
     }
 
     private SearchPlan plan(SearchRequest request) {

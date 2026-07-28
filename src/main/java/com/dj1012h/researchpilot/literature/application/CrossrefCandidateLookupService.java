@@ -10,6 +10,7 @@ import com.dj1012h.researchpilot.integration.crossref.CrossrefProperties;
 import com.dj1012h.researchpilot.integration.crossref.CrossrefSearchPort;
 import com.dj1012h.researchpilot.integration.crossref.CrossrefWorkMetadata;
 import com.dj1012h.researchpilot.literature.model.CandidateDeduplicationResult;
+import com.dj1012h.researchpilot.literature.model.CandidateLookupResult;
 import com.dj1012h.researchpilot.literature.model.CandidatePaper;
 import com.dj1012h.researchpilot.literature.model.NormalizedCandidate;
 import com.dj1012h.researchpilot.literature.normalization.DoiNormalizer;
@@ -22,8 +23,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 
 import java.util.ArrayList;
-import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -84,7 +85,10 @@ public class CrossrefCandidateLookupService {
         LookupTargets targets = targets(deduplication);
         if (!crossrefProperties.isEnabled()) {
             // A disabled source performs no port, gate, retry, or HTTP operation.
-            return summary(targets, 0, 0, 0, 0, 0, false, false, List.of(), List.of(), deduplication);
+            return summary(targets, 0, 0, 0, 0, 0, false, false, List.of(), List.of(),
+                    targets.candidates().stream().map(target -> result(target,
+                            CandidateLookupResult.LookupStatus.SOURCE_DISABLED, List.of(), "CROSSREF_DISABLED"))
+                            .toList(), deduplication);
         }
 
         int attempted = 0;
@@ -95,17 +99,39 @@ public class CrossrefCandidateLookupService {
         boolean sourceAvailable = true;
         List<CrossrefWorkMetadata> metadata = new ArrayList<>();
         List<CrossrefBibliographicLookupResult> bibliographicResults = new ArrayList<>();
-        List<LookupTarget> ordered = targets.ordered();
+        List<CandidateTarget> ordered = targets.candidates();
         int budget = searchProperties.getMaxCrossrefLookupsPerRequest();
+        Map<String, LookupOutcome> cachedOutcomes = new HashMap<>();
+        List<CandidateLookupResult> candidateResults = new ArrayList<>();
 
-        for (int index = 0; index < ordered.size(); index++) {
+        for (CandidateTarget target : ordered) {
+            if (!target.eligible()) {
+                candidateResults.add(result(target, CandidateLookupResult.LookupStatus.NOT_ELIGIBLE,
+                        List.of(), "BIBLIOGRAPHIC_TITLE_NOT_ELIGIBLE"));
+                continue;
+            }
+            if (!sourceAvailable) {
+                candidateResults.add(result(target, CandidateLookupResult.LookupStatus.SOURCE_UNAVAILABLE,
+                        List.of(), "CROSSREF_SOURCE_UNAVAILABLE"));
+                continue;
+            }
+            LookupOutcome cached = cachedOutcomes.get(target.lookupKey());
+            if (cached != null) {
+                candidateResults.add(result(target, cached.found()
+                        ? CandidateLookupResult.LookupStatus.FOUND : CandidateLookupResult.LookupStatus.NOT_FOUND,
+                        cached.metadata(), cached.found() ? "CROSSREF_FOUND_REUSED_QUERY" : "CROSSREF_NOT_FOUND_REUSED_QUERY"));
+                continue;
+            }
             if (attempted >= budget) {
-                skipped += ordered.size() - index;
-                break;
+                skipped++;
+                candidateResults.add(result(target, CandidateLookupResult.LookupStatus.SKIPPED_BY_LIMIT,
+                        List.of(), "CROSSREF_LOOKUP_BUDGET_EXHAUSTED"));
+                continue;
             }
             attempted++;
             try {
-                LookupOutcome outcome = execute(ordered.get(index));
+                LookupOutcome outcome = execute(target);
+                cachedOutcomes.put(target.lookupKey(), outcome);
                 if (outcome.found()) {
                     found++;
                     metadata.addAll(outcome.metadata());
@@ -115,38 +141,49 @@ public class CrossrefCandidateLookupService {
                 if (outcome.bibliographicResult() != null) {
                     bibliographicResults.add(outcome.bibliographicResult());
                 }
+                candidateResults.add(result(target, outcome.found()
+                        ? CandidateLookupResult.LookupStatus.FOUND : CandidateLookupResult.LookupStatus.NOT_FOUND,
+                        outcome.metadata(), outcome.found() ? "CROSSREF_FOUND" : "CROSSREF_NOT_FOUND"));
             } catch (CrossrefApiException exception) {
                 if (isConfigurationFailure(exception)) throw exception;
                 failed++;
                 if (isSourceUnavailable(exception)) {
                     sourceAvailable = false;
-                    break;
+                    candidateResults.add(result(target, CandidateLookupResult.LookupStatus.SOURCE_UNAVAILABLE,
+                            List.of(), "CROSSREF_SOURCE_UNAVAILABLE"));
+                } else {
+                    candidateResults.add(result(target, CandidateLookupResult.LookupStatus.FAILED,
+                            List.of(), "CROSSREF_LOOKUP_FAILED"));
                 }
             }
         }
         return summary(targets, attempted, found, notFound, failed, skipped, true, sourceAvailable,
-                metadata, bibliographicResults, deduplication);
+                metadata, bibliographicResults, candidateResults, deduplication);
     }
 
     private LookupTargets targets(CandidateDeduplicationResult deduplication) {
-        // Keep valid DOI values stable and deduplicated before any external request.
+        List<CandidateTarget> candidates = new ArrayList<>();
         LinkedHashSet<String> dois = new LinkedHashSet<>();
-        Map<String, CrossrefBibliographicQuery> queries = new LinkedHashMap<>();
+        LinkedHashSet<String> bibliographicQueries = new LinkedHashSet<>();
         for (NormalizedCandidate normalizedCandidate : deduplication.uniqueCandidates()) {
             CandidatePaper candidate = normalizedCandidate.originalCandidate();
             String doi = normalizedCandidate.normalizedDoi();
             if (doi != null) {
-                // Valid DOIs always use the exact DOI route; no title fallback is added.
                 dois.add(doi);
+                candidates.add(CandidateTarget.doi(normalizedCandidate, doi));
                 continue;
             }
             CrossrefTitleQueryGuard.Decision title = titleQueryGuard.assess(candidate.title());
-            if (!title.allowed()) continue;
+            if (!title.allowed()) {
+                candidates.add(CandidateTarget.notEligible(normalizedCandidate));
+                continue;
+            }
             CrossrefBibliographicQuery query = new CrossrefBibliographicQuery(
                     title.normalizedTitle(), firstAuthor(candidate), candidate.publicationYear(), candidate.sourceName());
-            queries.putIfAbsent(query.deduplicationKey(), query);
+            bibliographicQueries.add(query.deduplicationKey());
+            candidates.add(CandidateTarget.query(normalizedCandidate, query));
         }
-        return new LookupTargets(List.copyOf(dois), List.copyOf(queries.values()));
+        return new LookupTargets(dois.size(), bibliographicQueries.size(), List.copyOf(candidates));
     }
 
     private String firstAuthor(CandidatePaper candidate) {
@@ -158,7 +195,7 @@ public class CrossrefCandidateLookupService {
                 .orElse(null);
     }
 
-    private LookupOutcome execute(LookupTarget target) {
+    private LookupOutcome execute(CandidateTarget target) {
         if (target.doi() != null) {
             CrossrefLookupResult result = crossrefSearchPort.findByDoi(target.doi());
             return result.status() == CrossrefLookupResult.Status.FOUND
@@ -187,10 +224,12 @@ public class CrossrefCandidateLookupService {
             LookupTargets targets, int attempted, int found, int notFound, int failed, int skipped,
             boolean enabled, boolean available, List<CrossrefWorkMetadata> metadata,
             List<CrossrefBibliographicLookupResult> bibliographicResults,
+            List<CandidateLookupResult> candidateResults,
             CandidateDeduplicationResult deduplication
     ) {
-        return new CrossrefLookupSummary(targets.dois().size(), targets.queries().size(), attempted, found,
-                notFound, failed, skipped, enabled, available, metadata, bibliographicResults, deduplication);
+        return new CrossrefLookupSummary(targets.doiEligibleCount(), targets.titleEligibleCount(), attempted, found,
+                notFound, failed, skipped, enabled, available, metadata, bibliographicResults, candidateResults,
+                deduplication);
     }
 
     private static CandidateDeduplicationService defaultDeduplicationService() {
@@ -207,18 +246,34 @@ public class CrossrefCandidateLookupService {
         ));
     }
 
-    private record LookupTargets(List<String> dois, List<CrossrefBibliographicQuery> queries) {
-        List<LookupTarget> ordered() {
-            List<LookupTarget> targets = new ArrayList<>();
-            dois.forEach(doi -> targets.add(LookupTarget.doi(doi)));
-            queries.forEach(query -> targets.add(LookupTarget.query(query)));
-            return targets;
-        }
+    private CandidateLookupResult result(
+            CandidateTarget target, CandidateLookupResult.LookupStatus status,
+            List<CrossrefWorkMetadata> references, String reason
+    ) {
+        return new CandidateLookupResult(target.candidate(), target.route(), status, references, reason);
     }
 
-    private record LookupTarget(String doi, CrossrefBibliographicQuery query) {
-        static LookupTarget doi(String doi) { return new LookupTarget(doi, null); }
-        static LookupTarget query(CrossrefBibliographicQuery query) { return new LookupTarget(null, query); }
+    private record LookupTargets(int doiEligibleCount, int titleEligibleCount, List<CandidateTarget> candidates) { }
+
+    private record CandidateTarget(
+            NormalizedCandidate candidate,
+            CandidateLookupResult.LookupRoute route,
+            String doi,
+            CrossrefBibliographicQuery query,
+            boolean eligible
+    ) {
+        static CandidateTarget doi(NormalizedCandidate candidate, String doi) {
+            return new CandidateTarget(candidate, CandidateLookupResult.LookupRoute.DOI, doi, null, true);
+        }
+        static CandidateTarget query(NormalizedCandidate candidate, CrossrefBibliographicQuery query) {
+            return new CandidateTarget(candidate, CandidateLookupResult.LookupRoute.BIBLIOGRAPHIC, null, query, true);
+        }
+        static CandidateTarget notEligible(NormalizedCandidate candidate) {
+            return new CandidateTarget(candidate, CandidateLookupResult.LookupRoute.NONE, null, null, false);
+        }
+        String lookupKey() {
+            return doi != null ? "doi:" + doi : "bibliographic:" + query.deduplicationKey();
+        }
     }
 
     private record LookupOutcome(

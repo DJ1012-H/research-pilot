@@ -204,6 +204,32 @@ class LiteratureContractTest {
     }
 
     @Test
+    void shouldRejectPartiallyVerifiedPaperFromFormalResponse() {
+        PaperDTO paper = new PaperDTO(
+                "W1", "10.1000/example", "Example paper",
+                List.of(new PaperDTO.Author(null, "Example Author", null)), 2026, "Example Venue", List.of(),
+                "article", null, null, "en", List.of(), 0, PaperDTO.LiteratureSource.OPENALEX);
+        VerificationResult partial = new VerificationResult(
+                VerificationResult.VerificationStatus.PARTIALLY_VERIFIED, null,
+                VerificationResult.VerificationSource.CROSSREF, null, List.of(), List.of("ambiguous"));
+
+        assertThatThrownBy(() -> new SearchResponse.PaperResult(paper, 0.90, partial))
+                .isInstanceOf(IllegalArgumentException.class);
+    }
+
+    @Test
+    void shouldAllowPartiallyVerifiedDiagnosticsWithNoFormalPapers() {
+        SearchPlan plan = new SearchPlan("query", "topic", List.of("keyword"), "keyword", Set.of(), List.of(),
+                SearchSort.RELEVANCE, 2022, 2026, 10, 5);
+
+        SearchResponse response = new SearchResponse(UUID.randomUUID(), SearchResponse.SearchStatus.NO_VERIFIED_RESULTS,
+                plan, 1, 1, new SearchResponse.VerificationSummary(0, 1, 0, 0), List.of(), "no formal papers",
+                1, Instant.parse("2026-07-19T08:30:00Z"));
+
+        assertThat(response.verificationSummary().partiallyVerifiedCount()).isOne();
+    }
+
+    @Test
     void shouldRejectInconsistentVerificationSummary() {
         SearchPlan plan = new SearchPlan(
                 "query",

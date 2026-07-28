@@ -32,11 +32,12 @@ class CrossrefCandidateLookupServiceTest {
             port, crossref, search, new DoiNormalizer(), new CrossrefTitleQueryGuard());
 
     @Test
-    void shouldPrioritizeStableDistinctDoiLookupsAndShareBudgetWithTitles() {
+    void shouldKeepDeduplicatedCandidateOrderAndShareBudgetWithTitles() {
         crossref.setEnabled(true);
         search.setMaxCrossrefLookupsPerRequest(2);
         when(port.findByDoi("10.1000/a")).thenReturn(CrossrefLookupResult.found(metadata("10.1000/a")));
-        when(port.findByDoi("10.1000/b")).thenReturn(CrossrefLookupResult.notFound());
+        when(port.findByBibliographic(org.mockito.ArgumentMatchers.any()))
+                .thenReturn(CrossrefBibliographicLookupResult.found(List.of(metadata("10.1000/title"))));
 
         CrossrefLookupSummary summary = service.lookup(List.of(
                 candidate(null, "No DOI title"), candidate("10.1000/a", "First DOI"),
@@ -48,12 +49,19 @@ class CrossrefCandidateLookupServiceTest {
         assertThat(summary.candidateDeduplication().inputCount()).isEqualTo(4);
         assertThat(summary.candidateDeduplication().uniqueCount()).isEqualTo(3);
         assertThat(summary.candidateDeduplication().removedCount()).isOne();
-        assertThat(summary.foundCount()).isOne();
-        assertThat(summary.notFoundCount()).isOne();
+        assertThat(summary.foundCount()).isEqualTo(2);
+        assertThat(summary.notFoundCount()).isZero();
         assertThat(summary.skippedByLimitCount()).isOne();
+        assertThat(summary.candidateResults()).hasSize(3);
+        assertThat(summary.candidateResults())
+                .extracting(result -> result.status())
+                .containsExactly(
+                        com.dj1012h.researchpilot.literature.model.CandidateLookupResult.LookupStatus.FOUND,
+                        com.dj1012h.researchpilot.literature.model.CandidateLookupResult.LookupStatus.FOUND,
+                        com.dj1012h.researchpilot.literature.model.CandidateLookupResult.LookupStatus.SKIPPED_BY_LIMIT);
+        verify(port).findByBibliographic(org.mockito.ArgumentMatchers.any());
         verify(port).findByDoi("10.1000/a");
-        verify(port).findByDoi("10.1000/b");
-        verify(port, never()).findByBibliographic(org.mockito.ArgumentMatchers.any());
+        verify(port, never()).findByDoi("10.1000/b");
     }
 
     @Test
@@ -105,6 +113,9 @@ class CrossrefCandidateLookupServiceTest {
         verify(port).findByBibliographic(query.capture());
         assertThat(query.getValue().title()).isEqualTo("Mamba: Remote Sensing Change Detection (2026)");
         assertThat(summary.foundMetadata()).hasSize(2);
+        assertThat(summary.candidateResults()).singleElement()
+                .extracting(result -> result.references())
+                .isEqualTo(List.of(metadata("10.1000/a"), metadata("10.1000/b")));
         assertThat(summary.bibliographicResults()).singleElement()
                 .extracting(CrossrefBibliographicLookupResult::status)
                 .isEqualTo(CrossrefBibliographicLookupResult.Status.FOUND_MULTIPLE);
@@ -132,6 +143,9 @@ class CrossrefCandidateLookupServiceTest {
         assertThat(summary.doiEligibleCount()).isOne();
         assertThat(summary.titleEligibleCount()).isOne();
         assertThat(summary.attemptedCount()).isZero();
+        assertThat(summary.candidateResults()).hasSize(2)
+                .extracting(result -> result.status())
+                .containsOnly(com.dj1012h.researchpilot.literature.model.CandidateLookupResult.LookupStatus.SOURCE_DISABLED);
         verifyNoInteractions(port);
     }
 
@@ -178,6 +192,12 @@ class CrossrefCandidateLookupServiceTest {
         assertThat(summary.titleEligibleCount()).isEqualTo(2);
         assertThat(summary.failedCount()).isOne();
         assertThat(summary.sourceAvailable()).isFalse();
+        assertThat(summary.candidateResults())
+                .extracting(result -> result.status())
+                .containsExactly(
+                        com.dj1012h.researchpilot.literature.model.CandidateLookupResult.LookupStatus.NOT_ELIGIBLE,
+                        com.dj1012h.researchpilot.literature.model.CandidateLookupResult.LookupStatus.SOURCE_UNAVAILABLE,
+                        com.dj1012h.researchpilot.literature.model.CandidateLookupResult.LookupStatus.SOURCE_UNAVAILABLE);
         verify(port).findByBibliographic(org.mockito.ArgumentMatchers.any());
     }
 

@@ -3,6 +3,7 @@ package com.dj1012h.researchpilot.literature.application;
 import com.dj1012h.researchpilot.integration.crossref.CrossrefBibliographicLookupResult;
 import com.dj1012h.researchpilot.integration.crossref.CrossrefWorkMetadata;
 import com.dj1012h.researchpilot.literature.model.CandidateDeduplicationResult;
+import com.dj1012h.researchpilot.literature.model.CandidateLookupResult;
 
 import java.util.List;
 import java.util.Objects;
@@ -20,6 +21,7 @@ public record CrossrefLookupSummary(
         boolean sourceAvailable,
         List<CrossrefWorkMetadata> foundMetadata,
         List<CrossrefBibliographicLookupResult> bibliographicResults,
+        List<CandidateLookupResult> candidateResults,
         CandidateDeduplicationResult candidateDeduplication
 ) {
     /** Compatibility constructor for callers that only observe DOI lookup accounting. */
@@ -29,7 +31,7 @@ public record CrossrefLookupSummary(
             List<CrossrefWorkMetadata> foundMetadata
     ) {
         this(doiEligibleCount, 0, attemptedCount, foundCount, notFoundCount, failedCount,
-                skippedByLimitCount, crossrefEnabled, sourceAvailable, foundMetadata, List.of(),
+                skippedByLimitCount, crossrefEnabled, sourceAvailable, foundMetadata, List.of(), List.of(),
                 CandidateDeduplicationResult.empty());
     }
 
@@ -41,7 +43,7 @@ public record CrossrefLookupSummary(
             List<CrossrefBibliographicLookupResult> bibliographicResults
     ) {
         this(doiEligibleCount, titleEligibleCount, attemptedCount, foundCount, notFoundCount, failedCount,
-                skippedByLimitCount, crossrefEnabled, sourceAvailable, foundMetadata, bibliographicResults,
+                skippedByLimitCount, crossrefEnabled, sourceAvailable, foundMetadata, bibliographicResults, List.of(),
                 CandidateDeduplicationResult.empty());
     }
 
@@ -56,7 +58,11 @@ public record CrossrefLookupSummary(
         foundMetadata = List.copyOf(Objects.requireNonNull(foundMetadata, "foundMetadata must not be null"));
         bibliographicResults = List.copyOf(Objects.requireNonNull(
                 bibliographicResults, "bibliographicResults must not be null"));
+        candidateResults = List.copyOf(Objects.requireNonNull(candidateResults, "candidateResults must not be null"));
         candidateDeduplication = Objects.requireNonNull(
                 candidateDeduplication, "candidateDeduplication must not be null");
+        if (candidateResults.size() != candidateDeduplication.uniqueCount()) {
+            throw new IllegalArgumentException("candidateResults size must equal deduplicated uniqueCount");
+        }
     }
 }

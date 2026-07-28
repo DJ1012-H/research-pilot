@@ -52,8 +52,7 @@ public record SearchResponse(
         }
         if (status == SearchStatus.NO_VERIFIED_RESULTS
                 && (!papers.isEmpty()
-                || verificationSummary.verifiedCount() > 0
-                || verificationSummary.partiallyVerifiedCount() > 0)) {
+                || verificationSummary.verifiedCount() > 0)) {
             throw new IllegalArgumentException("NO_VERIFIED_RESULTS 不能包含已核验的正式结果");
         }
     }
@@ -69,8 +68,7 @@ public record SearchResponse(
             if (paper.doi() == null || paper.doi().isBlank()) {
                 throw new IllegalArgumentException("正式返回的论文必须包含标准化 DOI");
             }
-            if (verification.status() != VerificationResult.VerificationStatus.VERIFIED
-                    && verification.status() != VerificationResult.VerificationStatus.PARTIALLY_VERIFIED) {
+            if (verification.status() != VerificationResult.VerificationStatus.VERIFIED) {
                 throw new IllegalArgumentException("正式返回的论文必须达到最低核验标准");
             }
             if (relevanceScore < 0.0 || relevanceScore > 1.0 || Double.isNaN(relevanceScore)) {
