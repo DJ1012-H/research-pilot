@@ -1,3 +1,19 @@
+## 2026-07-29 - action whitelist, model proposal, and deterministic fallback
+
+### Actual progress
+
+- Added `AgentTransitionPolicy`, one-field `SearchActionDraft`, trusted `SearchActionDecision`, an immutable action context, and a fixed five-stage validation pipeline backed by `schemas/search-action-draft-v1.json`.
+- Added an optional LangChain4j AI Services adapter behind the existing `ModelInvoker` boundary. It returns raw text for validation and does not register or invoke tools.
+- Added `SearchActionDecider`, which only performs structural and read-only budget filtering. It does not mutate `AgentState`, consume budget, start an action, or issue an execution permit.
+- A sole executable action is selected by Java with zero model calls. Unconfigured/unavailable models and invalid JSON, schema, DTO, business, or security output use a deterministic allowed action.
+- Added offline policy, validation, decider, and architectural tests. The focused run passed 14 tests with 0 failures, errors, or skips; `mvn clean verify` passed 332 tests with 0 failures/errors and 2 expected opt-in smoke-test skips.
+
+### Scope boundaries
+
+- No second action enum was introduced. `CREATE_INITIAL_PLAN` and `TERMINATE` are absent from model choices; `TERMINATE` remains Java-owned.
+- Invalid model actions are rejected before execution. `SearchActionDecider` has no OpenAlex/Crossref port or client dependency, and the architecture test prohibits `@Tool` in the action-decision package.
+- This work intentionally does not implement `SearchPlanRefiner`, actual plan refinement, a second live search loop, complete Crossref agent orchestration, persistence, cache, RAG, Qdrant, PDF, or frontend features.
+
 # ResearchPilot 开发日志
 
 > 日志覆盖时间：2026-07-13 ～ 2026-07-25

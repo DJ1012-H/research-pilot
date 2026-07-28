@@ -1,0 +1,20 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "SearchActionDraft",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["action"],
+  "properties": {
+    "action": {
+      "type": "string",
+      "enum": [
+        "SEARCH_OPENALEX",
+        "DEDUPLICATE_CANDIDATES",
+        "VERIFY_WITH_CROSSREF",
+        "EVALUATE_RESULTS",
+        "REFINE_PLAN",
+        "COMPLETE"
+      ]
+    }
+  }
+}

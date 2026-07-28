@@ -1,3 +1,13 @@
+## 2026-07-29: validated agent action decisions
+
+- `AgentTransitionPolicy` is the structural action whitelist. Its results are immutable; terminal and in-progress states expose no model-selectable action, while Java alone can execute `TERMINATE` for an active state.
+- The action model can propose only the existing `AgentAction` values `SEARCH_OPENALEX`, `DEDUPLICATE_CANDIDATES`, `VERIFY_WITH_CROSSREF`, `EVALUATE_RESULTS`, `REFINE_PLAN`, and `COMPLETE`. It never receives `CREATE_INITIAL_PLAN` or `TERMINATE`.
+- Raw model output passes a fixed JSON-syntax, JSON-Schema, strict DTO, business, and current-state security validation sequence. The one-field schema rejects additional budget, limit, query, or constraint fields.
+- `SearchActionDecider` applies structural and read-only budget checks before one optional AI Services call. A single executable action skips the model. Disabled, unavailable, or invalid model output uses a deterministic action that is still in the filtered allowed set.
+- The decider neither starts actions nor issues `ActionExecutionPermit`s and has no OpenAlex/Crossref tool-port or client dependency. Real execution remains behind `LiteratureResearchAgent.prepareAction` and `AgentBudgetPolicy`.
+- Validation evidence: 14 focused tests passed; `mvn clean verify` passed 332 tests with 0 failures/errors and 2 expected, opt-in smoke-test skips.
+- This delivery does not implement `SearchPlanRefiner`, real plan refinement, a multi-round autonomous agent loop, Crossref orchestration, persistence, cache, RAG, PDF, or frontend work.
+
 # ResearchPilot
 
 ## 2026-07-28：受控文献研究 Agent 状态与执行预算

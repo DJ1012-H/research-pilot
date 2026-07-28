@@ -120,6 +120,30 @@ class ArchitectureConstraintsTest {
         assertThat(application).doesNotContain("integration.crossref.dto");
     }
 
+    @Test
+    void actionDeciderMustStayReadOnlyAndToolFree() throws IOException {
+        String decider = source(BASE.resolve(Path.of(
+                "literature", "agent", "SearchActionDecider.java"
+        )));
+        String transitionPolicy = source(BASE.resolve(Path.of(
+                "literature", "agent", "AgentTransitionPolicy.java"
+        )));
+        String agentSources = sourceTree(BASE.resolve(Path.of("literature", "agent")));
+
+        assertThat(decider)
+                .doesNotContain("OpenAlexSearchPort")
+                .doesNotContain("CrossrefSearchPort")
+                .doesNotContain("OpenAlexClient")
+                .doesNotContain("CrossrefClient")
+                .doesNotContain("startAction(")
+                .doesNotContain("ActionExecutionPermit");
+        assertThat(transitionPolicy)
+                .doesNotContain("ChatModel")
+                .doesNotContain("OpenAlex")
+                .doesNotContain("Crossref");
+        assertThat(agentSources).doesNotContain("@Tool");
+    }
+
     private Stream<Path> productionJavaFiles() throws IOException {
         return Files.walk(MAIN_JAVA)
                 .filter(Files::isRegularFile)

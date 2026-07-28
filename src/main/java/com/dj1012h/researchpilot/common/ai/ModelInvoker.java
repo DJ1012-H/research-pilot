@@ -42,6 +42,14 @@ public class ModelInvoker {
     }
 
     public String invoke(String operation, String input) {
+        return invoke(operation, input, ChatModel::chat);
+    }
+
+    /**
+     * Invokes a provider-backed operation while preserving the application's
+     * single model availability and exception-mapping boundary.
+     */
+    public <T> T invoke(String operation, String input, ModelCall<T> call) {
         ChatModel chatModel = chatModelProvider.getIfAvailable();
         if (chatModel == null) {
             throw new ModelNotConfiguredException(
@@ -51,7 +59,7 @@ public class ModelInvoker {
 
         long startNanos = System.nanoTime();
         try {
-            String output = chatModel.chat(input);
+            T output = call.execute(chatModel, input);
             log.debug(
                     "event=model_call_succeeded operation={} model={} inputLength={} durationMs={}",
                     valueForLog(operation),
@@ -80,6 +88,11 @@ public class ModelInvoker {
             }
             throw exception;
         }
+    }
+
+    @FunctionalInterface
+    public interface ModelCall<T> {
+        T execute(ChatModel chatModel, String input);
     }
 
     private ModelInvocationException knownFailure(ModelFailureType failureType,
