@@ -1,4 +1,4 @@
-## 2026-07-29 - action whitelist, model proposal, and deterministic fallback
+## 2026-07-28 - early completion of the 2026-07-29 action whitelist, model proposal, and deterministic fallback milestone
 
 ### Actual progress
 
@@ -13,6 +13,10 @@
 - No second action enum was introduced. `CREATE_INITIAL_PLAN` and `TERMINATE` are absent from model choices; `TERMINATE` remains Java-owned.
 - Invalid model actions are rejected before execution. `SearchActionDecider` has no OpenAlex/Crossref port or client dependency, and the architecture test prohibits `@Tool` in the action-decision package.
 - This work intentionally does not implement `SearchPlanRefiner`, actual plan refinement, a second live search loop, complete Crossref agent orchestration, persistence, cache, RAG, Qdrant, PDF, or frontend features.
+
+### Delivery marker
+
+- The 2026-07-29 acceptance scope was completed one day early on 2026-07-28. Milestone tag `milestone/2026-07-29-agent-action-decisions` points to the accepted delivery commit after the final remote synchronization check.
 
 # ResearchPilot 开发日志
 

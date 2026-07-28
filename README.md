@@ -1,4 +1,4 @@
-## 2026-07-29: validated agent action decisions
+## 2026-07-29: validated agent action decisions (completed early on 2026-07-28)
 
 - `AgentTransitionPolicy` is the structural action whitelist. Its results are immutable; terminal and in-progress states expose no model-selectable action, while Java alone can execute `TERMINATE` for an active state.
 - The action model can propose only the existing `AgentAction` values `SEARCH_OPENALEX`, `DEDUPLICATE_CANDIDATES`, `VERIFY_WITH_CROSSREF`, `EVALUATE_RESULTS`, `REFINE_PLAN`, and `COMPLETE`. It never receives `CREATE_INITIAL_PLAN` or `TERMINATE`.
