@@ -1107,3 +1107,34 @@ Spring Boot 的条件装配回退，使它成为 MVC 使用的全局 Mapper；�
 - 未加入多轮 Agent、ReAct、持久化、缓存、RAG、Qdrant、PDF、前端或新的外部数据源。
 - Crossref 来源不可用只表示外部核验暂时不可执行，不解释为论文造假或字段冲突。
 - `evidenceScore` 保持工程证据分语义，不作为统计概率或查询相关性分数。
+
+## 2026-07-28｜受控 Agent 状态、动作与全局执行预算
+
+### 当日目标
+
+- 在既有可信检索链路外建立 `LiteratureResearchAgent` 工作流骨架，保持 `SearchAgent` 仅负责可信查询规划。
+- 用不可变状态、有限动作和统一预算门禁表达首轮检索与核验，不实现自动 Agent 循环、模型动作决策或重规划。
+- 证明预算拒绝会在外部端口调用之前发生，并保留既有可信检索、Crossref 核验和正式准入规则。
+
+### 实际进展
+
+- 新增 `AgentState`、`AgentStage`、`AgentAction`、`AgentActionType`、`AgentObservation`、`TerminationReason`、`ActionCost`、`ActionExecutionPermit`、`BudgetCheckResult` 与 `ActionPreparation`。
+- `AgentState` 以不可变副本保存原始请求、当前/历史可信 `SearchPlan`、候选与去重结果、核验结果、正式论文、跨轮计数器、轻量 Observation、开始/截止/终止时间与结构化终止原因；终止后拒绝继续动作。
+- 新增 `AgentBudgetProperties` 和 `AgentBudgetPolicy`，统一在动作前检查固定预算：2 轮搜索、1 次计划调整、8 步、45 个全局唯一候选、45 次 Crossref 调用和 90 秒截止。`now >= deadline` 固定为截止超限。
+- 将既有候选身份优先级提取为 `CandidateDeduplicationKey.from`，使现有去重服务和 Agent 跨轮累计共用 DOI、OpenAlex ID、精确书目键规则；稳定重复候选不重复计数。
+- 新增 `LiteratureResearchAgent.executeOpenAlexSearch` 作为受控端口边界：只有 `AgentBudgetPolicy` 发出许可后才调用 `OpenAlexSearchPort`；预算失败时端口零调用，成功时记录有界候选和 Observation。
+- 既有 `SearchAgent`、`LiteratureSearchService`、Crossref Client、核验策略与正式论文准入逻辑均未修改；本次没有引入动作模型、`SearchActionDecider`、计划细化器、循环执行、持久化、缓存或 RAG。
+
+### 验证结果
+
+- 新增测试：`AgentStateTest`（4）、`AgentBudgetPolicyTest`（3）、`LiteratureResearchAgentTest`（2），共 9 项通过、0 失败、0 错误；不依赖真实网络。
+- 邻近回归：`SearchAgentTest`、`PaperVerificationServiceTest`、`CandidateDeduplicationServiceTest`、`ArchitectureConstraintsTest` 通过。
+- `./mvnw.cmd test`：317 项通过、0 失败、0 错误、2 项默认关闭的真实 Crossref smoke test 按预期跳过。
+- 已执行 `git diff --check`；待提交前仅暂存本日实现、测试和本文档，不包含评测资产、凭据或真实服务响应。
+
+### 范围边界与技术决策
+
+- 预算是单个研究任务的服务器固定硬上限；用户 `limit` 和模型输出不能提高预算。
+- 预算检查只由 `AgentBudgetPolicy` 决定，状态更新要求匹配该许可，避免多个组件重复扣减同一次调用。
+- 当前阶段受控接入 OpenAlex 端口以验证门禁；完整 Crossref 执行编排、状态迁移策略和自动循环留待后续明确阶段。
+- Observation 只保存短诊断摘要、计数、阶段、耗时与失败码；不保存 Prompt、模型完整输出、外部原始 JSON、API Key 或 Token。

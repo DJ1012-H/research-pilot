@@ -46,6 +46,13 @@ app:
       max-candidate-limit: ${LITERATURE_MAX_CANDIDATE_LIMIT:100}
       max-crossref-lookups-per-request: ${LITERATURE_MAX_CROSSREF_LOOKUPS:5}
       earliest-supported-year: ${LITERATURE_EARLIEST_SUPPORTED_YEAR:1900}
+  research-agent:
+    max-search-rounds: ${RESEARCH_AGENT_MAX_SEARCH_ROUNDS:2}
+    max-plan-adjustments: ${RESEARCH_AGENT_MAX_PLAN_ADJUSTMENTS:1}
+    max-business-steps: ${RESEARCH_AGENT_MAX_BUSINESS_STEPS:8}
+    max-unique-candidates: ${RESEARCH_AGENT_MAX_UNIQUE_CANDIDATES:45}
+    max-crossref-calls: ${RESEARCH_AGENT_MAX_CROSSREF_CALLS:45}
+    total-timeout: ${RESEARCH_AGENT_TOTAL_TIMEOUT:90s}
   openalex:
     enabled: ${OPENALEX_ENABLED:false}
     base-url: ${OPENALEX_BASE_URL:https://api.openalex.org}

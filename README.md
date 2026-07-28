@@ -1,5 +1,17 @@
 # ResearchPilot
 
+## 2026-07-28：受控文献研究 Agent 状态与执行预算
+
+在既有可信检索与核验链路之外，新增 `LiteratureResearchAgent` 作为后续完整工作流的受控编排骨架；现有 `SearchAgent` 仍只生成和校验可信 `SearchPlan`，不承担状态管理、动作决策或外部工具调用。
+
+- `AgentState` 是不可变聚合：保存原始请求、可信计划及历史、候选与核验结果、正式论文、全局计数、轻量 Observation 和结构化终止信息。集合均为不可变副本，终止后的状态拒绝继续动作。
+- `AgentStage`、`AgentAction`、`AgentObservation` 和 `TerminationReason` 以有限类型表达首轮检索、去重、Crossref 核验和正常/异常终止；不引入模型动作建议、自动循环或动态动作白名单。
+- `AgentBudgetPolicy` 在动作开始前统一检查服务器固定预算：最多 2 轮 OpenAlex 搜索、1 次计划调整、8 个业务步骤、45 个跨轮全局唯一候选、45 次 Crossref 调用和 90 秒总截止。截止边界固定为 `now >= deadline`。
+- 全局唯一候选继续复用既有身份规则：规范化 DOI、OpenAlex ID、完整精确书目键依次优先；第二轮出现相同稳定键不会重复占用候选预算。
+- 新增受控 OpenAlex 执行入口作为最小真实工具边界：预算拒绝时 `OpenAlexSearchPort` 调用次数为零；允许后才调用，并将结果截断到已检查的候选上限、记录 Observation。既有 `LiteratureSearchService` 链路保持不变。
+- `app.research-agent` 通过环境变量提供可运维配置，但所有限制都在 Java 中校验且必须为正值；请求中的 `limit` 不会提高这些全局硬上限。
+- 新增状态、预算、跨轮去重、截止、终止和端口零调用测试。`.\mvnw.cmd test` 共运行 317 项，0 失败、0 错误，2 项默认关闭的真实 Crossref smoke test 按预期跳过。
+
 ## 2026-07-27：可信论文核验闭环与正式结果准入
 
 自然语言请求现在会经过可信 `SearchPlan`、OpenAlex 候选检索、候选标准化与去重、Crossref 查询、字段级证据比较、`VerificationPolicy` 判定和 `EligiblePaperFilter` 正式准入。每个去重候选都保留独立的 Crossref 查询结果，不再依赖列表下标关联候选与参考记录。
@@ -231,11 +243,11 @@ powershell.exe -NoProfile -ExecutionPolicy Bypass `
 - 第一版只执行一个主要 OpenAlex 检索式。
 - 默认不限制论文语言。
 - 预印本只进入候选池，不进入正式结果。
-- 正式结果必须包含标准化 DOI，核验状态只能是 `VERIFIED` 或符合门槛的 `PARTIALLY_VERIFIED`。
+- 正式结果必须包含标准化 DOI，核验状态只能是 `VERIFIED`；`PARTIALLY_VERIFIED` 仅保留为诊断与统计结果。
 - 搜索成功但零篇通过核验时，返回 HTTP 200、`NO_VERIFIED_RESULTS` 和空列表。
 - `PaperDTO` 与 `VerificationResult` 分离，外部 API DTO 和数据库 Entity 不得替代核心契约。
 
-`main` 当前自动测试共 308 个通过，另有 2 个默认关闭的真实 Crossref 冒烟测试按预期跳过，包含架构约束、
+`main` 当前自动测试共 317 个通过，另有 2 个默认关闭的真实 Crossref 冒烟测试按预期跳过，包含架构约束、
 Search Agent、五层校验、OpenAlex、Crossref、候选编排、固定快照回放和真实 Spring MVC 序列化测试。
 
 ## OpenAlex 候选检索

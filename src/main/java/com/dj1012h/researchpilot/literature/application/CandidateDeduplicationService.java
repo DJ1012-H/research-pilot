@@ -75,23 +75,7 @@ public class CandidateDeduplicationService {
     }
 
     private CandidateDeduplicationKey identityKey(NormalizedCandidate candidate) {
-        if (candidate.normalizedDoi() != null) {
-            return new CandidateDeduplicationKey(DeduplicationKeyType.DOI, candidate.normalizedDoi());
-        }
-        if (candidate.normalizedOpenAlexId() != null) {
-            return new CandidateDeduplicationKey(
-                    DeduplicationKeyType.OPENALEX_ID, candidate.normalizedOpenAlexId());
-        }
-        if (candidate.normalizedTitle() != null
-                && candidate.normalizedFirstAuthor() != null
-                && candidate.publicationYear() != null) {
-            return new CandidateDeduplicationKey(
-                    DeduplicationKeyType.BIBLIOGRAPHIC,
-                    candidate.normalizedTitle() + "|"
-                            + candidate.normalizedFirstAuthor() + "|"
-                            + candidate.publicationYear());
-        }
-        return null;
+        return CandidateDeduplicationKey.from(candidate).orElse(null);
     }
 
     private int compareForRetention(NormalizedCandidate left, NormalizedCandidate right) {
