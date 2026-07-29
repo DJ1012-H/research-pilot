@@ -1,3 +1,30 @@
+## 2026-07-29｜受控 Agent 工作流接入（提前完成 2026-08-01 阶段）
+
+### 实际完成内容
+
+- `LiteratureSearchService` 现在只负责创建一次 `taskId`、记录统一开始/完成时间、取得可信初始计划上下文、初始化并运行 `LiteratureResearchAgent`，再由最终 `AgentState` 组装既有 `SearchResponse`。Service 中没有新增 Agent `while`/`switch` 或直接外部工具调用。
+- `AgentRunResult.finalState()` 明确提供唯一的响应事实来源；Trace 仍仅用于内部诊断，不会暴露给 Controller 或公共 JSON 契约。
+- 响应状态按正式 `VERIFIED` 论文数映射为 `COMPLETED`、`PARTIAL_SUCCESS` 或 `NO_VERIFIED_RESULTS`。多轮 `candidateCount` 从搜索 Observation 汇总，`deduplicatedCount` 使用跨轮唯一候选数，核验统计继续由 `SearchResponse` 契约强制守恒。
+- 离线定向测试覆盖 Service 委派、两轮原始候选累计、部分结果与用户消息映射；已有 `AgentExecutionLoopTest` 覆盖首次满足、一次重规划满足、预算限制部分结果、零 VERIFIED、截止前零工具调用和非法计划上下文零工具调用。
+
+### 验证结果
+
+- 定向命令 `./mvnw.cmd -Dtest=LiteratureSearchServiceTest,LiteratureSearchFlowIntegrationTest,AgentExecutionLoopTest test`：13 项通过，0 失败、0 错误、0 跳过。
+- 最终命令 `./mvnw.cmd clean verify`：365 项通过，0 失败、0 错误、2 项显式 opt-in Crossref smoke test 跳过；Spring Boot 可执行 JAR 打包成功。
+
+### 真实联网验收
+
+- 开发者手动启动已安全配置外部服务的应用后，以同一固定中文检索请求完成两次真实
+  LLM → OpenAlex → Crossref 端到端调用；健康检查均为 `UP`，业务接口均返回 HTTP 200
+  和 `COMPLETED`。
+- 第一次：15 个候选、15 个全局唯一候选、5 篇正式 `VERIFIED` 论文，服务器耗时
+  17,395 ms，客户端端到端耗时 17,471 ms。
+- 第二次：15 个候选、15 个全局唯一候选、5 篇正式 `VERIFIED` 论文，服务器耗时
+  9,244 ms，客户端端到端耗时 9,260 ms；另有 10 个未核验候选，没有部分核验或拒绝项。
+- 两次结果在候选数、去重数和正式论文数上保持一致；耗时差异属于真实外部模型与数据源
+  调用的运行波动，不作为固定性能承诺。日志只记录聚合结果，不记录密钥、Prompt、
+  provider 原始响应或完整请求内容。
+
 ## 2026-07-28 - early completion of the 2026-07-29 action whitelist, model proposal, and deterministic fallback milestone
 
 ### Actual progress

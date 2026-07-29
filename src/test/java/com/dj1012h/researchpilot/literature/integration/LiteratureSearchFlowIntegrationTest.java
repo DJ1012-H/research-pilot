@@ -8,6 +8,10 @@ import com.dj1012h.researchpilot.exception.ModelFailureType;
 import com.dj1012h.researchpilot.exception.ModelInvocationException;
 import com.dj1012h.researchpilot.integration.openalex.OpenAlexSearchPort;
 import com.dj1012h.researchpilot.integration.openalex.OpenAlexSearchResult;
+import com.dj1012h.researchpilot.literature.agent.AgentRunResult;
+import com.dj1012h.researchpilot.literature.agent.AgentStage;
+import com.dj1012h.researchpilot.literature.agent.AgentState;
+import com.dj1012h.researchpilot.literature.agent.LiteratureResearchAgent;
 import com.dj1012h.researchpilot.literature.api.dto.SearchRequest;
 import com.dj1012h.researchpilot.literature.api.dto.SearchResponse;
 import com.dj1012h.researchpilot.literature.application.LiteratureSearchService;
@@ -19,7 +23,9 @@ import com.dj1012h.researchpilot.literature.application.LlmQueryPlanner;
 import com.dj1012h.researchpilot.literature.application.OpenAlexQueryFactory;
 import com.dj1012h.researchpilot.literature.application.SearchAgent;
 import com.dj1012h.researchpilot.literature.application.SearchPlanGenerationException;
+import com.dj1012h.researchpilot.literature.application.ValidatedSearchPlanContext;
 import com.dj1012h.researchpilot.literature.model.OpenAlexQuery;
+import com.dj1012h.researchpilot.literature.model.SearchPlan;
 import com.dj1012h.researchpilot.literature.validation.JsonSyntaxValidator;
 import com.dj1012h.researchpilot.literature.validation.SearchPlanBusinessValidator;
 import com.dj1012h.researchpilot.literature.validation.SearchPlanDraftMapper;
@@ -57,34 +63,47 @@ class LiteratureSearchFlowIntegrationTest {
     private final CrossrefCandidateLookupService crossrefCandidateLookupService = mock(CrossrefCandidateLookupService.class);
     private final PaperVerificationService paperVerificationService = mock(PaperVerificationService.class);
     private final EligiblePaperFilter eligiblePaperFilter = mock(EligiblePaperFilter.class);
+    private final LiteratureResearchAgent literatureResearchAgent = mock(LiteratureResearchAgent.class);
     private final AiProperties aiProperties = new AiProperties();
 
     @Test
-    void shouldConvertRawModelStringToTrustedOpenAlexQueryAndSearchOnce() {
+    void shouldConvertRawModelStringToTrustedPlanBeforeDelegatingToTheResearchAgent() {
         SearchRequest request =
                 new SearchRequest("近五年最新的 Mamba 遥感变化检测论文", null, null, 10);
         when(planner.generate(any())).thenReturn(validJson());
-        when(openAlexSearchPort.search(any()))
-                .thenReturn(new OpenAlexSearchResult(0, List.of(), null));
-        when(crossrefCandidateLookupService.lookup(List.of()))
-                .thenReturn(new CrossrefLookupSummary(0, 0, 0, 0, 0, 0, 0, false, false, List.of(), List.of()));
-        when(paperVerificationService.verify(any())).thenReturn(List.of());
-        when(eligiblePaperFilter.filter(List.of(), 10)).thenReturn(List.of());
+        AgentState initialState = mock(AgentState.class);
+        AgentState finalState = mock(AgentState.class);
+        AgentRunResult runResult = mock(AgentRunResult.class);
+        when(finalState.currentPlan()).thenReturn(expectedPlan(request.query()));
+        when(finalState.requestedCount()).thenReturn(10);
+        when(finalState.verifiedPapers()).thenReturn(List.of());
+        when(finalState.verificationResults()).thenReturn(List.of());
+        when(finalState.observations()).thenReturn(List.of());
+        when(finalState.uniqueCandidateCount()).thenReturn(0);
+        when(finalState.crossrefCallCount()).thenReturn(0);
+        when(finalState.currentStage()).thenReturn(AgentStage.COMPLETED);
+        when(runResult.finalState()).thenReturn(finalState);
+        when(literatureResearchAgent.initialize(request)).thenReturn(initialState);
+        when(literatureResearchAgent.execute(any(), any())).thenReturn(runResult);
 
         SearchResponse response = service().search(request);
 
-        ArgumentCaptor<OpenAlexQuery> queryCaptor = ArgumentCaptor.forClass(OpenAlexQuery.class);
-        verify(openAlexSearchPort).search(queryCaptor.capture());
-        OpenAlexQuery query = queryCaptor.getValue();
-        assertThat(query.search()).isEqualTo("Mamba remote sensing change detection");
-        assertThat(query.fromPublicationDate().getYear()).isEqualTo(2022);
-        assertThat(query.toPublicationDate().getYear()).isEqualTo(2026);
-        assertThat(query.languages()).containsExactly("en", "zh");
-        assertThat(query.workTypes()).containsExactly("article", "review");
-        assertThat(query.sort()).isEqualTo(OpenAlexQuery.Sort.NEWEST);
-        assertThat(query.perPage()).isEqualTo(30);
+        ArgumentCaptor<ValidatedSearchPlanContext> contextCaptor =
+                ArgumentCaptor.forClass(ValidatedSearchPlanContext.class);
+        verify(literatureResearchAgent).execute(org.mockito.ArgumentMatchers.eq(initialState), contextCaptor.capture());
+        SearchPlan plan = contextCaptor.getValue().validationResult().plan();
+        assertThat(plan.searchQuery()).isEqualTo("Mamba remote sensing change detection");
+        assertThat(plan.fromYear()).isEqualTo(2022);
+        assertThat(plan.toYear()).isEqualTo(2026);
+        assertThat(plan.languages()).containsExactly(
+                com.dj1012h.researchpilot.literature.model.LanguageCode.EN,
+                com.dj1012h.researchpilot.literature.model.LanguageCode.ZH
+        );
+        assertThat(plan.publicationTypes()).containsExactly("article", "review");
+        assertThat(plan.sort()).isEqualTo(com.dj1012h.researchpilot.literature.model.SearchSort.NEWEST);
+        assertThat(plan.candidateLimit()).isEqualTo(30);
         assertThat(response.plan().originalQuery()).isEqualTo(request.query());
-        assertThat(response.plan().candidateLimit()).isEqualTo(30);
+        verify(openAlexSearchPort, never()).search(any());
     }
 
     @Test
@@ -98,6 +117,7 @@ class LiteratureSearchFlowIntegrationTest {
                 .isInstanceOf(SearchPlanGenerationException.class);
 
         verify(planner).regenerate(any(), any());
+        verify(literatureResearchAgent, never()).initialize(any());
         verify(openAlexSearchPort, never()).search(any());
         assertThat(output)
                 .doesNotContain("SENSITIVE_USER_QUERY_7f13")
@@ -117,6 +137,7 @@ class LiteratureSearchFlowIntegrationTest {
         )).isInstanceOf(SearchPlanGenerationException.class);
 
         verify(planner, never()).regenerate(any(), any());
+        verify(literatureResearchAgent, never()).initialize(any());
         verify(openAlexSearchPort, never()).search(any());
     }
 
@@ -133,6 +154,7 @@ class LiteratureSearchFlowIntegrationTest {
         )).isSameAs(modelFailure);
 
         verify(planner, never()).regenerate(any(), any());
+        verify(literatureResearchAgent, never()).initialize(any());
         verify(openAlexSearchPort, never()).search(any());
     }
 
@@ -145,12 +167,21 @@ class LiteratureSearchFlowIntegrationTest {
         );
         return new LiteratureSearchService(
                 searchAgent,
-                new OpenAlexQueryFactory(),
-                openAlexSearchPort,
-                crossrefCandidateLookupService,
-                paperVerificationService,
-                eligiblePaperFilter,
+                literatureResearchAgent,
                 FIXED_CLOCK
+        );
+    }
+
+    private SearchPlan expectedPlan(String originalQuery) {
+        return new SearchPlan(
+                originalQuery, "Mamba remote sensing change detection",
+                List.of("Mamba", "remote sensing", "change detection"),
+                "Mamba remote sensing change detection",
+                java.util.Set.of(com.dj1012h.researchpilot.literature.model.LanguageCode.EN,
+                        com.dj1012h.researchpilot.literature.model.LanguageCode.ZH),
+                List.of("article", "review"),
+                com.dj1012h.researchpilot.literature.model.SearchSort.NEWEST,
+                2022, 2026, 30, 10
         );
     }
 

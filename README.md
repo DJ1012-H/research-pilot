@@ -1,10 +1,10 @@
 # ResearchPilot
 
-## 2026-07-31：受控 Agent 执行循环
+## 2026-07-29：受控 Agent 工作流接入（提前完成 2026-08-01 阶段）
 
-项目现在提供一个仅供 application/agent 内部使用的有限执行入口，把已校验的初始
-`SearchPlan` 按确定性路径执行为最多两轮 OpenAlex 检索、全局去重、Crossref 核验
-和结果评估。该入口尚未接入 Controller 或现有公共检索 API。
+`POST /api/literature/search` 现在通过既有 HTTP 契约进入 `LiteratureSearchService`，由
+`SearchAgent` 生成可信初始计划后初始化并运行 `LiteratureResearchAgent`。Service 不再
+直接执行 OpenAlex、Crossref、去重或核验步骤；完整有限状态机仍封装在 Agent 编排组件中。
 
 - 第一轮对非空候选固定执行
   `SEARCH_OPENALEX → DEDUPLICATE_CANDIDATES → VERIFY_WITH_CROSSREF → EVALUATE_RESULTS`；
@@ -19,12 +19,25 @@
   2 轮搜索、1 次调整、10 个业务步骤、45 个全局唯一候选、45 次 Crossref 调用和 90 秒。
 - Crossref 正式输出仍只允许 `VERIFIED` 且具有规范化 DOI 的论文。deadline、预算拒绝、
   OpenAlex/Crossref 不可用、非法状态和非预期异常均以精确原因安全终止，并保留此前结果。
+- 响应继续使用冻结的 `SearchResponse` 字段。`candidateCount` 汇总所有搜索轮次返回的原始
+  候选数，`deduplicatedCount` 使用跨轮全局唯一候选数；核验统计必须与去重数守恒，公开
+  `papers` 只保留具有规范化 DOI 的 `VERIFIED` 结果。状态由正式论文数决定，而不是仅由
+  终止原因决定：足额为 `COMPLETED`，不足但非零为 `PARTIAL_SUCCESS`，零结果为
+  `NO_VERIFIED_RESULTS`。
+- Service 仅将安全的状态映射为中文用户消息；内部 Trace、终止详情、模型输出和外部原始
+  响应均不进入公开 API。完成日志关联 `taskId`、Agent 阶段、终止原因、计数与耗时。
 - 内存 Trace 按 `traceId` 隔离，记录连续 `stepIndex`、动作/阶段、决策来源、耗时、
   预算前后值、失败码和终止原因；阶段必须连续、预算必须单调，摘要最多 500 字符。
   Trace 不保存完整输入、Prompt、模型原始输出、凭据、provider JSON、论文全文或完整摘要。
-- 验收证据：执行循环、执行器、Trace、refinement 和架构边界定向测试 23 项通过；
-  最终 `.\mvnw.cmd clean verify` 运行 365 项测试，0 失败、0 错误，2 项真实 Crossref
-  smoke test 按预期跳过，并成功完成 JAR 打包。
+- 离线验收使用固定 Clock、Fake/Mockito 端口和固定模型输出。覆盖首次满足、一次重规划
+  后满足、预算限制后的部分结果和零 VERIFIED 路径；真实 LLM/OpenAlex/Crossref smoke
+  test 默认关闭，不会由普通 Maven 测试触发。定向 `mvn test` 运行 13 项测试，0 失败、
+  0 错误；最终 `./mvnw.cmd clean verify` 运行 365 项测试，0 失败、0 错误、2 项 opt-in
+  Crossref smoke test 按预期跳过，并完成 JAR 打包。
+- 在开发者手动启动且已安全配置外部服务的实例上，使用同一固定请求完成两次真实
+  LLM → OpenAlex → Crossref 端到端联网验收。两次均返回 HTTP 200 和 `COMPLETED`，
+  均取得 15 个候选、15 个全局唯一候选、5 篇正式 `VERIFIED` 论文；服务器记录耗时
+  分别为 17,395 ms 和 9,244 ms。仓库不记录密钥、Prompt、外部原始响应或完整请求内容。
 
 ## 2026-07-30：受控检索计划调整
 

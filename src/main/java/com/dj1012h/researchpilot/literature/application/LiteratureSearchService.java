@@ -1,11 +1,13 @@
 package com.dj1012h.researchpilot.literature.application;
 
-import com.dj1012h.researchpilot.integration.openalex.OpenAlexSearchPort;
-import com.dj1012h.researchpilot.integration.openalex.OpenAlexSearchResult;
 import com.dj1012h.researchpilot.literature.api.dto.SearchRequest;
 import com.dj1012h.researchpilot.literature.api.dto.SearchResponse;
+import com.dj1012h.researchpilot.literature.agent.AgentAction;
+import com.dj1012h.researchpilot.literature.agent.AgentRunResult;
+import com.dj1012h.researchpilot.literature.agent.AgentState;
+import com.dj1012h.researchpilot.literature.agent.LiteratureResearchAgent;
+import com.dj1012h.researchpilot.literature.agent.TerminationReason;
 import com.dj1012h.researchpilot.literature.model.CandidateVerificationOutcome;
-import com.dj1012h.researchpilot.literature.model.OpenAlexQuery;
 import com.dj1012h.researchpilot.literature.model.SearchPlan;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -24,30 +26,17 @@ public class LiteratureSearchService {
     private static final Logger log = LoggerFactory.getLogger(LiteratureSearchService.class);
 
     private final SearchAgent searchAgent;
-    private final OpenAlexQueryFactory queryFactory;
-    private final OpenAlexSearchPort openAlexSearchPort;
-    private final CrossrefCandidateLookupService crossrefCandidateLookupService;
-    private final PaperVerificationService paperVerificationService;
-    private final EligiblePaperFilter eligiblePaperFilter;
+    private final LiteratureResearchAgent literatureResearchAgent;
     private final Clock clock;
 
     public LiteratureSearchService(
             SearchAgent searchAgent,
-            OpenAlexQueryFactory queryFactory,
-            OpenAlexSearchPort openAlexSearchPort,
-            CrossrefCandidateLookupService crossrefCandidateLookupService,
-            PaperVerificationService paperVerificationService,
-            EligiblePaperFilter eligiblePaperFilter,
+            LiteratureResearchAgent literatureResearchAgent,
             Clock clock
     ) {
         this.searchAgent = Objects.requireNonNull(searchAgent, "searchAgent must not be null");
-        this.queryFactory = Objects.requireNonNull(queryFactory, "queryFactory must not be null");
-        this.openAlexSearchPort = Objects.requireNonNull(openAlexSearchPort, "openAlexSearchPort must not be null");
-        this.crossrefCandidateLookupService = Objects.requireNonNull(
-                crossrefCandidateLookupService, "crossrefCandidateLookupService must not be null");
-        this.paperVerificationService = Objects.requireNonNull(paperVerificationService,
-                "paperVerificationService must not be null");
-        this.eligiblePaperFilter = Objects.requireNonNull(eligiblePaperFilter, "eligiblePaperFilter must not be null");
+        this.literatureResearchAgent = Objects.requireNonNull(
+                literatureResearchAgent, "literatureResearchAgent must not be null");
         this.clock = Objects.requireNonNull(clock, "clock must not be null");
     }
 
@@ -56,36 +45,36 @@ public class LiteratureSearchService {
         UUID taskId = UUID.randomUUID();
         Instant startedAt = Instant.now(clock);
 
-        SearchPlan plan = searchAgent.createPlan(request);
-        OpenAlexQuery query = queryFactory.create(plan);
-        OpenAlexSearchResult result = openAlexSearchPort.search(query);
-        CrossrefLookupSummary crossref = crossrefCandidateLookupService.lookup(result.candidates());
-        List<CandidateVerificationOutcome> outcomes = paperVerificationService.verify(crossref);
-        List<SearchResponse.PaperResult> papers = eligiblePaperFilter.filter(outcomes, plan.resultLimit());
-        SearchResponse.VerificationSummary verificationSummary = verificationSummary(outcomes);
+        ValidatedSearchPlanContext initialPlanContext = searchAgent.createPlanContext(request);
+        AgentState initialState = literatureResearchAgent.initialize(request);
+        AgentRunResult runResult = literatureResearchAgent.execute(initialState, initialPlanContext);
+        AgentState finalState = runResult.finalState();
+        SearchPlan finalPlan = finalState.currentPlan();
+        List<SearchResponse.PaperResult> papers = finalState.verifiedPapers();
+        SearchResponse.VerificationSummary verificationSummary = verificationSummary(finalState.verificationResults());
 
         Instant completedAt = Instant.now(clock);
         long elapsedMs = Math.max(0, completedAt.toEpochMilli() - startedAt.toEpochMilli());
         SearchResponse response = new SearchResponse(
                 taskId,
-                status(papers, plan.resultLimit()),
-                plan,
-                result.candidates().size(),
-                crossref.candidateDeduplication().uniqueCount(),
+                status(papers, finalState.requestedCount()),
+                finalPlan,
+                totalRetrievedCandidates(finalState),
+                finalState.uniqueCandidateCount(),
                 verificationSummary,
                 papers,
-                message(result.candidates().size(), crossref, verificationSummary, papers.size()),
+                message(papers.size(), finalState.requestedCount(), finalState.terminationReason()),
                 elapsedMs,
                 completedAt
         );
 
         log.info(
-                "event=literature_search_completed taskId={} candidateCount={} uniqueCandidateCount={} "
-                        + "crossrefAttemptedCount={} crossrefFoundCount={} crossrefNotFoundCount={} "
-                        + "crossrefFailedCount={} crossrefSourceAvailable={} verifiedCount={} formalResultCount={} elapsedMs={}",
-                taskId, result.candidates().size(), crossref.candidateDeduplication().uniqueCount(),
-                crossref.attemptedCount(), crossref.foundCount(), crossref.notFoundCount(), crossref.failedCount(),
-                crossref.sourceAvailable(), verificationSummary.verifiedCount(), papers.size(), elapsedMs
+                "event=literature_search_completed taskId={} agentStage={} terminationReason={} "
+                        + "candidateCount={} uniqueCandidateCount={} crossrefAttemptedCount={} "
+                        + "verifiedCount={} formalResultCount={} elapsedMs={}",
+                taskId, finalState.currentStage(), finalState.terminationReason(), totalRetrievedCandidates(finalState),
+                finalState.uniqueCandidateCount(), finalState.crossrefCallCount(),
+                verificationSummary.verifiedCount(), papers.size(), elapsedMs
         );
         return response;
     }
@@ -95,6 +84,13 @@ public class LiteratureSearchService {
         return papers.size() < resultLimit
                 ? SearchResponse.SearchStatus.PARTIAL_SUCCESS
                 : SearchResponse.SearchStatus.COMPLETED;
+    }
+
+    private int totalRetrievedCandidates(AgentState state) {
+        return state.observations().stream()
+                .filter(observation -> observation.action() == AgentAction.SEARCH_OPENALEX)
+                .mapToInt(observation -> observation.candidateCount())
+                .sum();
     }
 
     private SearchResponse.VerificationSummary verificationSummary(List<CandidateVerificationOutcome> outcomes) {
@@ -113,28 +109,35 @@ public class LiteratureSearchService {
         return new SearchResponse.VerificationSummary(verified, partial, unverified, rejected);
     }
 
-    private String message(
-            int candidateCount,
-            CrossrefLookupSummary crossref,
-            SearchResponse.VerificationSummary verificationSummary,
-            int formalResultCount
-    ) {
-        if (candidateCount == 0) {
-            return "未检索到候选论文；Crossref 未尝试查询，且未返回正式论文。";
-        }
-        return "OpenAlex candidates=" + candidateCount
-                + "; deduplicated=" + crossref.candidateDeduplication().uniqueCount()
-                + "; Crossref attempted=" + crossref.attemptedCount()
-                + ", found=" + crossref.foundCount()
-                + ", notFound=" + crossref.notFoundCount()
-                + ", failed=" + crossref.failedCount()
-                + ", skipped=" + crossref.skippedByLimitCount()
-                + "; verified=" + verificationSummary.verifiedCount()
-                + ", partiallyVerified=" + verificationSummary.partiallyVerifiedCount()
-                + ", unverified=" + verificationSummary.unverifiedCount()
-                + ", rejected=" + verificationSummary.rejectedCount()
-                + "; formalPapers=" + formalResultCount
-                + (crossref.crossrefEnabled() ? "" : "；尚未执行字段级核验")
-                + (crossref.sourceAvailable() ? "" : "; Crossref source unavailable.");
+    private String message(int formalResultCount, int requestedCount, TerminationReason terminationReason) {
+        String base = switch (statusForMessage(formalResultCount, requestedCount)) {
+            case COMPLETED -> "已找到并核验通过 " + formalResultCount + " 篇论文。";
+            case PARTIAL_SUCCESS -> "计划返回 " + requestedCount + " 篇，实际核验通过 "
+                    + formalResultCount + " 篇；已返回当前可信结果。";
+            case NO_VERIFIED_RESULTS -> "未找到满足最低核验标准的论文。";
+        };
+        return base + terminationSuffix(terminationReason);
+    }
+
+    private SearchResponse.SearchStatus statusForMessage(int formalResultCount, int requestedCount) {
+        if (formalResultCount == 0) return SearchResponse.SearchStatus.NO_VERIFIED_RESULTS;
+        return formalResultCount < requestedCount
+                ? SearchResponse.SearchStatus.PARTIAL_SUCCESS
+                : SearchResponse.SearchStatus.COMPLETED;
+    }
+
+    private String terminationSuffix(TerminationReason reason) {
+        if (reason == null) return "";
+        return switch (reason) {
+            case SEARCH_ROUND_LIMIT_REACHED -> " 已达到检索轮次上限。";
+            case PLAN_ADJUSTMENT_LIMIT_REACHED -> " 已达到计划调整上限。";
+            case STEP_LIMIT_REACHED -> " 已达到执行步骤上限。";
+            case CANDIDATE_BUDGET_EXHAUSTED -> " 已达到候选数量上限。";
+            case CROSSREF_BUDGET_EXHAUSTED -> " 已达到核验调用上限。";
+            case DEADLINE_EXCEEDED -> " 已达到执行时间上限。";
+            case EXTERNAL_SERVICE_UNAVAILABLE -> " 外部核验服务当前不可用。";
+            case INVALID_STATE, UNEXPECTED_FAILURE -> " 执行已安全终止。";
+            case TARGET_REACHED, PARTIAL_RESULTS, NO_VERIFIED_RESULTS -> "";
+        };
     }
 }

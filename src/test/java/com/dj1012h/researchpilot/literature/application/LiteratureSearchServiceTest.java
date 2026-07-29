@@ -1,31 +1,31 @@
 package com.dj1012h.researchpilot.literature.application;
 
-import com.dj1012h.researchpilot.integration.openalex.OpenAlexSearchPort;
-import com.dj1012h.researchpilot.integration.openalex.OpenAlexSearchResult;
+import com.dj1012h.researchpilot.literature.agent.AgentAction;
+import com.dj1012h.researchpilot.literature.agent.AgentObservation;
+import com.dj1012h.researchpilot.literature.agent.AgentRunResult;
+import com.dj1012h.researchpilot.literature.agent.AgentStage;
+import com.dj1012h.researchpilot.literature.agent.AgentState;
+import com.dj1012h.researchpilot.literature.agent.LiteratureResearchAgent;
+import com.dj1012h.researchpilot.literature.agent.TerminationReason;
 import com.dj1012h.researchpilot.literature.api.dto.SearchRequest;
 import com.dj1012h.researchpilot.literature.api.dto.SearchResponse;
-import com.dj1012h.researchpilot.literature.model.CandidatePaper;
-import com.dj1012h.researchpilot.literature.model.CandidateDeduplicationResult;
-import com.dj1012h.researchpilot.literature.model.CandidateLookupResult;
-import com.dj1012h.researchpilot.literature.model.CandidateVerificationOutcome;
 import com.dj1012h.researchpilot.literature.model.LanguageCode;
-import com.dj1012h.researchpilot.literature.model.NormalizedCandidate;
-import com.dj1012h.researchpilot.literature.model.OpenAlexQuery;
 import com.dj1012h.researchpilot.literature.model.PaperDTO;
 import com.dj1012h.researchpilot.literature.model.SearchPlan;
 import com.dj1012h.researchpilot.literature.model.SearchSort;
 import com.dj1012h.researchpilot.literature.model.VerificationResult;
-import com.dj1012h.researchpilot.integration.crossref.CrossrefWorkMetadata;
 import org.junit.jupiter.api.Test;
+import org.mockito.ArgumentCaptor;
 
 import java.time.Clock;
+import java.time.Duration;
 import java.time.Instant;
-import java.time.LocalDate;
 import java.time.ZoneOffset;
 import java.util.List;
 import java.util.Set;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoMoreInteractions;
@@ -33,169 +33,170 @@ import static org.mockito.Mockito.when;
 
 class LiteratureSearchServiceTest {
 
+    private static final Clock CLOCK =
+            Clock.fixed(Instant.parse("2026-08-01T08:00:00Z"), ZoneOffset.UTC);
+
     private final SearchAgent searchAgent = mock(SearchAgent.class);
-    private final OpenAlexQueryFactory queryFactory = mock(OpenAlexQueryFactory.class);
-    private final OpenAlexSearchPort openAlexSearchPort = mock(OpenAlexSearchPort.class);
-    private final CrossrefCandidateLookupService crossrefCandidateLookupService = mock(CrossrefCandidateLookupService.class);
-    private final PaperVerificationService paperVerificationService = mock(PaperVerificationService.class);
-    private final EligiblePaperFilter eligiblePaperFilter = mock(EligiblePaperFilter.class);
-    private final Clock clock =
-            Clock.fixed(Instant.parse("2026-07-20T08:00:00Z"), ZoneOffset.UTC);
+    private final LiteratureResearchAgent literatureResearchAgent = mock(LiteratureResearchAgent.class);
     private final LiteratureSearchService service =
-            new LiteratureSearchService(searchAgent, queryFactory, openAlexSearchPort, crossrefCandidateLookupService,
-                    paperVerificationService, eligiblePaperFilter, clock);
+            new LiteratureSearchService(searchAgent, literatureResearchAgent, CLOCK);
 
     @Test
-    void shouldExecuteOneTrustedOpenAlexSearchWithoutPublishingUnverifiedCandidates() {
-        SearchRequest request = new SearchRequest("Mamba 遥感变化检测", null, null, 10);
+    void shouldDelegateTheTrustedPlanAndFiniteExecutionToTheResearchAgent() {
+        SearchRequest request = new SearchRequest("Mamba 遥感变化检测", null, null, 5);
         SearchPlan plan = plan(request);
-        OpenAlexQuery query = query();
-        CandidatePaper candidate = candidate();
-        when(searchAgent.createPlan(request)).thenReturn(plan);
-        when(queryFactory.create(plan)).thenReturn(query);
-        when(openAlexSearchPort.search(query))
-                .thenReturn(new OpenAlexSearchResult(42, List.of(candidate), null));
-        when(crossrefCandidateLookupService.lookup(List.of(candidate))).thenReturn(disabledSummary(1));
-        when(paperVerificationService.verify(org.mockito.ArgumentMatchers.any())).thenReturn(List.of());
-        when(eligiblePaperFilter.filter(List.of(), 10)).thenReturn(List.of());
+        ValidatedSearchPlanContext context = mock(ValidatedSearchPlanContext.class);
+        AgentState initialState = mock(AgentState.class);
+        AgentRunResult runResult = runResult(plan, List.of(), List.of(), 0, 0,
+                TerminationReason.NO_VERIFIED_RESULTS);
+        when(searchAgent.createPlanContext(request)).thenReturn(context);
+        when(literatureResearchAgent.initialize(request)).thenReturn(initialState);
+        when(literatureResearchAgent.execute(initialState, context)).thenReturn(runResult);
 
         SearchResponse response = service.search(request);
 
         assertThat(response.status()).isEqualTo(SearchResponse.SearchStatus.NO_VERIFIED_RESULTS);
         assertThat(response.plan()).isSameAs(plan);
-        assertThat(response.candidateCount()).isOne();
+        assertThat(response.candidateCount()).isZero();
         assertThat(response.deduplicatedCount()).isZero();
         assertThat(response.verificationSummary().totalCount()).isZero();
         assertThat(response.papers()).isEmpty();
-        assertThat(response.message()).contains("尚未执行字段级核验");
+        assertThat(response.message()).isEqualTo("未找到满足最低核验标准的论文。");
         assertThat(response.elapsedMs()).isZero();
-        assertThat(response.completedAt()).isEqualTo(Instant.parse("2026-07-20T08:00:00Z"));
+        assertThat(response.completedAt()).isEqualTo(Instant.parse("2026-08-01T08:00:00Z"));
         assertThat(response.taskId()).isNotNull();
-        verify(searchAgent).createPlan(request);
-        verify(queryFactory).create(plan);
-        verify(openAlexSearchPort).search(query);
-        verify(crossrefCandidateLookupService).lookup(List.of(candidate));
-        verifyNoMoreInteractions(openAlexSearchPort);
+        verify(searchAgent).createPlanContext(request);
+        verify(literatureResearchAgent).initialize(request);
+        verify(literatureResearchAgent).execute(initialState, context);
+        verifyNoMoreInteractions(literatureResearchAgent);
     }
 
     @Test
-    void shouldDescribeEmptyCandidateResultWithoutAddingFormalPapers() {
-        SearchRequest request = new SearchRequest("Mamba 遥感变化检测", null, null, 10);
+    void shouldMapBudgetLimitedVerifiedResultsToPartialSuccessAndSumAllSearchRounds() {
+        SearchRequest request = new SearchRequest("Mamba", null, null, 5);
         SearchPlan plan = plan(request);
-        OpenAlexQuery query = query();
-        when(searchAgent.createPlan(request)).thenReturn(plan);
-        when(queryFactory.create(plan)).thenReturn(query);
-        when(openAlexSearchPort.search(query))
-                .thenReturn(new OpenAlexSearchResult(0, List.of(), null));
-        when(crossrefCandidateLookupService.lookup(List.of())).thenReturn(disabledSummary(0));
-        when(paperVerificationService.verify(org.mockito.ArgumentMatchers.any())).thenReturn(List.of());
-        when(eligiblePaperFilter.filter(List.of(), 10)).thenReturn(List.of());
-
-        SearchResponse response = service.search(request);
-
-        assertThat(response.candidateCount()).isZero();
-        assertThat(response.papers()).isEmpty();
-        assertThat(response.message()).contains("未检索到候选论文");
-    }
-
-    @Test
-    void shouldPublishOnlyTheVerifiedPapersReturnedByTheFormalGate() {
-        SearchRequest request = new SearchRequest("Mamba", null, null, 10);
-        SearchPlan plan = plan(request);
-        OpenAlexQuery query = query();
-        CandidatePaper candidate = candidate();
-        CandidateVerificationOutcome verified = verifiedOutcome(candidate);
-        SearchResponse.PaperResult paper = new SearchResponse.PaperResult(
-                new PaperDTO("W1", "10.1000/example", "Example paper", List.of(), 2026, "Example Journal",
-                        List.of(), "article", null, "Abstract", "en", List.of(), 10,
-                        PaperDTO.LiteratureSource.OPENALEX),
-                1.0, verified.verification());
-        when(searchAgent.createPlan(request)).thenReturn(plan);
-        when(queryFactory.create(plan)).thenReturn(query);
-        when(openAlexSearchPort.search(query)).thenReturn(new OpenAlexSearchResult(1, List.of(candidate), null));
-        when(crossrefCandidateLookupService.lookup(List.of(candidate))).thenReturn(oneCandidateSummary(candidate));
-        when(paperVerificationService.verify(org.mockito.ArgumentMatchers.any())).thenReturn(List.of(verified));
-        when(eligiblePaperFilter.filter(org.mockito.ArgumentMatchers.anyList(), org.mockito.ArgumentMatchers.eq(10)))
-                .thenReturn(List.of(paper));
+        SearchResponse.PaperResult paper = paper();
+        List<AgentObservation> observations = List.of(
+                observation(AgentAction.SEARCH_OPENALEX, 10),
+                observation(AgentAction.DEDUPLICATE_CANDIDATES, 0),
+                observation(AgentAction.SEARCH_OPENALEX, 8)
+        );
+        AgentRunResult runResult = runResult(plan, List.of(paper), observations, 8, 1,
+                TerminationReason.STEP_LIMIT_REACHED);
+        when(searchAgent.createPlanContext(request)).thenReturn(mock(ValidatedSearchPlanContext.class));
+        when(literatureResearchAgent.initialize(request)).thenReturn(mock(AgentState.class));
+        when(literatureResearchAgent.execute(any(), any())).thenReturn(runResult);
 
         SearchResponse response = service.search(request);
 
         assertThat(response.status()).isEqualTo(SearchResponse.SearchStatus.PARTIAL_SUCCESS);
         assertThat(response.papers()).containsExactly(paper);
+        assertThat(response.candidateCount()).isEqualTo(18);
+        assertThat(response.deduplicatedCount()).isEqualTo(8);
         assertThat(response.verificationSummary().verifiedCount()).isOne();
-        assertThat(response.deduplicatedCount()).isOne();
+        assertThat(response.verificationSummary().totalCount()).isEqualTo(8);
+        assertThat(response.message()).contains("已达到执行步骤上限");
     }
 
-    private CrossrefLookupSummary disabledSummary(int eligible) {
-        return new CrossrefLookupSummary(eligible, 0, 0, 0, 0, 0, 0, false, false, List.of(), List.of());
+    @Test
+    void shouldMapEnoughVerifiedResultsToCompletedWithoutExposingTheTrace() {
+        SearchRequest request = new SearchRequest("Mamba", null, null, 1);
+        SearchPlan plan = plan(request);
+        SearchResponse.PaperResult paper = paper();
+        AgentRunResult runResult = runResult(plan, List.of(paper),
+                List.of(observation(AgentAction.SEARCH_OPENALEX, 1)), 1, 1,
+                TerminationReason.TARGET_REACHED);
+        when(searchAgent.createPlanContext(request)).thenReturn(mock(ValidatedSearchPlanContext.class));
+        when(literatureResearchAgent.initialize(request)).thenReturn(mock(AgentState.class));
+        when(literatureResearchAgent.execute(any(), any())).thenReturn(runResult);
+
+        SearchResponse response = service.search(request);
+
+        assertThat(response.status()).isEqualTo(SearchResponse.SearchStatus.COMPLETED);
+        assertThat(response.papers()).containsExactly(paper);
+        assertThat(response.message()).isEqualTo("已找到并核验通过 1 篇论文。");
+        assertThat(SearchResponse.class.getRecordComponents())
+                .extracting(component -> component.getName())
+                .doesNotContain("trace", "terminationReason");
     }
 
-    private CrossrefLookupSummary oneCandidateSummary(CandidatePaper candidate) {
-        NormalizedCandidate normalized = new NormalizedCandidate("W1", candidate, "10.1000/example", "W1",
-                "example paper", null, 2026, "example journal", 0);
-        CandidateLookupResult lookup = new CandidateLookupResult(normalized, CandidateLookupResult.LookupRoute.DOI,
-                CandidateLookupResult.LookupStatus.FOUND,
-                List.of(new CrossrefWorkMetadata("10.1000/example", "Example paper", List.of(), 2026,
-                        "Example Journal", "article", "Publisher")), "TEST");
-        CandidateDeduplicationResult deduplication = new CandidateDeduplicationResult(
-                List.of(normalized), List.of(), 1, 1, 0);
-        return new CrossrefLookupSummary(1, 0, 1, 1, 0, 0, 0, true, true, lookup.references(), List.of(),
-                List.of(lookup), deduplication);
+    private AgentRunResult runResult(
+            SearchPlan plan,
+            List<SearchResponse.PaperResult> papers,
+            List<AgentObservation> observations,
+            int uniqueCandidateCount,
+            int verifiedCount,
+            TerminationReason terminationReason
+    ) {
+        AgentState state = mock(AgentState.class);
+        when(state.currentPlan()).thenReturn(plan);
+        when(state.requestedCount()).thenReturn(plan.resultLimit());
+        when(state.verifiedPapers()).thenReturn(papers);
+        when(state.observations()).thenReturn(observations);
+        when(state.uniqueCandidateCount()).thenReturn(uniqueCandidateCount);
+        when(state.crossrefCallCount()).thenReturn(uniqueCandidateCount);
+        when(state.currentStage()).thenReturn(AgentStage.COMPLETED);
+        when(state.terminationReason()).thenReturn(terminationReason);
+        List<com.dj1012h.researchpilot.literature.model.CandidateVerificationOutcome> verificationResults =
+                verificationResults(verifiedCount, uniqueCandidateCount);
+        when(state.verificationResults()).thenReturn(verificationResults);
+        AgentRunResult runResult = mock(AgentRunResult.class);
+        when(runResult.finalState()).thenReturn(state);
+        return runResult;
     }
 
-    private CandidateVerificationOutcome verifiedOutcome(CandidatePaper candidate) {
-        CrossrefWorkMetadata reference = new CrossrefWorkMetadata("10.1000/example", "Example paper", List.of(),
-                2026, "Example Journal", "article", "Publisher");
-        VerificationResult result = new VerificationResult(VerificationResult.VerificationStatus.VERIFIED, 1.0,
-                VerificationResult.VerificationSource.CROSSREF, "10.1000/example", List.of(), List.of("TEST"));
-        return new CandidateVerificationOutcome(candidate, reference, result);
+    private List<com.dj1012h.researchpilot.literature.model.CandidateVerificationOutcome> verificationResults(
+            int verifiedCount,
+            int totalCount
+    ) {
+        return java.util.stream.IntStream.range(0, totalCount)
+                .mapToObj(index -> {
+                    var outcome = mock(com.dj1012h.researchpilot.literature.model.CandidateVerificationOutcome.class);
+                    VerificationResult verification = new VerificationResult(
+                            index < verifiedCount ? VerificationResult.VerificationStatus.VERIFIED
+                                    : VerificationResult.VerificationStatus.NOT_CHECKED,
+                            0.0,
+                            VerificationResult.VerificationSource.CROSSREF,
+                            null,
+                            List.of(),
+                            List.of("TEST")
+                    );
+                    when(outcome.verification()).thenReturn(verification);
+                    return outcome;
+                })
+                .toList();
+    }
+
+    private AgentObservation observation(AgentAction action, int candidateCount) {
+        return new AgentObservation(
+                action, AgentStage.PLAN_READY, AgentStage.PLAN_READY, true,
+                candidateCount, 0, 0, 0, 0, Duration.ZERO,
+                "offline test observation", null, Instant.parse("2026-08-01T08:00:00Z")
+        );
+    }
+
+    private SearchResponse.PaperResult paper() {
+        VerificationResult verification = new VerificationResult(
+                VerificationResult.VerificationStatus.VERIFIED,
+                1.0,
+                VerificationResult.VerificationSource.CROSSREF,
+                "10.1000/example",
+                List.of(),
+                List.of("TEST")
+        );
+        PaperDTO dto = new PaperDTO(
+                "W1", "10.1000/example", "Example paper", List.of(), 2026, "Example Journal",
+                List.of(), "article", null, null, "en", List.of(), 1, PaperDTO.LiteratureSource.OPENALEX
+        );
+        return new SearchResponse.PaperResult(dto, 1.0, verification);
     }
 
     private SearchPlan plan(SearchRequest request) {
         return new SearchPlan(
-                request.query(),
-                "Mamba remote sensing change detection",
+                request.query(), "Mamba remote sensing change detection",
                 List.of("Mamba", "remote sensing", "change detection"),
-                "Mamba remote sensing change detection",
-                Set.of(LanguageCode.EN),
-                List.of("article"),
-                SearchSort.NEWEST,
-                2022,
-                2026,
-                30,
-                10
-        );
-    }
-
-    private OpenAlexQuery query() {
-        return new OpenAlexQuery(
-                "Mamba remote sensing change detection",
-                LocalDate.of(2022, 1, 1),
-                LocalDate.of(2026, 12, 31),
-                List.of("article"),
-                List.of("en"),
-                OpenAlexQuery.Sort.NEWEST,
-                30
-        );
-    }
-
-    private CandidatePaper candidate() {
-        return new CandidatePaper(
-                "W1",
-                "10.1000/example",
-                "Example paper",
-                List.of(),
-                "Example Journal",
-                LocalDate.of(2026, 7, 1),
-                2026,
-                "article",
-                "en",
-                10,
-                "Abstract",
-                "https://doi.org/10.1000/example",
-                null,
-                false,
-                CandidatePaper.CandidateSource.OPENALEX
+                "Mamba remote sensing change detection", Set.of(LanguageCode.EN), List.of("article"),
+                SearchSort.NEWEST, 2022, 2026, 30, request.limit()
         );
     }
 }

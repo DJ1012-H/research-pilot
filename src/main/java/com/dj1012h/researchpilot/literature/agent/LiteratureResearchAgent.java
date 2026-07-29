@@ -21,7 +21,7 @@ import java.util.UUID;
 /**
  * Controlled finite workflow. Existing single-action entry points remain for
  * compatibility; {@link #execute(AgentState, ValidatedSearchPlanContext)}
- * orchestrates the internal two-round execution path.
+ * orchestrates the two-round execution path used by the literature-search use case.
  */
 @Component
 public class LiteratureResearchAgent {
@@ -127,8 +127,8 @@ public class LiteratureResearchAgent {
     }
 
     /**
-     * Runs only the internal Agent path; controllers and the public search API
-     * deliberately remain disconnected in this delivery.
+     * Runs the controlled Agent path after the application service has created
+     * the trusted initial plan and initial state.
      */
     public AgentRunResult execute(
             AgentState initializedState,

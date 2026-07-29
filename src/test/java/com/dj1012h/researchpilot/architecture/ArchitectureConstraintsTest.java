@@ -108,15 +108,17 @@ class ArchitectureConstraintsTest {
     }
 
     @Test
-    void searchServiceMustUseCandidateLookupBoundaryInsteadOfCrossrefClientOrExternalDtos() throws IOException {
+    void searchServiceMustDelegateControlledExecutionInsteadOfCallingCrossrefDirectly() throws IOException {
         String service = source(BASE.resolve(Path.of(
                 "literature", "application", "LiteratureSearchService.java"
         )));
         String application = sourceTree(BASE.resolve(Path.of("literature", "application")));
 
         assertThat(service)
-                .contains("CrossrefCandidateLookupService")
-                .doesNotContain("CrossrefClient");
+                .contains("LiteratureResearchAgent")
+                .doesNotContain("CrossrefCandidateLookupService")
+                .doesNotContain("CrossrefClient")
+                .doesNotContain("CrossrefSearchPort");
         assertThat(application).doesNotContain("integration.crossref.dto");
     }
 

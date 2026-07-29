@@ -15,4 +15,12 @@ public record AgentRunResult(
         context = Objects.requireNonNull(context, "context must not be null");
         trace = List.copyOf(Objects.requireNonNull(trace, "trace must not be null"));
     }
+
+    /**
+     * The single authoritative final state for response assembly. Trace data
+     * remains diagnostic-only and is deliberately not exposed by the API.
+     */
+    public AgentState finalState() {
+        return context.state();
+    }
 }
