@@ -1191,3 +1191,54 @@ Spring Boot 的条件装配回退，使它成为 MVC 使用的全局 Mapper；�
 - 未实现完整 Agent while 循环、第二轮 OpenAlex、第二轮 Crossref、综合生成、MySQL、Redis、RAG、Qdrant、PDF 或前端。
 - 未修改 `SearchRequest`、Controller、Swagger、外部 API 响应或 Crossref 评测数据集。
 - 交付保持为单一功能分支提交；未合并 `main`，未创建 PR。
+
+## 2026-07-31｜有限、可解释、受预算控制的 Agent 执行循环
+
+### 当日目标
+
+- 在不修改 Controller、Swagger 或外部 API 契约的前提下，把现有状态机、预算门禁、
+  动作决策、计划调整、OpenAlex、去重和 Crossref 核验组合为有限内部执行循环。
+- 第一轮保持 Java 确定性路径；只有结果不足时才允许一次受控 refinement 和第二轮检索。
+- 为每次内部运行提供不参与决策的最小内存 Trace，并对截止、预算、外部服务失败和非法状态
+  进行 fail-closed 终止。
+
+### 实际进展
+
+- 新增 `AgentExecutionContext`，在 `AgentState` 旁保留 `ValidatedSearchPlanContext`、
+  最近一次 `SearchPlanRefinementResult` 和本轮去重结果；第二轮使用重新校验后的可信上下文，
+  provenance 不进入 `AgentState` 或外部 API。
+- 新增 `SearchActionExecutor`，每次只执行一个已经通过状态白名单和预算门禁的动作：
+  OpenAlex 查询经 `OpenAlexQueryFactory.createBounded` 按剩余候选预算收敛；去重复用
+  `CandidateDeduplicationService` 与全局稳定键；核验复用
+  `CrossrefCandidateLookupService → PaperVerificationService → EligiblePaperFilter`。
+- `LiteratureResearchAgent.execute` 使用有限 `for` 边界编排动作。单一合法动作由 Java 直接选择；
+  多动作只允许出现在 `EVALUATING_RESULTS`，并限定为 `REFINE_PLAN` 与 `COMPLETE`。
+  `TERMINATE` 始终由 Java 控制。
+- `AgentState.recordRefinedPlan` 要求有效 `REFINE_PLAN` permit、保持 `originalQuery`、
+  追加 `planHistory`、更新 `currentPlan` 并返回 `PLAN_READY`；调整计数仍只在动作开始时增加一次。
+- 第二轮仅把相对 `globalCandidateKeys` 新增的稳定候选送入 Crossref；正式论文继续由既有 Gate
+  限制为 `VERIFIED` 且具有规范化 DOI，并按 DOI 全局去重、保持稳定顺序。
+- 将默认业务步骤上限从 8 修正为 10：初始计划登记 1 步、两轮各 4 步、一次 refinement 1 步。
+  搜索仍最多 2 轮、计划仍最多调整 1 次，其余候选、Crossref 和 deadline 上限不变。
+- 新增 `ExecutionTraceEntry`、`BudgetUsageSnapshot`、`ExecutionTraceRecorder` 与并发安全的
+  `InMemoryExecutionTraceRecorder`。Recorder 分配连续 stepIndex、检查阶段连续和预算单调，
+  返回不可修改快照；摘要限制为 500 字符，排除 Prompt、凭据和原始 provider payload。
+
+### 验收结果
+
+- 定向测试覆盖首轮达标、refinement 后达标、两轮部分结果、零可信结果、主动 COMPLETE、
+  deadline、非法上下文、OpenAlex/Crossref 不可用、五类预算阻断、跨轮去重、Trace 隔离/
+  并发/连续性/单调性及架构依赖边界。
+- 执行循环、执行器、Trace、refinement 和架构边界定向测试：23 项通过，0 失败、0 错误。
+- 最终 `.\mvnw.cmd clean verify`：365 项测试通过，0 失败、0 错误，2 项默认关闭的真实
+  Crossref smoke test 按预期跳过，并成功完成 JAR 打包。
+- `git diff --check` 通过；敏感模式检查只命中安全说明或测试字段名，未发现真实凭据。
+
+### 范围边界与遗留风险
+
+- 本次入口仅供 application/agent 内部使用，尚未接入现有 `LiteratureSearchController`
+  或 `LiteratureSearchService` 的公共请求链路，因此不改变现有外部行为。
+- 无去重候选时沿用既有 `AgentTransitionPolicy`，直接进入结果评估，不调用 Crossref。
+- Trace 仅保存在当前进程内存中，不接 MySQL、Redis、外部日志系统或 API。
+- 未修改核验算法、相似度阈值、Controller、Swagger、请求/响应契约、评测资产、
+  MySQL、Redis、RAG、Qdrant、PDF、前端或异步任务。

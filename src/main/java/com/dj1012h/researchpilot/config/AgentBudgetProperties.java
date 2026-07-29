@@ -14,7 +14,8 @@ public class AgentBudgetProperties {
 
     private int maxSearchRounds = 2;
     private int maxPlanAdjustments = 1;
-    private int maxBusinessSteps = 8;
+    // Initial plan + two four-step retrieval rounds + one controlled refinement.
+    private int maxBusinessSteps = 10;
     private int maxUniqueCandidates = 45;
     private int maxCrossrefCalls = 45;
     private int maxRefinementKeywords = 5;

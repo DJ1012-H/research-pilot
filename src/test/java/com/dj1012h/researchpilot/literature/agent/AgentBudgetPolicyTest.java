@@ -28,9 +28,9 @@ class AgentBudgetPolicyTest {
                 .startAction(new ActionExecutionPermit(AgentAction.SEARCH_OPENALEX, ActionCost.none()))
                 .startAction(new ActionExecutionPermit(AgentAction.SEARCH_OPENALEX, ActionCost.none()));
         AgentState oneAdjustment = planReady.startAction(new ActionExecutionPermit(AgentAction.REFINE_PLAN, ActionCost.none()));
-        AgentState eightSteps = planReady;
-        for (int index = 0; index < 8; index++) {
-            eightSteps = eightSteps.startAction(new ActionExecutionPermit(AgentAction.EVALUATE_RESULTS, ActionCost.none()));
+        AgentState allSteps = planReady;
+        for (int index = 0; index < 10; index++) {
+            allSteps = allSteps.startAction(new ActionExecutionPermit(AgentAction.EVALUATE_RESULTS, ActionCost.none()));
         }
         AgentState fortyFiveCrossref = planReady
                 .startAction(new ActionExecutionPermit(AgentAction.VERIFY_WITH_CROSSREF, new ActionCost(0, 45)))
@@ -40,7 +40,7 @@ class AgentBudgetPolicyTest {
                 .isEqualTo(TerminationReason.SEARCH_ROUND_LIMIT_REACHED);
         assertThat(policy(CLOCK).checkBeforeAction(oneAdjustment, AgentAction.REFINE_PLAN, ActionCost.none()).reason())
                 .isEqualTo(TerminationReason.PLAN_ADJUSTMENT_LIMIT_REACHED);
-        assertThat(policy(CLOCK).checkBeforeAction(eightSteps, AgentAction.EVALUATE_RESULTS, ActionCost.none()).reason())
+        assertThat(policy(CLOCK).checkBeforeAction(allSteps, AgentAction.EVALUATE_RESULTS, ActionCost.none()).reason())
                 .isEqualTo(TerminationReason.STEP_LIMIT_REACHED);
         assertThat(policy(CLOCK).checkBeforeAction(planReady, AgentAction.DEDUPLICATE_CANDIDATES, new ActionCost(46, 0)).reason())
                 .isEqualTo(TerminationReason.CANDIDATE_BUDGET_EXHAUSTED);

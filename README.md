@@ -1,5 +1,31 @@
 # ResearchPilot
 
+## 2026-07-31：受控 Agent 执行循环
+
+项目现在提供一个仅供 application/agent 内部使用的有限执行入口，把已校验的初始
+`SearchPlan` 按确定性路径执行为最多两轮 OpenAlex 检索、全局去重、Crossref 核验
+和结果评估。该入口尚未接入 Controller 或现有公共检索 API。
+
+- 第一轮对非空候选固定执行
+  `SEARCH_OPENALEX → DEDUPLICATE_CANDIDATES → VERIFY_WITH_CROSSREF → EVALUATE_RESULTS`；
+  没有去重候选时按现有状态机直接评估，不发起无意义的 Crossref 调用。
+- 只有可信论文不足且预算仍允许时，`SearchActionDecider` 才能在 `REFINE_PLAN`
+  与 `COMPLETE` 之间建议动作。单一合法动作由 Java 直接选择，不调用动作模型。
+- `SearchPlanRefiner` 继续携带内部 `ValidatedSearchPlanContext`，调整后的计划重新通过
+  完整五层校验；`AgentState.currentPlan` 与可信上下文保持一致，provenance 不进入外部 API。
+- 第二轮复用全局 `CandidateDeduplicationKey`，稳定重复候选不会再次进入 Crossref，
+  不重复增加唯一候选数、Crossref 调用数或正式论文。
+- 所有动作在执行前同时经过 `AgentTransitionPolicy` 和 `AgentBudgetPolicy`；服务器上限为
+  2 轮搜索、1 次调整、10 个业务步骤、45 个全局唯一候选、45 次 Crossref 调用和 90 秒。
+- Crossref 正式输出仍只允许 `VERIFIED` 且具有规范化 DOI 的论文。deadline、预算拒绝、
+  OpenAlex/Crossref 不可用、非法状态和非预期异常均以精确原因安全终止，并保留此前结果。
+- 内存 Trace 按 `traceId` 隔离，记录连续 `stepIndex`、动作/阶段、决策来源、耗时、
+  预算前后值、失败码和终止原因；阶段必须连续、预算必须单调，摘要最多 500 字符。
+  Trace 不保存完整输入、Prompt、模型原始输出、凭据、provider JSON、论文全文或完整摘要。
+- 验收证据：执行循环、执行器、Trace、refinement 和架构边界定向测试 23 项通过；
+  最终 `.\mvnw.cmd clean verify` 运行 365 项测试，0 失败、0 错误，2 项真实 Crossref
+  smoke test 按预期跳过，并成功完成 JAR 打包。
+
 ## 2026-07-30：受控检索计划调整
 
 当 `SearchActionDecider` 已选择 `REFINE_PLAN` 后，系统现在可以生成一次严格受控的检索表达扩展，并把合并后的草稿重新送入完整可信计划校验链。本阶段只生成新的可信 `SearchPlan`，不执行第二轮 OpenAlex 或 Crossref。
@@ -101,6 +127,7 @@ DOI 规范化入口、精确查询收敛，以及字段核验评测数据集的�
 - [x] 候选字段标准化、分层精确去重和 Crossref 调用前预算保护
 - [x] Crossref 字段级元数据核验与 VERIFIED 准入
 - [x] 受控动作决策、真实约束来源与一次追加式检索计划调整
+- [x] 最多两轮的受控 Agent 执行循环、跨轮去重、预算门禁与内存 Trace
 - [ ] 标题/作者/年份/来源相似度、阈值校准与可信度评分
 - [ ] MySQL 检索任务、论文和核验记录持久化
 
@@ -407,7 +434,7 @@ URL 目前不映射到内部模型，待有明确展示或跳转需求时再以�
 
 当前尚未实现：
 
-- 完整 Agent while 循环及第二轮 OpenAlex/Crossref 执行
+- 将内部受控 Agent 执行循环接入公共检索 API
 - 更大规模的阈值校准、多源交叉核验和正式结果相关性排序
 - 检索任务、论文和核验记录入库
 - Embedding

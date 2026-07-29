@@ -62,7 +62,9 @@ class LiteratureResearchAgentTest {
     private LiteratureResearchAgent agent(OpenAlexSearchPort port) {
         AgentBudgetProperties budgets = new AgentBudgetProperties();
         return new LiteratureResearchAgent(new AgentBudgetPolicy(budgets, CLOCK), budgets,
-                new LiteratureSearchProperties(), port, CLOCK);
+                new LiteratureSearchProperties(), port, new AgentTransitionPolicy(),
+                mock(SearchActionDecider.class), mock(SearchActionExecutor.class),
+                new InMemoryExecutionTraceRecorder(), CLOCK);
     }
     private SearchPlan plan() {
         return new SearchPlan("query", "topic", List.of("keyword"), "keyword", Set.of(LanguageCode.EN),

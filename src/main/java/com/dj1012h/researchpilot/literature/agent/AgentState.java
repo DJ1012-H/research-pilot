@@ -167,6 +167,19 @@ public record AgentState(
                 globalCandidateKeys, unkeyedUniqueCandidateCount, observations, null, null, null);
     }
 
+    public AgentState recordRefinedPlan(SearchPlan plan, ActionExecutionPermit permit) {
+        assertActive();
+        requirePermit(permit, AgentAction.REFINE_PLAN);
+        plan = Objects.requireNonNull(plan, "plan must not be null");
+        if (!originalQuery.equals(plan.originalQuery())) {
+            throw new IllegalArgumentException("refined plan must preserve originalQuery");
+        }
+        return copy(plan, append(planHistory, plan), AgentStage.PLAN_READY, currentAction,
+                retrievedCandidates, deduplicatedCandidates, verificationResults, verifiedPapers,
+                searchRoundCount, planAdjustmentCount, businessStepCount, uniqueCandidateCount, crossrefCallCount,
+                globalCandidateKeys, unkeyedUniqueCandidateCount, observations, null, null, null);
+    }
+
     public AgentState recordObservation(AgentObservation observation, ActionExecutionPermit permit) {
         assertActive();
         observation = Objects.requireNonNull(observation, "observation must not be null");

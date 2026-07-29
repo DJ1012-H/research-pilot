@@ -67,6 +67,18 @@ class OpenAlexQueryFactoryTest {
     }
 
     @Test
+    void shouldBoundPageSizeByTheRemainingAgentCandidateBudget() {
+        SearchPlan plan = plan(List.of("article"), 45);
+
+        OpenAlexQuery query = factory.createBounded(plan, 7);
+
+        assertThat(query.perPage()).isEqualTo(7);
+        assertThatThrownBy(() -> factory.createBounded(plan, 0))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("maximumPageSize");
+    }
+
+    @Test
     void shouldRejectUnsafeWorkTypeInsteadOfBuildingRawFilterSyntax() {
         assertThatThrownBy(() -> factory.create(plan(List.of("article,from_publication_date:1900-01-01"), 20)))
                 .isInstanceOf(IllegalArgumentException.class)
