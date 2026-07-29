@@ -1158,3 +1158,36 @@ Spring Boot 的条件装配回退，使它成为 MVC 使用的全局 Mapper；�
 - 预算检查只由 `AgentBudgetPolicy` 决定，状态更新要求匹配该许可，避免多个组件重复扣减同一次调用。
 - 当前阶段受控接入 OpenAlex 端口以验证门禁；完整 Crossref 执行编排、状态迁移策略和自动循环留待后续明确阶段。
 - Observation 只保存短诊断摘要、计数、阶段、耗时与失败码；不保存 Prompt、模型完整输出、外部原始 JSON、API Key 或 Token。
+
+## 2026-07-30｜受控检索计划调整与真实约束来源
+
+### 当日目标
+
+- 在首轮可信 `SearchPlan` 校验时记录最终字段实际采用的来源，不根据事后值反推 provenance。
+- 在 `REFINE_PLAN` 已被选定后，只允许追加英文同义词、缩写和概念组合，并将合并草稿重新送入完整五层校验链。
+- 保持 `SearchRequest`、Controller、Swagger、外部响应契约和现有动作决策职责不变，不执行第二轮 OpenAlex 或 Crossref。
+
+### 实际进展
+
+- 新增 `ConstraintOrigin`、`SearchConstraintField`、`SearchConstraintOrigins` 与 `SearchPlanValidationResult`；缺少任一字段来源时直接失败。
+- `SearchPlanBusinessValidator` 使用内部 `ResolvedValue<T>` 在选择 request、draft、`recentYears` 或系统默认分支时同步产生 provenance。语言和文献类型按当前真实路径标记为 `MODEL_DERIVED`，服务端预算标记为 `SYSTEM_FIXED`。
+- `SearchPlanValidationPipeline.validateWithOrigins` 返回可信计划及来源；原有 `validate` 保持兼容。`SearchAgent.createPlanContext` 额外保留原始生成上下文，原有 `createPlan` 返回契约不变。
+- 新增 `SearchPlanRefiner`、严格 refinement schema、模型生成边界、最小 Prompt、拒绝原因、差异与结果对象。模型草稿不包含年份、语言、类型、排序或数量字段。
+- Refiner 最多执行一次，按稳定顺序清洗和追加最多 5 个新表达；空建议、仅重复建议、超量、超长和非法结构全部拒绝。
+- 合并后的 `SearchPlanDraft` 从当前可信计划复制所有冻结字段，只派生追加式 `englishKeywords` 与受控 `searchQuery`，随后重新经过 JSON 语法、JSON Schema、DTO、业务和安全五层校验。
+- 二次校验再次比较所有冻结字段，并沿用首轮已记录的来源，避免把系统默认值或首轮模型值误判成新的来源。
+
+### 验证结果
+
+- 定向测试：47 项通过，0 失败、0 错误、0 跳过。
+- `.\mvnw.cmd clean verify`：从空 `target` 重新编译并打包成功；346 项通过，0 失败、0 错误，2 项默认关闭的真实 Crossref smoke test 按预期跳过。
+- 来源测试覆盖 request year、draft year、`recentYears`、默认年份、request limit、draft resultLimit 和默认 resultLimit 七条分支。
+- Refiner 测试覆盖稳定追加、冻结字段、一次上限、空/重复/超量/超长建议、未知字段、完整复验调用、差异解释和校验失败时外部工具零调用。
+- `SearchActionDecider` 与架构约束测试继续通过；`git diff --check` 通过。
+- 7 月 30 日验收清单逐项复核通过，README 已同步真实来源规则、严格调整边界、测试数量和后续范围。
+
+### 范围边界
+
+- 未实现完整 Agent while 循环、第二轮 OpenAlex、第二轮 Crossref、综合生成、MySQL、Redis、RAG、Qdrant、PDF 或前端。
+- 未修改 `SearchRequest`、Controller、Swagger、外部 API 响应或 Crossref 评测数据集。
+- 交付保持为单一功能分支提交；未合并 `main`，未创建 PR。

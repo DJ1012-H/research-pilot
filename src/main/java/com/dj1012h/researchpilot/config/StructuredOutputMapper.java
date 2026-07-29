@@ -30,4 +30,8 @@ public final class StructuredOutputMapper {
     public <T> T treeToValue(JsonNode root, Class<T> targetType) throws JsonProcessingException {
         return objectMapper.treeToValue(root, targetType);
     }
+
+    public String writeValueAsString(Object value) throws JsonProcessingException {
+        return objectMapper.writeValueAsString(value);
+    }
 }

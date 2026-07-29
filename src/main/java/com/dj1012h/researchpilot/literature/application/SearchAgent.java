@@ -3,6 +3,7 @@ package com.dj1012h.researchpilot.literature.application;
 import com.dj1012h.researchpilot.config.AiProperties;
 import com.dj1012h.researchpilot.literature.api.dto.SearchRequest;
 import com.dj1012h.researchpilot.literature.model.SearchPlan;
+import com.dj1012h.researchpilot.literature.model.SearchPlanValidationResult;
 import com.dj1012h.researchpilot.literature.validation.SearchPlanValidationException;
 import com.dj1012h.researchpilot.literature.validation.SearchPlanValidationPipeline;
 import org.slf4j.Logger;
@@ -45,15 +46,20 @@ public class SearchAgent {
     }
 
     public SearchPlan createPlan(SearchRequest request) {
+        return createPlanContext(request).validationResult().plan();
+    }
+
+    public ValidatedSearchPlanContext createPlanContext(SearchRequest request) {
         Objects.requireNonNull(request, "request 不能为空");
         SearchPlanGenerationContext context = SearchPlanGenerationContext.create(request, clock);
         long startNanos = System.nanoTime();
 
         String rawOutput = queryPlanner.generate(context);
         try {
-            SearchPlan plan = validationPipeline.validate(context, rawOutput);
+            SearchPlanValidationResult result =
+                    validationPipeline.validateWithOrigins(context, rawOutput);
             logSuccess(context, 1, startNanos);
-            return plan;
+            return new ValidatedSearchPlanContext(context, result);
         } catch (SearchPlanValidationException firstFailure) {
             logValidationFailure(context, 1, firstFailure);
             if (maxValidationRetries == 0 || !firstFailure.isRetryable()) {
@@ -62,9 +68,10 @@ public class SearchAgent {
 
             String correctedOutput = queryPlanner.regenerate(context, firstFailure.getIssues());
             try {
-                SearchPlan plan = validationPipeline.validate(context, correctedOutput);
+                SearchPlanValidationResult result =
+                        validationPipeline.validateWithOrigins(context, correctedOutput);
                 logSuccess(context, 2, startNanos);
-                return plan;
+                return new ValidatedSearchPlanContext(context, result);
             } catch (SearchPlanValidationException finalFailure) {
                 logValidationFailure(context, 2, finalFailure);
                 throw new SearchPlanGenerationException(finalFailure);

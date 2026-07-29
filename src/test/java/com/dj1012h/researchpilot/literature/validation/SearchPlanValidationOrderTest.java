@@ -3,12 +3,17 @@ package com.dj1012h.researchpilot.literature.validation;
 import com.dj1012h.researchpilot.literature.api.dto.SearchRequest;
 import com.dj1012h.researchpilot.literature.application.SearchPlanDraft;
 import com.dj1012h.researchpilot.literature.application.SearchPlanGenerationContext;
+import com.dj1012h.researchpilot.literature.model.ConstraintOrigin;
+import com.dj1012h.researchpilot.literature.model.SearchConstraintField;
+import com.dj1012h.researchpilot.literature.model.SearchConstraintOrigins;
 import com.dj1012h.researchpilot.literature.model.SearchPlan;
+import com.dj1012h.researchpilot.literature.model.SearchPlanValidationResult;
 import com.fasterxml.jackson.databind.JsonNode;
 import org.junit.jupiter.api.Test;
 import org.mockito.InOrder;
 
 import java.time.Instant;
+import java.util.EnumMap;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -35,7 +40,9 @@ class SearchPlanValidationOrderTest {
         when(syntax.validate("raw")).thenReturn(syntaxNode);
         when(schema.validate(syntaxNode)).thenReturn(schemaNode);
         when(mapper.map(schemaNode)).thenReturn(draft);
-        when(business.validate(context, draft)).thenReturn(plan);
+        SearchPlanValidationResult businessResult =
+                new SearchPlanValidationResult(plan, origins());
+        when(business.validateWithOrigins(context, draft)).thenReturn(businessResult);
         when(security.validate(plan)).thenReturn(trustedPlan);
 
         SearchPlan result = new SearchPlanValidationPipeline(
@@ -47,9 +54,18 @@ class SearchPlanValidationOrderTest {
         order.verify(syntax).validate("raw");
         order.verify(schema).validate(syntaxNode);
         order.verify(mapper).map(schemaNode);
-        order.verify(business).validate(context, draft);
+        order.verify(business).validateWithOrigins(context, draft);
         order.verify(security).validate(plan);
         order.verifyNoMoreInteractions();
+    }
+
+    private SearchConstraintOrigins origins() {
+        EnumMap<SearchConstraintField, ConstraintOrigin> values =
+                new EnumMap<>(SearchConstraintField.class);
+        for (SearchConstraintField field : SearchConstraintField.values()) {
+            values.put(field, ConstraintOrigin.SYSTEM_FIXED);
+        }
+        return new SearchConstraintOrigins(values);
     }
 
     private SearchPlanGenerationContext context() {

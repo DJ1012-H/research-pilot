@@ -1,3 +1,19 @@
+# ResearchPilot
+
+## 2026-07-30：受控检索计划调整
+
+当 `SearchActionDecider` 已选择 `REFINE_PLAN` 后，系统现在可以生成一次严格受控的检索表达扩展，并把合并后的草稿重新送入完整可信计划校验链。本阶段只生成新的可信 `SearchPlan`，不执行第二轮 OpenAlex 或 Crossref。
+
+- 首轮校验在解析最终值时同步记录 `ConstraintOrigin`：显式请求值为 `USER_EXPLICIT`，实际采用的模型草稿值为 `MODEL_DERIVED`，最终配置默认值为 `SYSTEM_DEFAULT`，服务器预算为 `SYSTEM_FIXED`。
+- provenance 与 `SearchPlan` 分离保存在 `SearchPlanValidationResult` 和内部 `ValidatedSearchPlanContext` 中，不改变 `SearchRequest`、Controller、Swagger 或外部响应契约。
+- 模型 refinement schema 只允许 `synonyms`、`abbreviations`、`conceptCombinations` 和短原因；年份、语言、文献类型、排序、数量、预算和执行命令均不是合法输出字段。
+- `SearchPlanRefiner` 只追加合法、去重、有界的新英文表达。`originalQuery`、topic、年份、语言、文献类型、排序、`resultLimit` 与 `candidateLimit` 从当前可信计划原样复制。
+- 合并后的 `SearchPlanDraft` 重新经过 JSON 语法、JSON Schema、DTO 映射、业务规则和执行前安全校验；校验后再次比较冻结字段，失败时不会调用 OpenAlex、Crossref、Redis 或数据库。
+- Java 强制每个任务最多调整一次；现有 `SearchActionDecider` 只负责决定是否选择 `REFINE_PLAN`，不修改计划或调用工具。
+- 验收证据：47 项定向测试通过；`.\mvnw.cmd clean verify` 从空 `target` 编译、测试并打包成功，346 项测试中 0 失败、0 错误，2 项默认关闭的真实 Crossref smoke test 按预期跳过。
+
+本阶段没有实现完整 Agent while 循环、第二轮检索/核验、综合生成、持久化、缓存或 RAG。
+
 ## 2026-07-29: validated agent action decisions (completed early on 2026-07-28)
 
 - `AgentTransitionPolicy` is the structural action whitelist. Its results are immutable; terminal and in-progress states expose no model-selectable action, while Java alone can execute `TERMINATE` for an active state.
@@ -6,9 +22,7 @@
 - `SearchActionDecider` applies structural and read-only budget checks before one optional AI Services call. A single executable action skips the model. Disabled, unavailable, or invalid model output uses a deterministic action that is still in the filtered allowed set.
 - The decider neither starts actions nor issues `ActionExecutionPermit`s and has no OpenAlex/Crossref tool-port or client dependency. Real execution remains behind `LiteratureResearchAgent.prepareAction` and `AgentBudgetPolicy`.
 - Validation evidence: 14 focused tests passed; `mvn clean verify` passed 332 tests with 0 failures/errors and 2 expected, opt-in smoke-test skips.
-- This delivery does not implement `SearchPlanRefiner`, real plan refinement, a multi-round autonomous agent loop, Crossref orchestration, persistence, cache, RAG, PDF, or frontend work.
-
-# ResearchPilot
+- At this milestone, `SearchPlanRefiner`, real plan refinement, a multi-round autonomous agent loop, Crossref orchestration, persistence, cache, RAG, PDF, and frontend work were not yet implemented.
 
 ## 2026-07-28：受控文献研究 Agent 状态与执行预算
 
@@ -86,6 +100,7 @@ DOI 规范化入口、精确查询收敛，以及字段核验评测数据集的�
 - [x] `eval/crossref-verification-v1` 分支中的 Crossref 字段核验评测数据集骨架、来源追踪与变异谱系约束（不等于字段核验已实现）
 - [x] 候选字段标准化、分层精确去重和 Crossref 调用前预算保护
 - [x] Crossref 字段级元数据核验与 VERIFIED 准入
+- [x] 受控动作决策、真实约束来源与一次追加式检索计划调整
 - [ ] 标题/作者/年份/来源相似度、阈值校准与可信度评分
 - [ ] MySQL 检索任务、论文和核验记录持久化
 
@@ -135,6 +150,11 @@ src/main/java/com/dj1012h/researchpilot
 │   │   ├── SearchPlanBusinessValidator.java
 │   │   ├── SearchPlanSecurityValidator.java
 │   │   └── SearchPlanValidationPipeline.java
+│   ├── agent
+│   │   ├── AgentState.java
+│   │   ├── AgentTransitionPolicy.java
+│   │   ├── SearchActionDecider.java
+│   │   └── SearchPlanRefiner.java
 │   └── model
 │       ├── CandidatePaper.java
 │       ├── OpenAlexQuery.java
@@ -257,8 +277,8 @@ powershell.exe -NoProfile -ExecutionPolicy Bypass `
 - 搜索成功但零篇通过核验时，返回 HTTP 200、`NO_VERIFIED_RESULTS` 和空列表。
 - `PaperDTO` 与 `VerificationResult` 分离，外部 API DTO 和数据库 Entity 不得替代核心契约。
 
-`main` 当前自动测试共 317 个通过，另有 2 个默认关闭的真实 Crossref 冒烟测试按预期跳过，包含架构约束、
-Search Agent、五层校验、OpenAlex、Crossref、候选编排、固定快照回放和真实 Spring MVC 序列化测试。
+当前分支自动测试共 346 个通过，另有 2 个默认关闭的真实 Crossref 冒烟测试按预期跳过，包含架构约束、
+Search Agent、字段来源、受控计划调整、五层校验、OpenAlex、Crossref、候选编排、固定快照回放和真实 Spring MVC 序列化测试。
 
 ## OpenAlex 候选检索
 
@@ -328,6 +348,10 @@ OpenAlex 候选检索；候选经过统一标准化和分层精确去重后，�
 核验通过，因此候选和 Crossref 元数据只参与内部统计，不会作为已核验正式论文
 返回；成功但没有正式结果时返回 `NO_VERIFIED_RESULTS`。
 
+受控 Agent 内部链路还可以在动作决策选择 `REFINE_PLAN` 后生成一次追加式
+`SearchPlan`。该能力尚未接入完整自动循环，也不会自行执行第二轮 OpenAlex 或
+Crossref；模型只能建议英文检索表达，最终计划仍必须由 Java 合并并通过完整五层校验。
+
 ## Crossref 候选元数据查询
 
 原计划调整日期：2026-07-21
@@ -383,6 +407,7 @@ URL 目前不映射到内部模型，待有明确展示或跳转需求时再以�
 
 当前尚未实现：
 
+- 完整 Agent while 循环及第二轮 OpenAlex/Crossref 执行
 - 更大规模的阈值校准、多源交叉核验和正式结果相关性排序
 - 检索任务、论文和核验记录入库
 - Embedding

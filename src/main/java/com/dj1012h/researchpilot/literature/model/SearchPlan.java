@@ -29,6 +29,8 @@ public record SearchPlan(
 
     public static final int EARLIEST_SUPPORTED_YEAR = 1900;
     public static final int MAX_CANDIDATE_LIMIT = 100;
+    public static final int MAX_KEYWORD_COUNT = 10;
+    public static final int MAX_KEYWORD_LENGTH = 100;
     public static final int MAX_SEARCH_QUERY_LENGTH = 300;
     public static final int MAX_RESULT_LIMIT = 50;
 

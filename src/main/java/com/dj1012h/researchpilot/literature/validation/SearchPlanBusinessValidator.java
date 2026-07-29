@@ -4,12 +4,17 @@ import com.dj1012h.researchpilot.config.LiteratureSearchProperties;
 import com.dj1012h.researchpilot.literature.api.dto.SearchRequest;
 import com.dj1012h.researchpilot.literature.application.SearchPlanDraft;
 import com.dj1012h.researchpilot.literature.application.SearchPlanGenerationContext;
+import com.dj1012h.researchpilot.literature.model.ConstraintOrigin;
 import com.dj1012h.researchpilot.literature.model.LanguageCode;
+import com.dj1012h.researchpilot.literature.model.SearchConstraintField;
+import com.dj1012h.researchpilot.literature.model.SearchConstraintOrigins;
 import com.dj1012h.researchpilot.literature.model.SearchPlan;
+import com.dj1012h.researchpilot.literature.model.SearchPlanValidationResult;
 import com.dj1012h.researchpilot.literature.model.SearchSort;
 import org.springframework.stereotype.Component;
 
 import java.util.ArrayList;
+import java.util.EnumMap;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -51,6 +56,13 @@ public class SearchPlanBusinessValidator {
             SearchPlanGenerationContext context,
             SearchPlanDraft draft
     ) {
+        return validateWithOrigins(context, draft).plan();
+    }
+
+    public SearchPlanValidationResult validateWithOrigins(
+            SearchPlanGenerationContext context,
+            SearchPlanDraft draft
+    ) {
         if (context == null) {
             throw new IllegalArgumentException("context 不能为空");
         }
@@ -67,26 +79,27 @@ public class SearchPlanBusinessValidator {
 
         Set<LanguageCode> languages = normalizeLanguages(draft.languages());
         List<String> publicationTypes = normalizePublicationTypes(draft.publicationTypes());
-        SearchSort sort = normalizeSort(draft.sort());
+        ResolvedValue<SearchSort> sort = resolveSort(draft.sort());
 
-        YearRange years = resolveYears(context, request, draft);
-        int resultLimit = resolveResultLimit(request, draft);
-        int candidateLimit = calculateCandidateLimit(resultLimit);
+        ResolvedYears years = resolveYears(context, request, draft);
+        ResolvedValue<Integer> resultLimit = resolveResultLimit(request, draft);
+        int candidateLimit = calculateCandidateLimit(resultLimit.value());
 
         try {
-            return new SearchPlan(
+            SearchPlan plan = new SearchPlan(
                     request.query(),
                     topic,
                     keywords,
                     searchQuery,
                     languages,
                     publicationTypes,
-                    sort,
-                    years.fromYear(),
-                    years.toYear(),
+                    sort.value(),
+                    years.fromYear().value(),
+                    years.toYear().value(),
                     candidateLimit,
-                    resultLimit
+                    resultLimit.value()
             );
+            return new SearchPlanValidationResult(plan, origins(years, resultLimit, sort));
         } catch (IllegalArgumentException | NullPointerException exception) {
             throw failure(
                     "INVALID_SEARCH_PLAN",
@@ -114,8 +127,21 @@ public class SearchPlanBusinessValidator {
         if (unique.isEmpty()) {
             throw failure("NO_VALID_KEYWORDS", "$.englishKeywords", "没有有效英文关键词", true);
         }
-        if (unique.size() > 10) {
-            throw failure("TOO_MANY_KEYWORDS", "$.englishKeywords", "关键词不能超过 10 个", true);
+        if (unique.size() > SearchPlan.MAX_KEYWORD_COUNT) {
+            throw failure(
+                    "TOO_MANY_KEYWORDS",
+                    "$.englishKeywords",
+                    "关键词不能超过 " + SearchPlan.MAX_KEYWORD_COUNT + " 个",
+                    true
+            );
+        }
+        if (unique.values().stream().anyMatch(value -> value.length() > SearchPlan.MAX_KEYWORD_LENGTH)) {
+            throw failure(
+                    "KEYWORD_TOO_LONG",
+                    "$.englishKeywords",
+                    "单个关键词长度不能超过 " + SearchPlan.MAX_KEYWORD_LENGTH,
+                    true
+            );
         }
         return List.copyOf(unique.values());
     }
@@ -199,19 +225,20 @@ public class SearchPlanBusinessValidator {
         return List.copyOf(result);
     }
 
-    private SearchSort normalizeSort(String value) {
+    private ResolvedValue<SearchSort> resolveSort(String value) {
         if (value == null) {
-            return SearchSort.RELEVANCE;
+            return new ResolvedValue<>(SearchSort.RELEVANCE, ConstraintOrigin.SYSTEM_DEFAULT);
         }
-        return switch (value.trim().toLowerCase(Locale.ROOT)) {
+        SearchSort sort = switch (value.trim().toLowerCase(Locale.ROOT)) {
             case "relevance" -> SearchSort.RELEVANCE;
             case "newest" -> SearchSort.NEWEST;
             case "most_cited" -> SearchSort.MOST_CITED;
             default -> throw failure("INVALID_SORT", "$.sort", "排序值不受支持", true);
         };
+        return new ResolvedValue<>(sort, ConstraintOrigin.MODEL_DERIVED);
     }
 
-    private YearRange resolveYears(
+    private ResolvedYears resolveYears(
             SearchPlanGenerationContext context,
             SearchRequest request,
             SearchPlanDraft draft
@@ -230,40 +257,74 @@ public class SearchPlanBusinessValidator {
             throw failure("INVALID_RECENT_YEARS", "$.recentYears", "相对年份超出范围", true);
         }
 
-        Integer relativeFrom = draft.recentYears() == null
-                ? null
-                : context.currentYear() - draft.recentYears() + 1;
-        int fromYear = firstNonNull(
-                request.fromYear(),
-                draft.fromYear(),
-                relativeFrom,
-                properties.getEarliestSupportedYear()
-        );
-        int toYear = firstNonNull(
-                request.toYear(),
-                draft.toYear(),
-                context.currentYear()
-        );
+        ResolvedValue<Integer> fromYear = resolveFromYear(context, request, draft);
+        ResolvedValue<Integer> toYear = resolveToYear(context, request, draft);
 
-        if (fromYear < properties.getEarliestSupportedYear()) {
+        if (fromYear.value() < properties.getEarliestSupportedYear()) {
             throw failure("INVALID_YEAR_RANGE", "$.fromYear", "开始年份过早", true);
         }
-        if (fromYear > context.currentYear() || toYear > context.currentYear()) {
+        if (fromYear.value() > context.currentYear() || toYear.value() > context.currentYear()) {
             throw failure("FUTURE_YEAR_NOT_ALLOWED", "$", "不允许未来年份", true);
         }
-        if (fromYear > toYear) {
+        if (fromYear.value() > toYear.value()) {
             throw failure("INVALID_YEAR_RANGE", "$", "开始年份不能晚于结束年份", true);
         }
-        return new YearRange(fromYear, toYear);
+        return new ResolvedYears(fromYear, toYear);
     }
 
-    private int resolveResultLimit(SearchRequest request, SearchPlanDraft draft) {
-        int resultLimit = firstNonNull(
-                request.limit(),
-                draft.resultLimit(),
-                properties.getDefaultResultLimit()
+    private ResolvedValue<Integer> resolveFromYear(
+            SearchPlanGenerationContext context,
+            SearchRequest request,
+            SearchPlanDraft draft
+    ) {
+        if (request.fromYear() != null) {
+            return new ResolvedValue<>(request.fromYear(), ConstraintOrigin.USER_EXPLICIT);
+        }
+        if (draft.fromYear() != null) {
+            return new ResolvedValue<>(draft.fromYear(), ConstraintOrigin.MODEL_DERIVED);
+        }
+        if (draft.recentYears() != null) {
+            return new ResolvedValue<>(
+                    context.currentYear() - draft.recentYears() + 1,
+                    ConstraintOrigin.MODEL_DERIVED
+            );
+        }
+        return new ResolvedValue<>(
+                properties.getEarliestSupportedYear(),
+                ConstraintOrigin.SYSTEM_DEFAULT
         );
-        if (resultLimit < 1 || resultLimit > properties.getMaxResultLimit()) {
+    }
+
+    private ResolvedValue<Integer> resolveToYear(
+            SearchPlanGenerationContext context,
+            SearchRequest request,
+            SearchPlanDraft draft
+    ) {
+        if (request.toYear() != null) {
+            return new ResolvedValue<>(request.toYear(), ConstraintOrigin.USER_EXPLICIT);
+        }
+        if (draft.toYear() != null) {
+            return new ResolvedValue<>(draft.toYear(), ConstraintOrigin.MODEL_DERIVED);
+        }
+        ConstraintOrigin origin = draft.recentYears() == null
+                ? ConstraintOrigin.SYSTEM_DEFAULT
+                : ConstraintOrigin.MODEL_DERIVED;
+        return new ResolvedValue<>(context.currentYear(), origin);
+    }
+
+    private ResolvedValue<Integer> resolveResultLimit(SearchRequest request, SearchPlanDraft draft) {
+        ResolvedValue<Integer> resultLimit;
+        if (request.limit() != null) {
+            resultLimit = new ResolvedValue<>(request.limit(), ConstraintOrigin.USER_EXPLICIT);
+        } else if (draft.resultLimit() != null) {
+            resultLimit = new ResolvedValue<>(draft.resultLimit(), ConstraintOrigin.MODEL_DERIVED);
+        } else {
+            resultLimit = new ResolvedValue<>(
+                    properties.getDefaultResultLimit(),
+                    ConstraintOrigin.SYSTEM_DEFAULT
+            );
+        }
+        if (resultLimit.value() < 1 || resultLimit.value() > properties.getMaxResultLimit()) {
             throw failure("INVALID_RESULT_LIMIT", "$.resultLimit", "结果数量超出范围", true);
         }
         return resultLimit;
@@ -292,14 +353,31 @@ public class SearchPlanBusinessValidator {
         return value.trim().replaceAll(" {2,}", " ");
     }
 
-    @SafeVarargs
-    private final <T> T firstNonNull(T... values) {
-        for (T value : values) {
-            if (value != null) {
-                return value;
-            }
-        }
-        throw new IllegalStateException("至少需要一个非空默认值");
+    private SearchConstraintOrigins origins(
+            ResolvedYears years,
+            ResolvedValue<Integer> resultLimit,
+            ResolvedValue<SearchSort> sort
+    ) {
+        EnumMap<SearchConstraintField, ConstraintOrigin> origins =
+                new EnumMap<>(SearchConstraintField.class);
+        origins.put(SearchConstraintField.ORIGINAL_QUERY, ConstraintOrigin.USER_EXPLICIT);
+        origins.put(SearchConstraintField.TOPIC, ConstraintOrigin.MODEL_DERIVED);
+        origins.put(SearchConstraintField.ENGLISH_KEYWORDS, ConstraintOrigin.MODEL_DERIVED);
+        origins.put(SearchConstraintField.SEARCH_QUERY, ConstraintOrigin.MODEL_DERIVED);
+        origins.put(SearchConstraintField.FROM_YEAR, years.fromYear().origin());
+        origins.put(SearchConstraintField.TO_YEAR, years.toYear().origin());
+        origins.put(SearchConstraintField.LANGUAGES, ConstraintOrigin.MODEL_DERIVED);
+        origins.put(SearchConstraintField.PUBLICATION_TYPES, ConstraintOrigin.MODEL_DERIVED);
+        origins.put(SearchConstraintField.SORT, sort.origin());
+        origins.put(SearchConstraintField.RESULT_LIMIT, resultLimit.origin());
+        origins.put(SearchConstraintField.CANDIDATE_LIMIT, ConstraintOrigin.SYSTEM_FIXED);
+        origins.put(SearchConstraintField.MAX_SEARCH_ROUNDS, ConstraintOrigin.SYSTEM_FIXED);
+        origins.put(SearchConstraintField.MAX_PLAN_ADJUSTMENTS, ConstraintOrigin.SYSTEM_FIXED);
+        origins.put(SearchConstraintField.MAX_BUSINESS_STEPS, ConstraintOrigin.SYSTEM_FIXED);
+        origins.put(SearchConstraintField.MAX_UNIQUE_CANDIDATES, ConstraintOrigin.SYSTEM_FIXED);
+        origins.put(SearchConstraintField.MAX_CROSSREF_CALLS, ConstraintOrigin.SYSTEM_FIXED);
+        origins.put(SearchConstraintField.TOTAL_TIMEOUT, ConstraintOrigin.SYSTEM_FIXED);
+        return new SearchConstraintOrigins(origins);
     }
 
     private void validateConfiguration() {
@@ -325,6 +403,9 @@ public class SearchPlanBusinessValidator {
         );
     }
 
-    private record YearRange(int fromYear, int toYear) {
+    private record ResolvedYears(
+            ResolvedValue<Integer> fromYear,
+            ResolvedValue<Integer> toYear
+    ) {
     }
 }

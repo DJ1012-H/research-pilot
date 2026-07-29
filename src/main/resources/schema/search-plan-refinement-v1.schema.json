@@ -1,0 +1,47 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://research-pilot.local/schema/search-plan-refinement-v1.schema.json",
+  "title": "Research Pilot Search Plan Refinement Draft v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "synonyms",
+    "abbreviations",
+    "conceptCombinations",
+    "reason"
+  ],
+  "properties": {
+    "synonyms": {
+      "type": "array",
+      "maxItems": 5,
+      "items": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 100
+      }
+    },
+    "abbreviations": {
+      "type": "array",
+      "maxItems": 5,
+      "items": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 100
+      }
+    },
+    "conceptCombinations": {
+      "type": "array",
+      "maxItems": 5,
+      "items": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 100
+      }
+    },
+    "reason": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 300
+    }
+  }
+}

@@ -52,6 +52,9 @@ app:
     max-business-steps: ${RESEARCH_AGENT_MAX_BUSINESS_STEPS:8}
     max-unique-candidates: ${RESEARCH_AGENT_MAX_UNIQUE_CANDIDATES:45}
     max-crossref-calls: ${RESEARCH_AGENT_MAX_CROSSREF_CALLS:45}
+    max-refinement-keywords: ${RESEARCH_AGENT_MAX_REFINEMENT_KEYWORDS:5}
+    max-refinement-keyword-length: ${RESEARCH_AGENT_MAX_REFINEMENT_KEYWORD_LENGTH:100}
+    max-refinement-reason-length: ${RESEARCH_AGENT_MAX_REFINEMENT_REASON_LENGTH:300}
     total-timeout: ${RESEARCH_AGENT_TOTAL_TIMEOUT:90s}
   openalex:
     enabled: ${OPENALEX_ENABLED:false}

@@ -144,6 +144,21 @@ class ArchitectureConstraintsTest {
         assertThat(agentSources).doesNotContain("@Tool");
     }
 
+    @Test
+    void planRefinerMustStayToolPersistenceAndCacheFree() {
+        String refiner = source(BASE.resolve(Path.of(
+                "literature", "agent", "SearchPlanRefiner.java"
+        )));
+
+        assertThat(refiner)
+                .doesNotContain("OpenAlex")
+                .doesNotContain("Crossref")
+                .doesNotContain("Redis")
+                .doesNotContain("Repository")
+                .doesNotContain("@Tool")
+                .contains("SearchPlanValidationPipeline");
+    }
+
     private Stream<Path> productionJavaFiles() throws IOException {
         return Files.walk(MAIN_JAVA)
                 .filter(Files::isRegularFile)

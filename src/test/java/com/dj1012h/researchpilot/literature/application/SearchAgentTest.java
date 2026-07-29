@@ -4,8 +4,12 @@ import com.dj1012h.researchpilot.config.AiProperties;
 import com.dj1012h.researchpilot.exception.ModelFailureType;
 import com.dj1012h.researchpilot.exception.ModelInvocationException;
 import com.dj1012h.researchpilot.literature.api.dto.SearchRequest;
+import com.dj1012h.researchpilot.literature.model.ConstraintOrigin;
 import com.dj1012h.researchpilot.literature.model.LanguageCode;
+import com.dj1012h.researchpilot.literature.model.SearchConstraintField;
+import com.dj1012h.researchpilot.literature.model.SearchConstraintOrigins;
 import com.dj1012h.researchpilot.literature.model.SearchPlan;
+import com.dj1012h.researchpilot.literature.model.SearchPlanValidationResult;
 import com.dj1012h.researchpilot.literature.model.SearchSort;
 import com.dj1012h.researchpilot.literature.validation.SearchPlanValidationException;
 import com.dj1012h.researchpilot.literature.validation.SearchPlanValidationPipeline;
@@ -16,6 +20,7 @@ import org.junit.jupiter.api.Test;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.ZoneOffset;
+import java.util.EnumMap;
 import java.util.List;
 import java.util.Set;
 
@@ -43,7 +48,8 @@ class SearchAgentTest {
     void shouldReturnFirstValidatedPlanWithoutRetry() {
         SearchPlan expected = plan();
         when(planner.generate(any())).thenReturn("first output");
-        when(pipeline.validate(any(), eq("first output"))).thenReturn(expected);
+        when(pipeline.validateWithOrigins(any(), eq("first output")))
+                .thenReturn(result(expected));
 
         SearchPlan actual = agent().createPlan(REQUEST);
 
@@ -56,9 +62,10 @@ class SearchAgentTest {
         SearchPlanValidationException firstFailure = retryableFailure();
         SearchPlan expected = plan();
         when(planner.generate(any())).thenReturn("first output");
-        when(pipeline.validate(any(), eq("first output"))).thenThrow(firstFailure);
+        when(pipeline.validateWithOrigins(any(), eq("first output"))).thenThrow(firstFailure);
         when(planner.regenerate(any(), any())).thenReturn("corrected output");
-        when(pipeline.validate(any(), eq("corrected output"))).thenReturn(expected);
+        when(pipeline.validateWithOrigins(any(), eq("corrected output")))
+                .thenReturn(result(expected));
 
         SearchPlan actual = agent().createPlan(REQUEST);
 
@@ -79,9 +86,9 @@ class SearchAgentTest {
                 ))
         );
         when(planner.generate(any())).thenReturn("first output");
-        when(pipeline.validate(any(), eq("first output"))).thenThrow(firstFailure);
+        when(pipeline.validateWithOrigins(any(), eq("first output"))).thenThrow(firstFailure);
         when(planner.regenerate(any(), any())).thenReturn("corrected output");
-        when(pipeline.validate(any(), eq("corrected output"))).thenThrow(finalFailure);
+        when(pipeline.validateWithOrigins(any(), eq("corrected output"))).thenThrow(finalFailure);
 
         assertThatThrownBy(() -> agent().createPlan(REQUEST))
                 .isInstanceOfSatisfying(SearchPlanGenerationException.class, exception -> {
@@ -104,7 +111,7 @@ class SearchAgentTest {
                 ))
         );
         when(planner.generate(any())).thenReturn("first output");
-        when(pipeline.validate(any(), eq("first output"))).thenThrow(securityFailure);
+        when(pipeline.validateWithOrigins(any(), eq("first output"))).thenThrow(securityFailure);
 
         assertThatThrownBy(() -> agent().createPlan(REQUEST))
                 .isInstanceOf(SearchPlanGenerationException.class)
@@ -122,7 +129,7 @@ class SearchAgentTest {
 
         assertThatThrownBy(() -> agent().createPlan(REQUEST))
                 .isSameAs(modelFailure);
-        verify(pipeline, never()).validate(any(), any());
+        verify(pipeline, never()).validateWithOrigins(any(), any());
         verify(planner, never()).regenerate(any(), any());
     }
 
@@ -131,7 +138,7 @@ class SearchAgentTest {
         aiProperties.getStructuredOutput().setMaxValidationRetries(0);
         SearchPlanValidationException failure = retryableFailure();
         when(planner.generate(any())).thenReturn("first output");
-        when(pipeline.validate(any(), eq("first output"))).thenThrow(failure);
+        when(pipeline.validateWithOrigins(any(), eq("first output"))).thenThrow(failure);
 
         assertThatThrownBy(() -> agent().createPlan(REQUEST))
                 .isInstanceOf(SearchPlanGenerationException.class)
@@ -169,5 +176,14 @@ class SearchAgentTest {
                 30,
                 10
         );
+    }
+
+    private SearchPlanValidationResult result(SearchPlan plan) {
+        EnumMap<SearchConstraintField, ConstraintOrigin> values =
+                new EnumMap<>(SearchConstraintField.class);
+        for (SearchConstraintField field : SearchConstraintField.values()) {
+            values.put(field, ConstraintOrigin.SYSTEM_FIXED);
+        }
+        return new SearchPlanValidationResult(plan, new SearchConstraintOrigins(values));
     }
 }
