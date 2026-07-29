@@ -162,7 +162,7 @@ class ArchitectureConstraintsTest {
     }
 
     @Test
-    void reviewPreparationMustRemainInternalToolFreeAndOutsidePublicSearchContracts() throws IOException {
+    void reviewFlowMustRemainToolFreeProviderIndependentAndOutsidePublicInternalContracts() throws IOException {
         String reviewSources = sourceTree(BASE.resolve(Path.of("literature", "review")));
         String response = source(BASE.resolve(Path.of(
                 "literature", "api", "dto", "SearchResponse.java"
@@ -180,8 +180,85 @@ class ArchitectureConstraintsTest {
                 .doesNotContain("Repository")
                 .doesNotContain("Redis")
                 .doesNotContain("SearchResponse.review");
-        assertThat(response).doesNotContain("ReviewInput").doesNotContain("UntrustedReviewDraft");
-        assertThat(agent).doesNotContain("ReviewGenerationService");
+        assertThat(response)
+                .doesNotContain("ReviewInput")
+                .doesNotContain("ReviewDraft")
+                .doesNotContain("UntrustedReviewDraft")
+                .doesNotContain("AgentState");
+        assertThat(agent)
+                .doesNotContain("ReviewGenerationService")
+                .doesNotContain("literature.review");
+    }
+
+    @Test
+    void citationValidationRenderingAndPromptConstructionMustStaySeparated() throws IOException {
+        String citationGuard = source(BASE.resolve(Path.of(
+                "literature", "review", "CitationGuard.java"
+        )));
+        String promptBuilder = source(BASE.resolve(Path.of(
+                "literature", "review", "EvidenceReviewPromptBuilder.java"
+        )));
+        String responseAssembler = source(BASE.resolve(Path.of(
+                "literature", "application", "ReviewResponseAssembler.java"
+        )));
+        String searchService = source(BASE.resolve(Path.of(
+                "literature", "application", "LiteratureSearchService.java"
+        )));
+
+        assertThat(citationGuard)
+                .doesNotContain("ModelInvoker")
+                .doesNotContain("EvidenceReviewGenerator");
+        assertThat(promptBuilder)
+                .doesNotContain("ModelInvoker")
+                .doesNotContain("EvidenceReviewGenerator");
+        assertThat(responseAssembler)
+                .doesNotContain("ModelInvoker")
+                .doesNotContain("EvidenceReviewGenerator")
+                .doesNotContain("UntrustedReviewDraft");
+        assertThat(searchService)
+                .doesNotContain("readTree")
+                .doesNotContain("ObjectMapper")
+                .doesNotContain("CitationGuard");
+    }
+
+    @Test
+    void publicDtosMustNotExposeAgentStateInternalDraftsOrInternalTerminationReason() throws IOException {
+        String apiDtos = sourceTree(BASE.resolve(Path.of("literature", "api", "dto")));
+
+        assertThat(apiDtos)
+                .doesNotContain("literature.agent")
+                .doesNotContain("AgentState")
+                .doesNotContain("ReviewInput")
+                .doesNotContain("ReviewDraft")
+                .doesNotContain("UntrustedReviewDraft")
+                .doesNotContain("terminationDetail");
+    }
+
+    @Test
+    void reviewRepairLimitMustBeJavaOwnedAndAtMostOne() {
+        String orchestrator = source(BASE.resolve(Path.of(
+                "literature", "review", "EvidenceReviewOrchestrator.java"
+        )));
+        String outcome = source(BASE.resolve(Path.of(
+                "literature", "review", "ReviewOutcome.java"
+        )));
+
+        assertThat(orchestrator)
+                .containsOnlyOnce("generateInitial(")
+                .containsOnlyOnce("generatePrompt(")
+                .doesNotContain("while (")
+                .doesNotContain("for (");
+        assertThat(outcome)
+                .contains("modelCallCount > 2")
+                .contains("repairCount > 1");
+    }
+
+    @Test
+    void productionMustNotIntroduceToolAnnotationsForReview() throws IOException {
+        try (Stream<Path> files = productionJavaFiles()) {
+            assertThat(files.map(this::source).reduce("", String::concat))
+                    .doesNotContain("@Tool");
+        }
     }
 
     private Stream<Path> productionJavaFiles() throws IOException {

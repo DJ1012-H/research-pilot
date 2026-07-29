@@ -32,12 +32,31 @@ public class ReviewGenerationService {
     }
 
     public ReviewGenerationAttempt prepareAndGenerate(AgentState finalState) {
-        ReviewPreparationResult preparation = reviewInputFactory.prepare(finalState);
+        ReviewPreparationResult preparation = prepare(finalState);
         if (preparation.eligibility() != ReviewEligibility.ELIGIBLE) {
             return new ReviewGenerationAttempt(preparation, Optional.empty());
         }
         ReviewInput input = preparation.reviewInput().orElseThrow();
-        UntrustedReviewDraft draft = evidenceReviewGenerator.generate(promptBuilder.build(input));
+        UntrustedReviewDraft draft = generateInitial(input);
         return new ReviewGenerationAttempt(preparation, Optional.of(draft));
+    }
+
+    public ReviewPreparationResult prepare(AgentRunResult runResult) {
+        Objects.requireNonNull(runResult, "runResult must not be null");
+        return prepare(runResult.finalState());
+    }
+
+    public ReviewPreparationResult prepare(AgentState finalState) {
+        return reviewInputFactory.prepare(finalState);
+    }
+
+    public UntrustedReviewDraft generateInitial(ReviewInput input) {
+        Objects.requireNonNull(input, "input must not be null");
+        return generatePrompt(promptBuilder.build(input));
+    }
+
+    public UntrustedReviewDraft generatePrompt(String prompt) {
+        Objects.requireNonNull(prompt, "prompt must not be null");
+        return evidenceReviewGenerator.generate(prompt);
     }
 }

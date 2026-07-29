@@ -2,6 +2,7 @@ package com.dj1012h.researchpilot.literature.review;
 
 import com.dj1012h.researchpilot.config.StructuredOutputConfiguration;
 import com.dj1012h.researchpilot.config.StructuredOutputMapper;
+import com.dj1012h.researchpilot.config.ReviewProperties;
 import com.dj1012h.researchpilot.literature.agent.AgentAction;
 import com.dj1012h.researchpilot.literature.agent.AgentStage;
 import com.dj1012h.researchpilot.literature.agent.AgentState;
@@ -124,7 +125,10 @@ class ReviewGenerationServiceTest {
         );
         return new ReviewGenerationService(
                 new ReviewInputFactory(new DoiNormalizer()),
-                new EvidenceReviewPromptBuilder(mapper),
+                new EvidenceReviewPromptBuilder(
+                        new ReviewEvidenceSerializer(mapper),
+                        new ReviewProperties()
+                ),
                 generator
         );
     }

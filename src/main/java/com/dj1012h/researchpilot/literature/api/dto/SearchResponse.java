@@ -24,6 +24,8 @@ public record SearchResponse(
         int deduplicatedCount,
         VerificationSummary verificationSummary,
         List<PaperResult> papers,
+        ReviewResponse review,
+        PublicTerminationReason terminationReason,
         String message,
         long elapsedMs,
         Instant completedAt
@@ -35,6 +37,8 @@ public record SearchResponse(
         plan = Objects.requireNonNull(plan, "plan 不能为空");
         verificationSummary = Objects.requireNonNull(verificationSummary, "verificationSummary 不能为空");
         papers = List.copyOf(Objects.requireNonNull(papers, "papers 不能为空"));
+        review = Objects.requireNonNull(review, "review must not be null");
+        terminationReason = Objects.requireNonNull(terminationReason, "terminationReason must not be null");
         message = requireText(message, "message");
         completedAt = Objects.requireNonNull(completedAt, "completedAt 不能为空");
 

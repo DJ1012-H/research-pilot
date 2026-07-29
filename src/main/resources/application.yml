@@ -56,6 +56,13 @@ app:
     max-refinement-keyword-length: ${RESEARCH_AGENT_MAX_REFINEMENT_KEYWORD_LENGTH:100}
     max-refinement-reason-length: ${RESEARCH_AGENT_MAX_REFINEMENT_REASON_LENGTH:300}
     total-timeout: ${RESEARCH_AGENT_TOTAL_TIMEOUT:90s}
+  review:
+    max-evidence-papers: ${REVIEW_MAX_EVIDENCE_PAPERS:20}
+    max-abstract-chars: ${REVIEW_MAX_ABSTRACT_CHARS:4000}
+    max-evidence-json-length: ${REVIEW_MAX_EVIDENCE_JSON_LENGTH:64000}
+    max-initial-prompt-length: ${REVIEW_MAX_INITIAL_PROMPT_LENGTH:80000}
+    max-raw-draft-length: ${REVIEW_MAX_RAW_DRAFT_LENGTH:16384}
+    max-repair-prompt-length: ${REVIEW_MAX_REPAIR_PROMPT_LENGTH:96000}
   openalex:
     enabled: ${OPENALEX_ENABLED:false}
     base-url: ${OPENALEX_BASE_URL:https://api.openalex.org}
@@ -112,6 +119,8 @@ mybatis-plus:
     banner: false
 
 logging:
+  file:
+    name: ${RESEARCH_PILOT_LOG_FILE:logs/research-pilot.log}
   level:
     root: INFO
     com.dj1012h.researchpilot: INFO

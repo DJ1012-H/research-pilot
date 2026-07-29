@@ -1291,3 +1291,41 @@ Spring Boot 的条件装配回退，使它成为 MVC 使用的全局 Mapper；�
 
 - 未实现 `ReviewDraft` 的结构化映射、CitationGuard、引用解析、存在性或支持性校验、最多一次引用修正、降级和公开响应组装；这些属于 2026-08-03 或后续阶段。
 - 未修改阶段三 Agent 搜索预算、`SearchStatus`、正式 `VERIFIED` 准入、DOI 规范化、Crossref 核验阈值或公共 `papers` 语义；未引入 MySQL、Redis、RAG、Qdrant、PDF、异步任务、消息队列、前端或多 Agent。
+
+## 2026-08-03｜引用校验、一次修正、可信降级与最终响应组装
+
+### 实际进展
+
+- 复用 8 月 2 日已有的 `ReviewInput`、`EvidencePaper`、`CitationId`、证据门槛、PromptBuilder、Generator 和 `ModelInvoker`；未建立第二套证据输入或模型调用边界。
+- 新增固定 `evidence-review-draft-v1` JSON Schema 及 `ReviewDraft`/`ReviewStatement` DTO。根对象与 statement 均拒绝额外字段，statement 类型限定为 `METHOD`、`TREND`、`OBSERVATION`、`LIMITATION`，并设置 12/800/5 的数量和长度上限。
+- 新增完整且固定的验证链：JSON syntax、JSON Schema、strict DTO mapping、business validation、`CitationGuard`。业务层拒绝 DOI、URL、年份、HTML、Markdown 链接、模型手写引用标记、已知标题/作者和内部控制或核验结论文本。
+- `CitationIdParser` 只接受精确的 `^P[1-9][0-9]*$`；`CitationGuard` 拒绝未知、缺失和重复引用，保持 statement 与引用首次出现顺序。它只证明引用格式、存在性和本次证据归属，不证明语义支持或全文事实。
+- 新增服务器控制的长度预算：证据论文 20、摘要 4,000 Unicode code points、证据 JSON 64,000、首次 Prompt 80,000、原始 Draft 16,384、修正 Prompt 96,000。配置必须为正数且不能超过 Java 硬上限；预算按正式顺序截断摘要并从尾部停止加论文，不重新编号，少于 3 篇时返回 `INPUT_BUDGET_EXCEEDED`。
+- `EvidenceReviewOrchestrator` 在每次 Java 侧逻辑生成前检查 `Clock` 与 `finalState.deadline()`。首次合法固定 1 次调用；首次非法时只允许 1 次修正并重新执行完整验证链，总调用数固定不超过 2；供应商故障不触发 citation repair。
+- 新增 `ReviewResponseAssembler`、`ReviewResponse`、`ReviewCitation` 和 `PublicTerminationReason`。summary 由 Java 添加 `[P1][P3]` 后缀；citations 按首次引用顺序去重，书目字段只来自 `EvidencePaper`；内部预算细节折叠为 `LIMIT_REACHED`，异常状态折叠为 `SAFELY_TERMINATED`，不公开 `terminationDetail`。
+- `LiteratureSearchService` 在受控 Agent 完成后调用综述用例，再计算 `completedAt` 与 `elapsedMs`。Review 失败只产生空 summary/空 citations 的结构化降级结果，原有 papers、verificationSummary、candidate 计数和 `SearchStatus` 语义保持不变。
+- 真实响应检查发现原有 `SearchResponse.PaperResult` 会通过 `PaperDTO` 公开完整 `abstractText`。现已在该内部字段上增加 `@JsonIgnore`：Java 代码仍可读取摘要并构造受控证据输入，Spring MVC 公开 JSON 不再序列化字段名或摘要内容。
+
+### 验证结果
+
+- 最终聚焦测试：75 项通过，0 failures、0 errors、0 skipped；覆盖严格 CitationId、Schema/业务/CitationGuard 全链、P999、缺摘要的 P2、一次修正、两次失败、非法 JSON、供应商故障、deadline、长度预算、Java DOI 映射、公开序列化、日志可观测性和架构隔离。
+- `.\mvnw.cmd test`：422 项测试，0 failures、0 errors、2 项明确 opt-in 的真实 Crossref smoke tests skipped。
+- 摘要泄漏修复新增一项 Spring MVC 完整响应回归；序列化、契约、ReviewInput、Review 编排和端到端服务共 36 项聚焦测试通过。
+- `.\mvnw.cmd clean verify`：从空 `target` 重新编译；增加日志落盘与 Actuator 暴露面断言后共运行 424 项测试，0 failures、0 errors、2 skipped，并成功生成重新打包的 Spring Boot JAR。
+
+### 真实联网验收与后续修复
+
+- 2026-07-30 在开发者已启动且安全配置的实例上，按固定请求执行一次真实 `POST /api/literature/search`，未重试。响应为 HTTP 200，服务端耗时 19,753 ms；15 个候选、15 个全局唯一候选、5 篇正式 `VERIFIED` 论文，DOI 均已规范化。
+- 本次 Review 状态为 `GENERATED`，包含 4 条公开引用；CitationId、正式论文位置和 Java 权威 DOI 映射一致，未出现 `P999`、内部 Draft 字段或原始模型 JSON。
+- 该次请求同时发现修复前的公开响应包含 5 个 `abstractText` 字段，其中 4 个非空，因此当时的严格真实验收未完全通过。完成序列化修复后，只在用户重新授权并重启新构建后继续真实复验，没有自动重试或隐瞒首次失败。
+- HTTP 响应不公开模型调用次数；首次验收时精确值因启动终端不可读而保持未测量，没有用 1 或 2 的推断值替代。
+- 为以最小代价闭环后续精确计数，应用默认把安全日志同时写入已由 `.gitignore` 排除的 `logs/research-pilot.log`；可通过 `RESEARCH_PILOT_LOG_FILE` 覆盖路径。新增 `scripts/get-latest-review-model-usage.ps1`，只解析并返回任务 ID、Review 状态、模型/修正/证据/引用计数和耗时，不输出原始日志、Prompt、Draft、摘要、query、DOI 或凭据；Actuator 暴露面仍固定为 `health,info`。
+- 最终真实复验在重启后的新构建上按固定请求执行一次且未重试：HTTP 200，状态 `COMPLETED/TARGET_REACHED`，15 个候选、15 个全局唯一候选、5 篇正式 `VERIFIED` 论文且 DOI 均规范化；Review 为 `GENERATED`，5 条引用与正式位置及 Java DOI 映射一致，服务端耗时 21,408 ms。
+- 完成日志与响应 `taskId` 精确对应，记录 `reviewModelCallCount=1`、`reviewRepairCount=0`、5 篇证据和 5 条引用；响应不含 `P999`、摘要字段、原始 JSON、内部 Draft、`AgentState` 或 `terminationDetail`。至此 8 月 3 日严格验收通过。
+
+### 安全与范围边界
+
+- 日志仅增加 reviewStatus、evidence/model-call/repair/citation 计数和安全终止枚举；不记录 Prompt、修正 Prompt、原始 Draft、摘要、DOI 列表、query、provider 异常消息或 `terminationDetail`。
+- 未修改 `SearchAgent`、`LiteratureResearchAgent` 状态机、阶段三搜索预算、`VERIFIED` 准入、DOI 规范化、Crossref 阈值、正式 papers 顺序或原有响应字段语义。
+- 未引入 MySQL、Redis、RAG、Qdrant、PDF、全文解析、异步任务、消息队列、前端、多 Agent、新 Tool 或外部数据源。
+- 引用编号存在不等于语义支持已被证明；当前是摘要级初步综述，不是全文 RAG 或全文事实核验。

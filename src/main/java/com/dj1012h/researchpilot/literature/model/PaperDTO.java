@@ -1,5 +1,7 @@
 package com.dj1012h.researchpilot.literature.model;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
+
 import java.util.List;
 import java.util.Objects;
 
@@ -20,6 +22,7 @@ public record PaperDTO(
         List<String> issns,
         String publicationType,
         String landingPageUrl,
+        @JsonIgnore
         String abstractText,
         String language,
         List<String> keywords,

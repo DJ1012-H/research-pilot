@@ -1,6 +1,7 @@
 package com.dj1012h.researchpilot.literature.application;
 
 import com.dj1012h.researchpilot.literature.api.dto.SearchRequest;
+import com.dj1012h.researchpilot.literature.api.dto.ReviewResponse;
 import com.dj1012h.researchpilot.literature.api.dto.SearchResponse;
 import com.dj1012h.researchpilot.literature.agent.AgentAction;
 import com.dj1012h.researchpilot.literature.agent.AgentRunResult;
@@ -9,6 +10,8 @@ import com.dj1012h.researchpilot.literature.agent.LiteratureResearchAgent;
 import com.dj1012h.researchpilot.literature.agent.TerminationReason;
 import com.dj1012h.researchpilot.literature.model.CandidateVerificationOutcome;
 import com.dj1012h.researchpilot.literature.model.SearchPlan;
+import com.dj1012h.researchpilot.literature.review.EvidenceReviewOrchestrator;
+import com.dj1012h.researchpilot.literature.review.ReviewOutcome;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
@@ -27,16 +30,28 @@ public class LiteratureSearchService {
 
     private final SearchAgent searchAgent;
     private final LiteratureResearchAgent literatureResearchAgent;
+    private final EvidenceReviewOrchestrator evidenceReviewOrchestrator;
+    private final ReviewResponseAssembler reviewResponseAssembler;
+    private final PublicTerminationReasonMapper terminationReasonMapper;
     private final Clock clock;
 
     public LiteratureSearchService(
             SearchAgent searchAgent,
             LiteratureResearchAgent literatureResearchAgent,
+            EvidenceReviewOrchestrator evidenceReviewOrchestrator,
+            ReviewResponseAssembler reviewResponseAssembler,
+            PublicTerminationReasonMapper terminationReasonMapper,
             Clock clock
     ) {
         this.searchAgent = Objects.requireNonNull(searchAgent, "searchAgent must not be null");
         this.literatureResearchAgent = Objects.requireNonNull(
                 literatureResearchAgent, "literatureResearchAgent must not be null");
+        this.evidenceReviewOrchestrator = Objects.requireNonNull(
+                evidenceReviewOrchestrator, "evidenceReviewOrchestrator must not be null");
+        this.reviewResponseAssembler = Objects.requireNonNull(
+                reviewResponseAssembler, "reviewResponseAssembler must not be null");
+        this.terminationReasonMapper = Objects.requireNonNull(
+                terminationReasonMapper, "terminationReasonMapper must not be null");
         this.clock = Objects.requireNonNull(clock, "clock must not be null");
     }
 
@@ -52,6 +67,9 @@ public class LiteratureSearchService {
         SearchPlan finalPlan = finalState.currentPlan();
         List<SearchResponse.PaperResult> papers = finalState.verifiedPapers();
         SearchResponse.VerificationSummary verificationSummary = verificationSummary(finalState.verificationResults());
+        ReviewOutcome reviewOutcome = evidenceReviewOrchestrator.generateValidateAndAssemble(runResult);
+        ReviewResponse reviewResponse = reviewResponseAssembler.assemble(reviewOutcome);
+        var publicTerminationReason = terminationReasonMapper.toPublic(finalState.terminationReason());
 
         Instant completedAt = Instant.now(clock);
         long elapsedMs = Math.max(0, completedAt.toEpochMilli() - startedAt.toEpochMilli());
@@ -63,6 +81,8 @@ public class LiteratureSearchService {
                 finalState.uniqueCandidateCount(),
                 verificationSummary,
                 papers,
+                reviewResponse,
+                publicTerminationReason,
                 message(papers.size(), finalState.requestedCount(), finalState.terminationReason()),
                 elapsedMs,
                 completedAt
@@ -71,10 +91,14 @@ public class LiteratureSearchService {
         log.info(
                 "event=literature_search_completed taskId={} agentStage={} terminationReason={} "
                         + "candidateCount={} uniqueCandidateCount={} crossrefAttemptedCount={} "
-                        + "verifiedCount={} formalResultCount={} elapsedMs={}",
-                taskId, finalState.currentStage(), finalState.terminationReason(), totalRetrievedCandidates(finalState),
+                        + "verifiedCount={} formalResultCount={} reviewStatus={} "
+                        + "reviewModelCallCount={} reviewRepairCount={} reviewEvidenceCount={} "
+                        + "reviewCitationCount={} elapsedMs={}",
+                taskId, finalState.currentStage(), publicTerminationReason, totalRetrievedCandidates(finalState),
                 finalState.uniqueCandidateCount(), finalState.crossrefCallCount(),
-                verificationSummary.verifiedCount(), papers.size(), elapsedMs
+                verificationSummary.verifiedCount(), papers.size(), reviewOutcome.status(),
+                reviewOutcome.modelCallCount(), reviewOutcome.repairCount(), reviewOutcome.evidenceCount(),
+                reviewResponse.citations().size(), elapsedMs
         );
         return response;
     }

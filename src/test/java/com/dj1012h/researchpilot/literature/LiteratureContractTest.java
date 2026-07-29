@@ -1,6 +1,8 @@
 package com.dj1012h.researchpilot.literature;
 
 import com.dj1012h.researchpilot.literature.api.dto.SearchRequest;
+import com.dj1012h.researchpilot.literature.api.dto.PublicTerminationReason;
+import com.dj1012h.researchpilot.literature.api.dto.ReviewResponse;
 import com.dj1012h.researchpilot.literature.api.dto.SearchResponse;
 import com.dj1012h.researchpilot.literature.application.SearchPlanDraft;
 import com.dj1012h.researchpilot.literature.application.SearchPlanGenerationContext;
@@ -126,6 +128,8 @@ class LiteratureContractTest {
                 12,
                 new SearchResponse.VerificationSummary(0, 0, 4, 8),
                 List.of(),
+                degradedReview(),
+                PublicTerminationReason.NO_VERIFIED_RESULTS,
                 "未找到同时满足主题相关性和最低核验标准的论文",
                 1_200,
                 Instant.parse("2026-07-19T08:30:00Z")
@@ -223,7 +227,8 @@ class LiteratureContractTest {
                 SearchSort.RELEVANCE, 2022, 2026, 10, 5);
 
         SearchResponse response = new SearchResponse(UUID.randomUUID(), SearchResponse.SearchStatus.NO_VERIFIED_RESULTS,
-                plan, 1, 1, new SearchResponse.VerificationSummary(0, 1, 0, 0), List.of(), "no formal papers",
+                plan, 1, 1, new SearchResponse.VerificationSummary(0, 1, 0, 0), List.of(),
+                degradedReview(), PublicTerminationReason.NO_VERIFIED_RESULTS, "no formal papers",
                 1, Instant.parse("2026-07-19T08:30:00Z"));
 
         assertThat(response.verificationSummary().partiallyVerifiedCount()).isOne();
@@ -253,6 +258,8 @@ class LiteratureContractTest {
                 8,
                 new SearchResponse.VerificationSummary(2, 1, 1, 3),
                 List.of(),
+                degradedReview(),
+                PublicTerminationReason.SAFELY_TERMINATED,
                 "检索完成",
                 100,
                 Instant.parse("2026-07-19T08:30:00Z")
@@ -311,5 +318,14 @@ class LiteratureContractTest {
         assertThat(context.startedAt()).isEqualTo(Instant.parse("2026-07-20T08:00:00Z"));
         assertThat(context.currentYear()).isEqualTo(2026);
         assertThat(context.requestId()).isNotNull();
+    }
+
+    private ReviewResponse degradedReview() {
+        return new ReviewResponse(
+                ReviewResponse.ReviewStatus.INSUFFICIENT_EVIDENCE,
+                "",
+                List.of(),
+                "Insufficient verified abstract evidence."
+        );
     }
 }

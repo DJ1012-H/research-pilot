@@ -1,6 +1,8 @@
 package com.dj1012h.researchpilot.literature.api;
 
 import com.dj1012h.researchpilot.exception.GlobalExceptionHandler;
+import com.dj1012h.researchpilot.literature.api.dto.PublicTerminationReason;
+import com.dj1012h.researchpilot.literature.api.dto.ReviewResponse;
 import com.dj1012h.researchpilot.literature.api.dto.SearchRequest;
 import com.dj1012h.researchpilot.literature.api.dto.SearchResponse;
 import com.dj1012h.researchpilot.literature.application.LiteratureSearchService;
@@ -59,6 +61,8 @@ class LiteratureSearchControllerTest {
                 .andExpect(jsonPath("$.status").value("NO_VERIFIED_RESULTS"))
                 .andExpect(jsonPath("$.plan.sort").value("NEWEST"))
                 .andExpect(jsonPath("$.candidateCount").value(0))
+                .andExpect(jsonPath("$.review.status").value("INSUFFICIENT_EVIDENCE"))
+                .andExpect(jsonPath("$.terminationReason").value("NO_VERIFIED_RESULTS"))
                 .andExpect(jsonPath("$.papers").isArray());
 
         verify(service).search(new SearchRequest("Mamba 遥感变化检测", 2022, null, 10));
@@ -97,6 +101,13 @@ class LiteratureSearchControllerTest {
                 0,
                 new SearchResponse.VerificationSummary(0, 0, 0, 0),
                 List.of(),
+                new ReviewResponse(
+                        ReviewResponse.ReviewStatus.INSUFFICIENT_EVIDENCE,
+                        "",
+                        List.of(),
+                        "Insufficient verified abstract evidence."
+                ),
+                PublicTerminationReason.NO_VERIFIED_RESULTS,
                 "未检索到候选论文",
                 25,
                 Instant.parse("2026-07-20T08:00:00Z")

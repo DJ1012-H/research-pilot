@@ -8,12 +8,17 @@ import com.dj1012h.researchpilot.literature.agent.AgentState;
 import com.dj1012h.researchpilot.literature.agent.LiteratureResearchAgent;
 import com.dj1012h.researchpilot.literature.agent.TerminationReason;
 import com.dj1012h.researchpilot.literature.api.dto.SearchRequest;
+import com.dj1012h.researchpilot.literature.api.dto.PublicTerminationReason;
+import com.dj1012h.researchpilot.literature.api.dto.ReviewResponse;
 import com.dj1012h.researchpilot.literature.api.dto.SearchResponse;
 import com.dj1012h.researchpilot.literature.model.LanguageCode;
 import com.dj1012h.researchpilot.literature.model.PaperDTO;
 import com.dj1012h.researchpilot.literature.model.SearchPlan;
 import com.dj1012h.researchpilot.literature.model.SearchSort;
 import com.dj1012h.researchpilot.literature.model.VerificationResult;
+import com.dj1012h.researchpilot.literature.review.EvidenceReviewOrchestrator;
+import com.dj1012h.researchpilot.literature.review.ReviewOutcome;
+import com.dj1012h.researchpilot.literature.review.ReviewOutcomeStatus;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 
@@ -38,8 +43,17 @@ class LiteratureSearchServiceTest {
 
     private final SearchAgent searchAgent = mock(SearchAgent.class);
     private final LiteratureResearchAgent literatureResearchAgent = mock(LiteratureResearchAgent.class);
+    private final EvidenceReviewOrchestrator evidenceReviewOrchestrator =
+            mock(EvidenceReviewOrchestrator.class);
     private final LiteratureSearchService service =
-            new LiteratureSearchService(searchAgent, literatureResearchAgent, CLOCK);
+            new LiteratureSearchService(
+                    searchAgent,
+                    literatureResearchAgent,
+                    evidenceReviewOrchestrator,
+                    new ReviewResponseAssembler(),
+                    new PublicTerminationReasonMapper(),
+                    CLOCK
+            );
 
     @Test
     void shouldDelegateTheTrustedPlanAndFiniteExecutionToTheResearchAgent() {
@@ -61,6 +75,10 @@ class LiteratureSearchServiceTest {
         assertThat(response.deduplicatedCount()).isZero();
         assertThat(response.verificationSummary().totalCount()).isZero();
         assertThat(response.papers()).isEmpty();
+        assertThat(response.review().status())
+                .isEqualTo(ReviewResponse.ReviewStatus.INSUFFICIENT_EVIDENCE);
+        assertThat(response.terminationReason())
+                .isEqualTo(PublicTerminationReason.NO_VERIFIED_RESULTS);
         assertThat(response.message()).isEqualTo("未找到满足最低核验标准的论文。");
         assertThat(response.elapsedMs()).isZero();
         assertThat(response.completedAt()).isEqualTo(Instant.parse("2026-08-01T08:00:00Z"));
@@ -95,6 +113,7 @@ class LiteratureSearchServiceTest {
         assertThat(response.deduplicatedCount()).isEqualTo(8);
         assertThat(response.verificationSummary().verifiedCount()).isOne();
         assertThat(response.verificationSummary().totalCount()).isEqualTo(8);
+        assertThat(response.terminationReason()).isEqualTo(PublicTerminationReason.LIMIT_REACHED);
         assertThat(response.message()).contains("已达到执行步骤上限");
     }
 
@@ -117,7 +136,42 @@ class LiteratureSearchServiceTest {
         assertThat(response.message()).isEqualTo("已找到并核验通过 1 篇论文。");
         assertThat(SearchResponse.class.getRecordComponents())
                 .extracting(component -> component.getName())
-                .doesNotContain("trace", "terminationReason");
+                .contains("review", "terminationReason")
+                .doesNotContain("trace", "terminationDetail", "agentState");
+    }
+
+    @Test
+    void shouldIncludeReviewStageTimeInCompletedAtAndElapsedMs() {
+        Instant startedAt = Instant.parse("2026-08-01T08:00:00Z");
+        Clock advancingClock = mock(Clock.class);
+        when(advancingClock.instant())
+                .thenReturn(startedAt, startedAt.plusSeconds(5));
+        LiteratureSearchService timedService = new LiteratureSearchService(
+                searchAgent,
+                literatureResearchAgent,
+                evidenceReviewOrchestrator,
+                new ReviewResponseAssembler(),
+                new PublicTerminationReasonMapper(),
+                advancingClock
+        );
+        SearchRequest request = new SearchRequest("Mamba", null, null, 5);
+        AgentRunResult runResult = runResult(
+                plan(request),
+                List.of(),
+                List.of(),
+                0,
+                0,
+                TerminationReason.NO_VERIFIED_RESULTS
+        );
+        when(searchAgent.createPlanContext(request))
+                .thenReturn(mock(ValidatedSearchPlanContext.class));
+        when(literatureResearchAgent.initialize(request)).thenReturn(mock(AgentState.class));
+        when(literatureResearchAgent.execute(any(), any())).thenReturn(runResult);
+
+        SearchResponse response = timedService.search(request);
+
+        assertThat(response.elapsedMs()).isEqualTo(5_000);
+        assertThat(response.completedAt()).isEqualTo(startedAt.plusSeconds(5));
     }
 
     private AgentRunResult runResult(
@@ -142,6 +196,14 @@ class LiteratureSearchServiceTest {
         when(state.verificationResults()).thenReturn(verificationResults);
         AgentRunResult runResult = mock(AgentRunResult.class);
         when(runResult.finalState()).thenReturn(state);
+        when(evidenceReviewOrchestrator.generateValidateAndAssemble(runResult))
+                .thenReturn(ReviewOutcome.failed(
+                        ReviewOutcomeStatus.INSUFFICIENT_EVIDENCE,
+                        0,
+                        0,
+                        0,
+                        "TEST_INSUFFICIENT_EVIDENCE"
+                ));
         return runResult;
     }
 

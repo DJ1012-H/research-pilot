@@ -465,3 +465,15 @@ URL 目前不映射到内部模型，待有明确展示或跳转需求时再以�
 - 模型调用前同时执行双门槛：`ceil(requestedCount * 0.60)` 篇正式 `VERIFIED` 论文，且至少 3 篇具有非空摘要。任一门槛不足返回明确内部状态并保证零模型调用。
 - Prompt 使用固定安全指令和 JSON 序列化的 `EVIDENCE DATA (UNTRUSTED)` 边界；摘要中的指令、URL、角色声明或格式覆盖要求均不是系统指令。模型输出只表示未验证的内部草稿，不写入日志、持久化层或公共 API。
 - 本阶段未实现 `ReviewDraft` 映射、CitationGuard、引用解析/修正、降级或公开响应组装，也未修改现有搜索预算、核验规则、Controller 或 `SearchResponse`。
+
+## 2026-08-03｜引用校验、一次修正与可信降级
+
+- 综述模型现在只能返回符合 `evidence-review-draft-v1` Schema 的 JSON：最多 12 条 statement，单条文本最多 800 字符，每条包含 1～5 个唯一且格式为 `P + 正整数` 的 `citationIds`。固定校验顺序为 JSON syntax → JSON Schema → strict DTO mapping → business validation → `CitationGuard`。
+- `CitationGuard` 只接受本次 `ReviewInput.evidencePapers` 中存在的精确编号。缺摘要的正式论文不会重新编号，也不能作为本次综述证据；公开 DOI、标题、作者、年份和 venue 均由 Java 从 `EvidencePaper` 映射，模型不能提供这些公开书目事实。
+- 非法 Draft 最多触发一次 Java 侧逻辑修正调用。首次合法为 1 次；首次非法且修正后成功或失败均为 2 次；不存在第三次调用。供应商故障不属于引用修正，证据不足、长度预算不足或 deadline 到达时不启动新调用。
+- 服务端长度预算默认为：最多 20 篇证据论文、单摘要 4,000 Unicode code points、证据 JSON 64,000 字符、首次 Prompt 80,000 字符、原始 Draft 16,384 字符、修正 Prompt 96,000 字符。超限时按稳定顺序从尾部停止加入，不重编号；预算内不足 3 篇摘要证据则安全降级。
+- `SearchResponse` 保留原字段语义，并始终增加结构化 `review` 与粗粒度 `terminationReason`。非 `GENERATED` 状态统一返回空 summary、空 citations 和固定安全消息；Review 失败不会清空正式 `papers`，也不会改变由正式论文数量决定的 `SearchStatus`。正式论文的摘要仍可在 Java 内部进入受控 `ReviewInput`，但 `PaperDTO.abstractText` 不参与公开 JSON 序列化。
+- 最终 summary 由 Java 从 `ValidatedReview` 确定性渲染引用后缀；引用编号有效只表示本次证据映射成立，不表示语义蕴含或全文事实已经证明。当前仍是摘要级综述，不是全文 RAG。
+- 最终 8 月 3 日聚焦验收共 75 项测试通过；增加日志可观测性断言后，`.\mvnw.cmd clean verify` 共运行 424 项测试，0 failures、0 errors、2 项明确 opt-in 的真实 Crossref smoke tests skipped，Spring Boot JAR 打包成功。
+- 2026-07-30 提前执行的首次真实联网请求暴露出 `abstractText` 序列化问题并完成修复。经用户逐次授权、重启新构建后的最终真实复验返回 HTTP 200、`COMPLETED`、5 篇正式 `VERIFIED` 论文和 `GENERATED` Review；5 条引用映射一致，服务端耗时 21,408 ms，精确逻辑模型调用 1 次、修正 0 次，且响应不含摘要、原始 Draft 或内部状态。8 月 3 日严格验收通过。
+- 应用默认同时把安全日志写入已忽略的 `logs/research-pilot.log`，可用 `powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\scripts\get-latest-review-model-usage.ps1` 脱敏读取最近任务的精确 `reviewModelCallCount`；也可追加 `-TaskId <UUID>` 定位指定任务。Actuator 仍只公开 `health,info`，不会公开整份日志。

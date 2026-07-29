@@ -15,6 +15,8 @@ import com.dj1012h.researchpilot.literature.agent.LiteratureResearchAgent;
 import com.dj1012h.researchpilot.literature.api.dto.SearchRequest;
 import com.dj1012h.researchpilot.literature.api.dto.SearchResponse;
 import com.dj1012h.researchpilot.literature.application.LiteratureSearchService;
+import com.dj1012h.researchpilot.literature.application.PublicTerminationReasonMapper;
+import com.dj1012h.researchpilot.literature.application.ReviewResponseAssembler;
 import com.dj1012h.researchpilot.literature.application.PaperVerificationService;
 import com.dj1012h.researchpilot.literature.application.EligiblePaperFilter;
 import com.dj1012h.researchpilot.literature.application.CrossrefCandidateLookupService;
@@ -26,6 +28,9 @@ import com.dj1012h.researchpilot.literature.application.SearchPlanGenerationExce
 import com.dj1012h.researchpilot.literature.application.ValidatedSearchPlanContext;
 import com.dj1012h.researchpilot.literature.model.OpenAlexQuery;
 import com.dj1012h.researchpilot.literature.model.SearchPlan;
+import com.dj1012h.researchpilot.literature.review.EvidenceReviewOrchestrator;
+import com.dj1012h.researchpilot.literature.review.ReviewOutcome;
+import com.dj1012h.researchpilot.literature.review.ReviewOutcomeStatus;
 import com.dj1012h.researchpilot.literature.validation.JsonSyntaxValidator;
 import com.dj1012h.researchpilot.literature.validation.SearchPlanBusinessValidator;
 import com.dj1012h.researchpilot.literature.validation.SearchPlanDraftMapper;
@@ -64,6 +69,8 @@ class LiteratureSearchFlowIntegrationTest {
     private final PaperVerificationService paperVerificationService = mock(PaperVerificationService.class);
     private final EligiblePaperFilter eligiblePaperFilter = mock(EligiblePaperFilter.class);
     private final LiteratureResearchAgent literatureResearchAgent = mock(LiteratureResearchAgent.class);
+    private final EvidenceReviewOrchestrator evidenceReviewOrchestrator =
+            mock(EvidenceReviewOrchestrator.class);
     private final AiProperties aiProperties = new AiProperties();
 
     @Test
@@ -159,6 +166,14 @@ class LiteratureSearchFlowIntegrationTest {
     }
 
     private LiteratureSearchService service() {
+        when(evidenceReviewOrchestrator.generateValidateAndAssemble(any()))
+                .thenReturn(ReviewOutcome.failed(
+                        ReviewOutcomeStatus.INSUFFICIENT_EVIDENCE,
+                        0,
+                        0,
+                        0,
+                        "TEST_INSUFFICIENT_EVIDENCE"
+                ));
         SearchAgent searchAgent = new SearchAgent(
                 planner,
                 pipeline(),
@@ -168,6 +183,9 @@ class LiteratureSearchFlowIntegrationTest {
         return new LiteratureSearchService(
                 searchAgent,
                 literatureResearchAgent,
+                evidenceReviewOrchestrator,
+                new ReviewResponseAssembler(),
+                new PublicTerminationReasonMapper(),
                 FIXED_CLOCK
         );
     }
