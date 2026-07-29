@@ -457,3 +457,11 @@ URL 目前不映射到内部模型，待有明确展示或跳转需求时再以�
 - PDF 全文解析
 
 这些功能将在后续阶段实现。
+
+## 2026-08-02｜受门槛保护的摘要级综述准备
+
+- 新增仅供内部使用的 `literature.review` 链路：权威输入只来自受控工作流完成后的 `AgentRunResult.finalState().verifiedPapers()`；候选、去重结果和非 `VERIFIED` 核验结果均不能构造综述证据。
+- `CitationId` 与正式论文原始顺序一一对应；缺少摘要的正式论文不进入证据包，但不会改变其他论文的编号。每个 `EvidencePaper` 仅含规范化 DOI、最小书目信息和 OpenAlex 重建摘要。
+- 模型调用前同时执行双门槛：`ceil(requestedCount * 0.60)` 篇正式 `VERIFIED` 论文，且至少 3 篇具有非空摘要。任一门槛不足返回明确内部状态并保证零模型调用。
+- Prompt 使用固定安全指令和 JSON 序列化的 `EVIDENCE DATA (UNTRUSTED)` 边界；摘要中的指令、URL、角色声明或格式覆盖要求均不是系统指令。模型输出只表示未验证的内部草稿，不写入日志、持久化层或公共 API。
+- 本阶段未实现 `ReviewDraft` 映射、CitationGuard、引用解析/修正、降级或公开响应组装，也未修改现有搜索预算、核验规则、Controller 或 `SearchResponse`。

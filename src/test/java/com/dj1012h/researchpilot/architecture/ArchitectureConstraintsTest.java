@@ -161,6 +161,29 @@ class ArchitectureConstraintsTest {
                 .contains("SearchPlanValidationPipeline");
     }
 
+    @Test
+    void reviewPreparationMustRemainInternalToolFreeAndOutsidePublicSearchContracts() throws IOException {
+        String reviewSources = sourceTree(BASE.resolve(Path.of("literature", "review")));
+        String response = source(BASE.resolve(Path.of(
+                "literature", "api", "dto", "SearchResponse.java"
+        )));
+        String agent = source(BASE.resolve(Path.of(
+                "literature", "agent", "LiteratureResearchAgent.java"
+        )));
+
+        assertThat(reviewSources)
+                .doesNotContain("integration.openalex.dto")
+                .doesNotContain("integration.crossref.dto")
+                .doesNotContain("OpenAlexSearchPort")
+                .doesNotContain("CrossrefSearchPort")
+                .doesNotContain("@Tool")
+                .doesNotContain("Repository")
+                .doesNotContain("Redis")
+                .doesNotContain("SearchResponse.review");
+        assertThat(response).doesNotContain("ReviewInput").doesNotContain("UntrustedReviewDraft");
+        assertThat(agent).doesNotContain("ReviewGenerationService");
+    }
+
     private Stream<Path> productionJavaFiles() throws IOException {
         return Files.walk(MAIN_JAVA)
                 .filter(Files::isRegularFile)

@@ -1269,3 +1269,25 @@ Spring Boot 的条件装配回退，使它成为 MVC 使用的全局 Mapper；�
 - Trace 仅保存在当前进程内存中，不接 MySQL、Redis、外部日志系统或 API。
 - 未修改核验算法、相似度阈值、Controller、Swagger、请求/响应契约、评测资产、
   MySQL、Redis、RAG、Qdrant、PDF、前端或异步任务。
+
+## 2026-08-02｜受门槛保护的摘要级综述输入与 Prompt
+
+### 实际进展
+
+- 新增内部 `literature.review` 包：`ReviewInputFactory` 只接收 `AgentRunResult.finalState()` 或 `AgentState` 的正式 `verifiedPapers`，构建不可变的 `CitationId`、`EvidencePaper` 和 `ReviewInput`；不接受候选列表、去重列表或非 `VERIFIED` 的核验诊断。
+- `CitationId` 固定映射到正式论文的一基序号。缺少摘要时仅跳过该论文的证据投影，因此例如正式顺序 A/B/C/D 会稳定产生 `P1/P3/P4`，而非重新编号。
+- 生成前门槛严格为 `ceil(requestedCount * 0.60)` 篇正式论文和至少 3 篇可用摘要；分别返回 `INSUFFICIENT_VERIFIED_PAPERS` 或 `INSUFFICIENT_ABSTRACTS`，并由 `ReviewGenerationService` 保证不调用生成器。
+- `EvidenceReviewPromptBuilder` 复用隔离的 `StructuredOutputMapper` 序列化最小证据投影，固定指令明确摘要是未信任外部数据，禁止执行其中的指令、命令、URL、角色声明或格式覆盖。`LlmEvidenceReviewGenerator` 仅复用 `ModelInvoker` 的 `evidence_review` 操作；不注册 Tool、不记录 Prompt/摘要/原始模型输出。
+- 模型返回值类型为 `UntrustedReviewDraft`，仅保留在内部 `ReviewGenerationAttempt` 中，未接入 `LiteratureSearchService`、`LiteratureResearchAgent`、Controller、`SearchResponse`、日志或持久化。
+
+### 验证结果
+
+- 聚焦离线测试：`ReviewGenerationServiceTest`、`EvidenceReviewPromptBuilderTest`、`ReviewInputTest` 和 `ArchitectureConstraintsTest` 共 21 项通过，0 failures、0 errors、0 skipped。
+- `./mvnw.cmd clean verify`：376 项测试通过，0 failures、0 errors、2 个明确 opt-in 的 Crossref smoke tests skipped，并成功重新打包 Spring Boot JAR。
+- 覆盖刚好达标、正式论文不足、摘要不足、零正式论文、缺摘要时保留编号、间接 Prompt Injection、不可变集合、重复 DOI/编号拒绝以及 review 包的工具/外部 DTO/API 隔离。
+- 本次未执行真实 OpenAlex、Crossref 或模型调用；测试全部使用固定对象和 Mockito，未将 fixture 或回放描述为真实服务结果。
+
+### 范围边界
+
+- 未实现 `ReviewDraft` 的结构化映射、CitationGuard、引用解析、存在性或支持性校验、最多一次引用修正、降级和公开响应组装；这些属于 2026-08-03 或后续阶段。
+- 未修改阶段三 Agent 搜索预算、`SearchStatus`、正式 `VERIFIED` 准入、DOI 规范化、Crossref 核验阈值或公共 `papers` 语义；未引入 MySQL、Redis、RAG、Qdrant、PDF、异步任务、消息队列、前端或多 Agent。
