@@ -134,9 +134,22 @@ public class LiteratureResearchAgent {
             AgentState initializedState,
             ValidatedSearchPlanContext initialPlanContext
     ) {
+        return execute(initializedState, initialPlanContext, UUID.randomUUID());
+    }
+
+    /**
+     * Executes one controlled run with a caller-owned trace identifier. The
+     * public search workflow deliberately uses its task identifier here so the
+     * task, run result, and persisted execution steps have one explicit link.
+     */
+    public AgentRunResult execute(
+            AgentState initializedState,
+            ValidatedSearchPlanContext initialPlanContext,
+            UUID traceId
+    ) {
         Objects.requireNonNull(initializedState, "initializedState must not be null");
         Objects.requireNonNull(initialPlanContext, "initialPlanContext must not be null");
-        UUID traceId = UUID.randomUUID();
+        Objects.requireNonNull(traceId, "traceId must not be null");
         if (!initializedState.terminated()
                 && !Instant.now(clock).isBefore(initializedState.deadline())) {
             AgentExecutionContext expired = terminateAndTrace(

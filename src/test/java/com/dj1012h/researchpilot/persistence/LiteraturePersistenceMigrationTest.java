@@ -17,10 +17,10 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 class LiteraturePersistenceMigrationTest {
 
     @Test
-    void shouldCreateTheSchemaAndRecordV1OnAnEmptyDatabase() throws SQLException {
+    void shouldCreateTheSchemaAndRecordBothVersionsOnAnEmptyDatabase() throws SQLException {
         Flyway flyway = newFlyway();
 
-        assertThat(flyway.migrate().migrationsExecuted).isEqualTo(1);
+        assertThat(flyway.migrate().migrationsExecuted).isEqualTo(2);
 
         try (Connection connection = flyway.getConfiguration().getDataSource().getConnection()) {
             Set<String> tables = Set.of(
@@ -28,7 +28,9 @@ class LiteraturePersistenceMigrationTest {
                     "literature_plan_attempt",
                     "literature_paper",
                     "literature_verification_evidence",
-                    "literature_verification_field_evidence"
+                    "literature_verification_field_evidence",
+                    "literature_agent_step",
+                    "literature_task_paper_result"
             );
             for (String table : tables) {
                 assertThat(tableExists(connection, table)).isTrue();
@@ -36,13 +38,16 @@ class LiteraturePersistenceMigrationTest {
             assertThat(queryForInt(connection,
                     "SELECT COUNT(*) FROM flyway_schema_history WHERE version = '1' AND success = TRUE"))
                     .isEqualTo(1);
+            assertThat(queryForInt(connection,
+                    "SELECT COUNT(*) FROM flyway_schema_history WHERE version = '2' AND success = TRUE"))
+                    .isEqualTo(1);
         }
     }
 
     @Test
     void shouldMakeRepeatedMigrationADataPreservingNoOp() throws SQLException {
         Flyway flyway = newFlyway();
-        assertThat(flyway.migrate().migrationsExecuted).isEqualTo(1);
+        assertThat(flyway.migrate().migrationsExecuted).isEqualTo(2);
 
         try (Connection connection = flyway.getConfiguration().getDataSource().getConnection()) {
             insertTask(connection, "00000000-0000-0000-0000-000000000001");
@@ -84,6 +89,21 @@ class LiteraturePersistenceMigrationTest {
                             + "(search_task_id, candidate_fingerprint, verification_status, verification_source, "
                             + "evidence_score, verification_rule_version, reason_codes_canonical) VALUES ("
                             + taskId + ", 'candidate-1', 'VERIFIED', 'CROSSREF', 1.1000, 'v1', '[]')"))
+                    .isInstanceOf(SQLException.class);
+            insertAgentStep(connection, taskId, "00000000-0000-0000-0000-000000000003", 0);
+            assertThatThrownBy(() -> insertAgentStep(connection, taskId,
+                    "00000000-0000-0000-0000-000000000003", 0))
+                    .isInstanceOf(SQLException.class);
+            assertThatThrownBy(() -> execute(connection,
+                    "INSERT INTO literature_agent_step (search_task_id, trace_id, step_index, action, "
+                            + "stage_before, stage_after, step_status, elapsed_ms, search_round_count_before, "
+                            + "search_round_count_after, plan_adjustment_count_before, plan_adjustment_count_after, "
+                            + "business_step_count_before, business_step_count_after, unique_candidate_count_before, "
+                            + "unique_candidate_count_after, crossref_call_count_before, crossref_call_count_after, "
+                            + "deadline_exceeded_before, deadline_exceeded_after, observation_summary, started_at, finished_at) "
+                            + "VALUES (999999, '00000000-0000-0000-0000-000000000004', 0, 'COMPLETE', 'PLAN_READY', "
+                            + "COMPLETED', 'SUCCEEDED', 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, FALSE, FALSE, 'test', "
+                            + "CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)"))
                     .isInstanceOf(SQLException.class);
         }
     }
@@ -146,6 +166,23 @@ class LiteraturePersistenceMigrationTest {
                 "INSERT INTO literature_paper (normalized_doi, title, authors_canonical, source) "
                         + "VALUES (?, 'title', 'author', 'OPENALEX')")) {
             statement.setString(1, doi);
+            statement.executeUpdate();
+        }
+    }
+
+    private void insertAgentStep(Connection connection, long taskId, String traceId, int stepIndex) throws SQLException {
+        try (PreparedStatement statement = connection.prepareStatement(
+                "INSERT INTO literature_agent_step (search_task_id, trace_id, step_index, action, stage_before, "
+                        + "stage_after, step_status, elapsed_ms, search_round_count_before, search_round_count_after, "
+                        + "plan_adjustment_count_before, plan_adjustment_count_after, business_step_count_before, "
+                        + "business_step_count_after, unique_candidate_count_before, unique_candidate_count_after, "
+                        + "crossref_call_count_before, crossref_call_count_after, deadline_exceeded_before, "
+                        + "deadline_exceeded_after, observation_summary, started_at, finished_at) "
+                        + "VALUES (?, ?, ?, 'COMPLETE', 'PLAN_READY', 'COMPLETED', 'SUCCEEDED', 0, 0, 0, 0, 0, "
+                        + "0, 0, 0, 0, 0, 0, FALSE, FALSE, 'test step', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)")) {
+            statement.setLong(1, taskId);
+            statement.setString(2, traceId);
+            statement.setInt(3, stepIndex);
             statement.executeUpdate();
         }
     }

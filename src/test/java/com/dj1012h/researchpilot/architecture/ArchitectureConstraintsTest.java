@@ -95,7 +95,7 @@ class ArchitectureConstraintsTest {
     }
 
     @Test
-    void currentSearchServiceMustNotIntroduceLaterPhasePersistenceOrCache() throws IOException {
+    void searchServiceMustUseOnlyTheDedicatedPersistenceFacadeAndNoCache() throws IOException {
         String service = source(BASE.resolve(Path.of(
                 "literature", "application", "LiteratureSearchService.java"
         )));
@@ -104,7 +104,8 @@ class ArchitectureConstraintsTest {
                 .doesNotContain("Redis")
                 .doesNotContain("Repository")
                 .doesNotContain("MyBatis")
-                .doesNotContain("Persistence");
+                .contains("LiteraturePersistenceFacade")
+                .doesNotContain("LiteraturePersistenceMapper");
     }
 
     @Test

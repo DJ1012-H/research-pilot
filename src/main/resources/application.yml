@@ -45,6 +45,8 @@ app:
       prompt-version: ${LLM_STRUCTURED_OUTPUT_PROMPT_VERSION:search-plan-v1}
       schema-version: ${LLM_STRUCTURED_OUTPUT_SCHEMA_VERSION:search-plan-v1}
   literature:
+    persistence:
+      enabled: ${LITERATURE_PERSISTENCE_ENABLED:false}
     search:
       default-result-limit: ${LITERATURE_DEFAULT_RESULT_LIMIT:20}
       max-result-limit: ${LITERATURE_MAX_RESULT_LIMIT:50}

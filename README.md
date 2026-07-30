@@ -1,5 +1,18 @@
 # ResearchPilot
 
+## 2026-08-05: Agent execution persistence
+
+V2 adds opt-in runtime audit persistence for task execution steps and explicit
+task-to-formal-paper results. Set `LITERATURE_PERSISTENCE_ENABLED=true` only
+with a usable, migrated datasource; the default remains disabled. The public
+search response and Agent decision state remain unchanged. See
+`docs/design/literature-persistence-runtime.md` for transaction, idempotency,
+and H2-versus-MySQL limits.
+
+The isolated H2 acceptance tests cover V1+V2 migration, task/step idempotency,
+successful formal-paper/evidence finalization, and durable failure state. Real
+MySQL 8 validation remains unexecuted without a dedicated disposable database.
+
 ## 2026-08-04: Flyway literature-persistence schema
 
 The first persistence migration is present at

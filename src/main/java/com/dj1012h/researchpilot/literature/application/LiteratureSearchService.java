@@ -10,8 +10,12 @@ import com.dj1012h.researchpilot.literature.agent.LiteratureResearchAgent;
 import com.dj1012h.researchpilot.literature.agent.TerminationReason;
 import com.dj1012h.researchpilot.literature.model.CandidateVerificationOutcome;
 import com.dj1012h.researchpilot.literature.model.SearchPlan;
+import com.dj1012h.researchpilot.literature.persistence.LiteraturePersistenceFacade;
+import com.dj1012h.researchpilot.literature.persistence.LiteraturePersistenceException;
+import com.dj1012h.researchpilot.literature.persistence.NoOpLiteraturePersistenceFacade;
 import com.dj1012h.researchpilot.literature.review.EvidenceReviewOrchestrator;
 import com.dj1012h.researchpilot.literature.review.ReviewOutcome;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
@@ -33,6 +37,7 @@ public class LiteratureSearchService {
     private final EvidenceReviewOrchestrator evidenceReviewOrchestrator;
     private final ReviewResponseAssembler reviewResponseAssembler;
     private final PublicTerminationReasonMapper terminationReasonMapper;
+    private final LiteraturePersistenceFacade persistence;
     private final Clock clock;
 
     public LiteratureSearchService(
@@ -41,6 +46,20 @@ public class LiteratureSearchService {
             EvidenceReviewOrchestrator evidenceReviewOrchestrator,
             ReviewResponseAssembler reviewResponseAssembler,
             PublicTerminationReasonMapper terminationReasonMapper,
+            Clock clock
+    ) {
+        this(searchAgent, literatureResearchAgent, evidenceReviewOrchestrator, reviewResponseAssembler,
+                terminationReasonMapper, NoOpLiteraturePersistenceFacade.INSTANCE, clock);
+    }
+
+    @Autowired
+    public LiteratureSearchService(
+            SearchAgent searchAgent,
+            LiteratureResearchAgent literatureResearchAgent,
+            EvidenceReviewOrchestrator evidenceReviewOrchestrator,
+            ReviewResponseAssembler reviewResponseAssembler,
+            PublicTerminationReasonMapper terminationReasonMapper,
+            LiteraturePersistenceFacade persistence,
             Clock clock
     ) {
         this.searchAgent = Objects.requireNonNull(searchAgent, "searchAgent must not be null");
@@ -52,6 +71,7 @@ public class LiteratureSearchService {
                 reviewResponseAssembler, "reviewResponseAssembler must not be null");
         this.terminationReasonMapper = Objects.requireNonNull(
                 terminationReasonMapper, "terminationReasonMapper must not be null");
+        this.persistence = Objects.requireNonNull(persistence, "persistence must not be null");
         this.clock = Objects.requireNonNull(clock, "clock must not be null");
     }
 
@@ -59,36 +79,50 @@ public class LiteratureSearchService {
         Objects.requireNonNull(request, "request must not be null");
         UUID taskId = UUID.randomUUID();
         Instant startedAt = Instant.now(clock);
+        boolean persistenceEnabled = !(persistence instanceof NoOpLiteraturePersistenceFacade);
+        boolean runningTaskCreated = false;
+        try {
+            AgentState initialState;
+            ValidatedSearchPlanContext initialPlanContext;
+            if (persistenceEnabled) {
+                initialState = literatureResearchAgent.initialize(request);
+                persistence.createRunningTask(taskId, request, initialState.requestedCount(), startedAt);
+                runningTaskCreated = true;
+                initialPlanContext = searchAgent.createPlanContext(request);
+            } else {
+                initialPlanContext = searchAgent.createPlanContext(request);
+                initialState = literatureResearchAgent.initialize(request);
+            }
+            AgentRunResult runResult = persistenceEnabled
+                    ? literatureResearchAgent.execute(initialState, initialPlanContext, taskId)
+                    : literatureResearchAgent.execute(initialState, initialPlanContext);
+            AgentState finalState = runResult.finalState();
+            SearchPlan finalPlan = finalState.currentPlan();
+            List<SearchResponse.PaperResult> papers = finalState.verifiedPapers();
+            SearchResponse.VerificationSummary verificationSummary = verificationSummary(finalState.verificationResults());
+            ReviewOutcome reviewOutcome = evidenceReviewOrchestrator.generateValidateAndAssemble(runResult);
+            ReviewResponse reviewResponse = reviewResponseAssembler.assemble(reviewOutcome);
+            var publicTerminationReason = terminationReasonMapper.toPublic(finalState.terminationReason());
 
-        ValidatedSearchPlanContext initialPlanContext = searchAgent.createPlanContext(request);
-        AgentState initialState = literatureResearchAgent.initialize(request);
-        AgentRunResult runResult = literatureResearchAgent.execute(initialState, initialPlanContext);
-        AgentState finalState = runResult.finalState();
-        SearchPlan finalPlan = finalState.currentPlan();
-        List<SearchResponse.PaperResult> papers = finalState.verifiedPapers();
-        SearchResponse.VerificationSummary verificationSummary = verificationSummary(finalState.verificationResults());
-        ReviewOutcome reviewOutcome = evidenceReviewOrchestrator.generateValidateAndAssemble(runResult);
-        ReviewResponse reviewResponse = reviewResponseAssembler.assemble(reviewOutcome);
-        var publicTerminationReason = terminationReasonMapper.toPublic(finalState.terminationReason());
+            Instant completedAt = Instant.now(clock);
+            long elapsedMs = Math.max(0, completedAt.toEpochMilli() - startedAt.toEpochMilli());
+            SearchResponse response = new SearchResponse(
+                    taskId,
+                    status(papers, finalState.requestedCount()),
+                    finalPlan,
+                    totalRetrievedCandidates(finalState),
+                    finalState.uniqueCandidateCount(),
+                    verificationSummary,
+                    papers,
+                    reviewResponse,
+                    publicTerminationReason,
+                    message(papers.size(), finalState.requestedCount(), finalState.terminationReason()),
+                    elapsedMs,
+                    completedAt
+            );
+            persistence.finalizeSuccess(taskId, runResult, reviewOutcome, completedAt);
 
-        Instant completedAt = Instant.now(clock);
-        long elapsedMs = Math.max(0, completedAt.toEpochMilli() - startedAt.toEpochMilli());
-        SearchResponse response = new SearchResponse(
-                taskId,
-                status(papers, finalState.requestedCount()),
-                finalPlan,
-                totalRetrievedCandidates(finalState),
-                finalState.uniqueCandidateCount(),
-                verificationSummary,
-                papers,
-                reviewResponse,
-                publicTerminationReason,
-                message(papers.size(), finalState.requestedCount(), finalState.terminationReason()),
-                elapsedMs,
-                completedAt
-        );
-
-        log.info(
+            log.info(
                 "event=literature_search_completed taskId={} agentStage={} terminationReason={} "
                         + "candidateCount={} uniqueCandidateCount={} crossrefAttemptedCount={} "
                         + "verifiedCount={} formalResultCount={} reviewStatus={} "
@@ -99,8 +133,26 @@ public class LiteratureSearchService {
                 verificationSummary.verifiedCount(), papers.size(), reviewOutcome.status(),
                 reviewOutcome.modelCallCount(), reviewOutcome.repairCount(), reviewOutcome.evidenceCount(),
                 reviewResponse.citations().size(), elapsedMs
-        );
-        return response;
+            );
+            return response;
+        } catch (RuntimeException exception) {
+            if (runningTaskCreated) {
+                try {
+                    persistence.finalizeFailure(taskId, stableFailureCode(exception), Instant.now(clock));
+                } catch (RuntimeException persistenceFailure) {
+                    LiteraturePersistenceException infrastructureFailure = new LiteraturePersistenceException(
+                            "could not persist the task failure state", persistenceFailure);
+                    infrastructureFailure.addSuppressed(exception);
+                    throw infrastructureFailure;
+                }
+            }
+            throw exception;
+        }
+    }
+
+    private String stableFailureCode(RuntimeException exception) {
+        String name = exception.getClass().getSimpleName();
+        return name.isBlank() ? "UNEXPECTED_FAILURE" : name;
     }
 
     private SearchResponse.SearchStatus status(List<SearchResponse.PaperResult> papers, int resultLimit) {

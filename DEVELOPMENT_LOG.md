@@ -1352,3 +1352,22 @@ Spring Boot 的条件装配回退，使它成为 MVC 使用的全局 Mapper；�
 - No entity, mapper, repository, persistence service, transaction boundary,
   retry workflow, runtime database write, cache, RAG, PDF, frontend, or public
   API change was added.
+## 2026-08-05 - Literature runtime execution persistence
+
+- Added immutable V2 schema for ordered Agent execution steps and explicit
+  task-to-formal-paper result positions. V1 remains unchanged.
+- `LiteratureSearchService` now shares one UUID between `SearchResponse.taskId`,
+  `AgentRunResult.traceId`, and persisted step trace IDs. Runtime persistence is
+  opt-in through `LITERATURE_PERSISTENCE_ENABLED`; enabled failures propagate
+  instead of falling back to no-op behavior.
+- The persistence facade stores audit projections only. It keeps Java ownership
+  of Agent state, budgets, paper admission, DOI normalization, and review
+  validation; it writes no raw query, prompt, model output, external JSON,
+  exception stack, or abstract text.
+- H2 MySQL-mode validates V1+V2 migration, rerun behavior, task foreign keys,
+  DOI uniqueness, and Agent-step uniqueness. A disposable real MySQL 8
+  configuration was not supplied, so real-MySQL validation was not executed.
+- Added Spring/H2 integration coverage for successful finalization (formal
+  paper, task-paper relation, verification and field evidence), repeated
+  finalization, idempotent task/step writes, and independent failure terminal
+  state. The test also caught and fixed a task-count conservation violation.
