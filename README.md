@@ -1,5 +1,49 @@
 # ResearchPilot
 
+## Planned 2026-08-06 milestone: Optional external API cache
+
+This milestone was completed early and validated on 2026-07-30.
+
+OpenAlex and Crossref calls can use an opt-in Redis cache-aside layer. It is
+disabled by default (`LITERATURE_CACHE_ENABLED=false`), so normal offline tests
+and local starts do not require Redis. The layer decorates only
+`OpenAlexSearchPort` and `CrossrefSearchPort`; it stores mapped internal port
+results, never provider DTOs, raw JSON, prompts, Agent state, verification
+results, or public search responses.
+
+Keys are versioned and opaque SHA-256 digests under
+`research-pilot:literature:v1`. They include every effective OpenAlex query
+field or the normalized Crossref DOI/bibliographic fields, but never expose a
+query, DOI, title, author, mailto, base URL, token, or credential in the key.
+OpenAlex and successful Crossref results use their normal TTLs; only explicit
+adapter-mapped Crossref `NOT_FOUND` results use the shorter negative TTL.
+Timeouts, rate limits, authorization/configuration errors, invalid responses,
+and transport failures are never cached.
+
+Redis read/write failures fail open to the existing Adapter. A failed Redis
+attempt starts a short Clock-driven cooldown, avoiding repeated Redis waits;
+corrupt, oversized, or incompatible values are treated as misses and only the
+exact key is deleted. A cache hit still passes through the existing
+Crossref-to-verification path and does not change Agent budgets, state
+transitions, or paper admission. Redis is not used as a vector database.
+
+See `docs/design/literature-api-cache.md` for configuration and opt-in smoke
+testing. The authorized real-Redis smoke used a random, dedicated prefix and
+passed 2 tests with 0 failures/errors/skips: the first call missed, the second
+hit without a second adapter call, TTL stayed within the configured bound, the
+exact test key was removed, and an unreachable Redis address failed open to the
+adapter. The focused offline command passed 50 tests with 0 failures/errors and
+2 expected smoke-test skips. `clean verify` passed 454 tests with 0
+failures/errors and 4 expected opt-in network-test skips, and built the
+executable JAR.
+
+MySQL remains the durable source of truth for search tasks, validated plan
+attempts, formal-paper metadata, verification/field evidence, Agent step audit,
+task-to-paper results, counters, status, and timestamps. Redis stores only
+short-lived mapped OpenAlex/Crossref query results and explicit Crossref
+`NOT_FOUND` outcomes; it stores no task facts, verification decisions, Agent
+state, prompts, reviews, or execution traces.
+
 ## 2026-08-05: Agent execution persistence
 
 V2 adds opt-in runtime audit persistence for task execution steps and explicit

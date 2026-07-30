@@ -47,6 +47,14 @@ app:
   literature:
     persistence:
       enabled: ${LITERATURE_PERSISTENCE_ENABLED:false}
+    cache:
+      enabled: ${LITERATURE_CACHE_ENABLED:false}
+      key-prefix: ${LITERATURE_CACHE_KEY_PREFIX:research-pilot:literature:v1}
+      openalex-ttl: ${OPENALEX_CACHE_TTL:15m}
+      crossref-ttl: ${CROSSREF_CACHE_TTL:24h}
+      not-found-ttl: ${CROSSREF_NOT_FOUND_CACHE_TTL:5m}
+      failure-cooldown: ${LITERATURE_CACHE_FAILURE_COOLDOWN:30s}
+      max-payload-bytes: ${LITERATURE_CACHE_MAX_PAYLOAD_BYTES:2097152}
     search:
       default-result-limit: ${LITERATURE_DEFAULT_RESULT_LIMIT:20}
       max-result-limit: ${LITERATURE_MAX_RESULT_LIMIT:50}

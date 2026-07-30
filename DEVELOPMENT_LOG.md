@@ -1,3 +1,49 @@
+## 2026-07-30｜提前完成计划中的 2026-08-06 Redis 外部 API 缓存里程碑
+
+### 实际完成内容
+
+- 在 `OpenAlexSearchPort` 与 `CrossrefSearchPort` 的 Port/Adapter 边界加入默认关闭的
+  Redis Cache-Aside 装饰器，支持 OpenAlex 查询、Crossref DOI 精确查询和 Crossref
+  书目回退查询的跨请求复用；`LiteratureSearchService`、受控 Agent、Review 和公共 DTO
+  均不直接依赖 Redis。
+- 缓存键采用 `research-pilot:literature:v1:{provider}:{operation}:{sha256}`。摘要覆盖所有
+  实际请求字段，Redis 键不暴露 query、DOI、标题、作者、mailto、Base URL 或凭据。
+- 缓存值仅包含 Mapper 后的 `OpenAlexSearchResult`、`CrossrefLookupResult` 和
+  `CrossrefBibliographicLookupResult`，Envelope 显式校验 schema、provider、operation、
+  result kind、Payload 大小和内部 Record 不变量。
+- OpenAlex 成功结果（含合法空结果）使用 15 分钟 TTL；Crossref `FOUND`、
+  `FOUND_SINGLE`、`FOUND_MULTIPLE` 使用 24 小时 TTL；仅明确 `NOT_FOUND` 使用 5 分钟
+  负缓存。认证错误、限流、5xx、超时、传输错误、空响应和非法响应均不缓存。
+- Redis 读取、写入和损坏数据均 fail-open。首次访问失败后启动 30 秒、可注入 Clock
+  驱动的绕过期；损坏值只删除当前精确键。缓存命中仍进入既有 Crossref 字段核验、
+  `VerificationPolicy` 和 `EligiblePaperFilter`，不会直接产生 `VERIFIED`。
+
+### 数据边界
+
+- MySQL 继续持久化检索任务、可信计划尝试、正式论文元数据、候选级与字段级核验证据、
+  Agent 步骤审计、任务到正式论文结果、终态计数与时间戳，是可审计事实来源。
+- Redis 只保存带 TTL 的 OpenAlex/Crossref 内部查询结果，以及明确 Crossref
+  `NOT_FOUND` 的短期负缓存；不保存任务事实、AgentState、Prompt、模型输出、综述、
+  VerificationResult、SearchResponse 或完整执行轨迹。
+
+### 验收证据
+
+- 聚焦命令
+  `.\mvnw.cmd "-Dtest=*Cache*,*Redis*,ArchitectureConstraintsTest,PaperVerificationServiceTest,AgentExecutionLoopTest,LiteraturePersistenceFacadeIntegrationTest" test`
+  运行 50 项：0 failures、0 errors、2 项默认关闭的真实 Redis smoke 跳过。
+- `.\mvnw.cmd clean verify` 从空 `target` 编译 241 个生产源文件和 83 个测试源文件，
+  运行 454 项：0 failures、0 errors、4 项明确 opt-in 联网测试跳过；Spring Boot
+  可执行 JAR 打包成功。
+- 经用户授权的真实 Redis smoke 单独运行 2 项：0 failures、0 errors、0 skipped。
+  测试使用运行时随机专用前缀，验证 miss→hit、TTL 大于 0 且不超过配置值、只精确删除
+  本次键，以及不可达 Redis 地址下直连 Adapter。输出未记录真实键、query、DOI、
+  私有主机或凭据。
+
+### 里程碑说明
+
+- 以上工作实际完成和验收日期为 2026-07-30，属于提前完成计划中的 2026-08-06
+  里程碑，不表示测试在 8 月 6 日当天执行。
+
 ## 2026-07-29｜受控 Agent 工作流接入（提前完成 2026-08-01 阶段）
 
 ### 实际完成内容
@@ -1371,3 +1417,30 @@ Spring Boot 的条件装配回退，使它成为 MVC 使用的全局 Mapper；�
   paper, task-paper relation, verification and field evidence), repeated
   finalization, idempotent task/step writes, and independent failure terminal
   state. The test also caught and fixed a task-count conservation violation.
+## 2026-08-06 - Resilient OpenAlex/Crossref external API cache
+
+- Added an opt-in, default-disabled Redis cache-aside layer at the OpenAlex and
+  Crossref port boundary. It caches only validated internal port results in a
+  versioned envelope; `LiteratureSearchService`, controlled Agent state and
+  budgets, verification/admission, MySQL persistence, review flow, and public
+  response contracts remain unchanged.
+- Cache keys use the `research-pilot:literature:v1` namespace and SHA-256
+  digests of stable effective query fields. Raw queries, DOIs, titles, authors,
+  provider URLs, mailto values, and credentials are absent from keys and logs.
+- OpenAlex success (including an empty mapped result) and Crossref found
+  results use normal TTLs. Only explicit adapter-mapped Crossref `NOT_FOUND`
+  uses the short negative TTL. Provider/configuration failures, rate limits,
+  timeouts, transport errors, and invalid/empty responses are not cached.
+- Redis reads/writes fail open to the original adapters. Corrupt or oversized
+  values are exact-key misses and are not returned. A Clock-driven cooldown
+  bypasses Redis after a cache failure without sleeping or changing business
+  budgets.
+- Focused offline regression command completed successfully: 37 tests, 0
+  failures, 0 errors, 0 skipped. It covers cache keys, hits/misses, empty
+  OpenAlex results, Crossref found/not-found TTLs, corrupt entries, Redis
+  cooldown fallback, architecture, verification, Agent-loop, and H2
+  persistence integration. Real Redis smoke validation was not run because no
+  dedicated authorized Redis configuration was supplied.
+- `./mvnw.cmd clean verify` completed successfully: 441 tests, 0 failures, 0
+  errors, and 2 explicit opt-in Crossref smoke tests skipped. The Spring Boot
+  JAR was packaged successfully.

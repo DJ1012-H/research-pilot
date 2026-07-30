@@ -262,6 +262,28 @@ class ArchitectureConstraintsTest {
         }
     }
 
+    @Test
+    void cacheMustStayAtTheIntegrationBoundaryAndMustNotStoreTrustedWorkflowObjects() throws IOException {
+        String cacheSources = sourceTree(BASE.resolve(Path.of("integration", "cache")));
+        String agentSources = sourceTree(BASE.resolve(Path.of("literature", "agent")));
+        String reviewSources = sourceTree(BASE.resolve(Path.of("literature", "review")));
+        String searchAgent = source(BASE.resolve(Path.of(
+                "literature", "application", "SearchAgent.java"
+        )));
+
+        assertThat(agentSources).doesNotContain("Redis");
+        assertThat(reviewSources).doesNotContain("Redis");
+        assertThat(searchAgent).doesNotContain("Redis");
+        assertThat(cacheSources)
+                .doesNotContain("SearchResponse")
+                .doesNotContain("VerificationResult")
+                .doesNotContain("AgentState")
+                .doesNotContain("ReviewInput")
+                .doesNotContain("ReviewDraft")
+                .doesNotContain("integration.openalex.dto")
+                .doesNotContain("integration.crossref.dto");
+    }
+
     private Stream<Path> productionJavaFiles() throws IOException {
         return Files.walk(MAIN_JAVA)
                 .filter(Files::isRegularFile)
