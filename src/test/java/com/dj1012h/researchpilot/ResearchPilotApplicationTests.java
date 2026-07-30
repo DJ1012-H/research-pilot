@@ -22,5 +22,6 @@ class ResearchPilotApplicationTests {
         assertThat(environment.getProperty("logging.file.name")).isNotBlank();
         assertThat(environment.getProperty("management.endpoints.web.exposure.include"))
                 .isEqualTo("health,info");
+        assertThat(environment.getProperty("spring.flyway.enabled")).isEqualTo("false");
     }
 }

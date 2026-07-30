@@ -1,5 +1,27 @@
 # ResearchPilot
 
+## 2026-08-04: Flyway literature-persistence schema
+
+The first persistence migration is present at
+`src/main/resources/db/migration/V1__create_literature_persistence_schema.sql`.
+It is intentionally opt-in: `FLYWAY_ENABLED=false` is the default, so a normal
+application start and the normal offline test suite still do not require a
+local MySQL instance. To migrate an empty, disposable MySQL database, provide
+the usual datasource settings and set `FLYWAY_ENABLED=true`.
+
+`flyway clean` is disabled in configuration. The administrator-only
+`docs/sql/init-database.sql` remains responsible only for database/user/grant
+bootstrap; it is not an application-schema migration. V1 is immutable after
+acceptance. Schema changes must be made by a later versioned migration.
+
+The migration tests run V1 against a fresh H2 database in MySQL compatibility
+mode. They verify creation, schema history, repeatable migration, DOI
+uniqueness, foreign keys, per-task attempt uniqueness, and range checks. See
+`docs/design/literature-persistence-schema.md` for the data-minimization and
+MySQL/H2 compatibility boundaries. This milestone does not add entities,
+mappers, repositories, runtime persistence, transactions, or agent trace
+storage.
+
 ## 2026-07-29：受控 Agent 工作流接入（提前完成 2026-08-01 阶段）
 
 `POST /api/literature/search` 现在通过既有 HTTP 契约进入 `LiteratureSearchService`，由

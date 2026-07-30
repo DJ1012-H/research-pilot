@@ -1329,3 +1329,26 @@ Spring Boot 的条件装配回退，使它成为 MVC 使用的全局 Mapper；�
 - 未修改 `SearchAgent`、`LiteratureResearchAgent` 状态机、阶段三搜索预算、`VERIFIED` 准入、DOI 规范化、Crossref 阈值、正式 papers 顺序或原有响应字段语义。
 - 未引入 MySQL、Redis、RAG、Qdrant、PDF、全文解析、异步任务、消息队列、前端、多 Agent、新 Tool 或外部数据源。
 - 引用编号存在不等于语义支持已被证明；当前是摘要级初步综述，不是全文 RAG 或全文事实核验。
+
+## 2026-08-04 - Flyway literature persistence schema contract
+
+- Added Spring Boot-managed `flyway-core` and `flyway-mysql`, plus test-scope
+  H2. Flyway is disabled by default through `FLYWAY_ENABLED=false`, validates
+  before migration when enabled, and has `clean-disabled=true`; ordinary
+  startup and offline tests still do not require MySQL.
+- Added immutable V1 schema migration for search tasks, normalized plan
+  attempts, formal papers, verification evidence, and the minimal ordered
+  field-evidence child table. Constraints cover identifiers, task/attempt and
+  DOI uniqueness, foreign keys, count/score/time/version invariants, and
+  `SearchPlan` result/candidate limits. Foreign keys intentionally do not
+  cascade deletes.
+- The migration reserves only data-minimized, Java-owned values. It excludes raw
+  prompts, raw model/provider JSON, agent traces, exception stacks, credentials,
+  and raw user queries. `abstract_text` is an allowed nullable formal-paper
+  field; runtime retention and writing remain out of scope.
+- Added offline H2/MySQL-mode migration tests for first migration, Flyway
+  history, repeat migration preserving data, DOI uniqueness, foreign keys,
+  per-task attempt uniqueness, and invalid count/version/score constraints.
+- No entity, mapper, repository, persistence service, transaction boundary,
+  retry workflow, runtime database write, cache, RAG, PDF, frontend, or public
+  API change was added.
