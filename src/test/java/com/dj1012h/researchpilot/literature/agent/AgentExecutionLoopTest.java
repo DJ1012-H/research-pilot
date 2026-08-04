@@ -210,6 +210,58 @@ class AgentExecutionLoopTest {
     }
 
     @Test
+    void shouldReturnNoVerifiedResultsAfterTheOnlyRefinement() {
+        CandidatePaper first = candidate("W1", "10.1000/a");
+        CandidatePaper second = candidate("W2", "10.1000/b");
+        CrossrefLookupSummary firstSummary = availableSummary(1);
+        CrossrefLookupSummary secondSummary = availableSummary(1);
+        SearchPlan initialPlan = plan(2);
+        SearchPlan refinedPlan = new SearchPlan(
+                initialPlan.originalQuery(), initialPlan.topic(), List.of("keyword", "synonym"),
+                "keyword OR synonym", initialPlan.languages(), initialPlan.publicationTypes(), initialPlan.sort(),
+                initialPlan.fromYear(), initialPlan.toYear(), initialPlan.candidateLimit(), initialPlan.resultLimit());
+        when(openAlex.search(any()))
+                .thenReturn(new OpenAlexSearchResult(1, List.of(first), null))
+                .thenReturn(new OpenAlexSearchResult(1, List.of(second), null));
+        when(deduplication.deduplicate(List.of(first))).thenReturn(deduplication(first));
+        when(deduplication.deduplicate(List.of(second))).thenReturn(deduplication(second));
+        when(crossref.lookup(any(CandidateDeduplicationResult.class)))
+                .thenReturn(firstSummary)
+                .thenReturn(secondSummary);
+        when(verification.verify(firstSummary)).thenReturn(List.of());
+        when(verification.verify(secondSummary)).thenReturn(List.of());
+        when(eligible.filter(any(), anyInt())).thenReturn(List.of());
+        when(decider.decide(any()))
+                .thenReturn(new SearchActionDecision(AgentAction.REFINE_PLAN, ActionDecisionSource.MODEL))
+                .thenReturn(new SearchActionDecision(AgentAction.COMPLETE, ActionDecisionSource.POLICY_SINGLE_ACTION));
+        when(refiner.refine(any())).thenReturn(new SearchPlanRefinementResult(
+                refinedPlan, origins(), new SearchPlanDiff(
+                List.of("synonym"), List.of(), List.of("ORIGINAL_QUERY"), "broaden query"), 1));
+
+        AgentRunResult run = agent.execute(initialized(2), validated(initialPlan));
+
+        assertThat(run.context().state().terminationReason()).isEqualTo(TerminationReason.NO_VERIFIED_RESULTS);
+        assertThat(run.context().state().verifiedPapers()).isEmpty();
+        assertThat(run.context().state().searchRoundCount()).isEqualTo(2);
+        assertThat(run.context().state().planAdjustmentCount()).isOne();
+        assertThat(run.trace()).extracting(ExecutionTraceEntry::action).containsExactly(
+                AgentAction.SEARCH_OPENALEX,
+                AgentAction.DEDUPLICATE_CANDIDATES,
+                AgentAction.VERIFY_WITH_CROSSREF,
+                AgentAction.EVALUATE_RESULTS,
+                AgentAction.REFINE_PLAN,
+                AgentAction.SEARCH_OPENALEX,
+                AgentAction.DEDUPLICATE_CANDIDATES,
+                AgentAction.VERIFY_WITH_CROSSREF,
+                AgentAction.EVALUATE_RESULTS,
+                AgentAction.COMPLETE
+        );
+        verify(openAlex, times(2)).search(any());
+        verify(crossref, times(2)).lookup(any(CandidateDeduplicationResult.class));
+        verify(refiner, times(1)).refine(any());
+    }
+
+    @Test
     void shouldCompleteWithNoVerifiedResultsWhenDecisionDeclinesRefinement() {
         CandidatePaper candidate = candidate("W1", "10.1000/a");
         CrossrefLookupSummary summary = availableSummary(1);

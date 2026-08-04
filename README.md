@@ -1,5 +1,61 @@
 # ResearchPilot
 
+## 2026-08-04: Trusted Agent boundary-regression evidence
+
+This acceptance pass reuses the existing focused Agent, service, persistence,
+and cache tests, then adds only two missing boundary cases: a two-round run
+with one permitted refinement and zero `VERIFIED` papers completes as
+`NO_VERIFIED_RESULTS`, and the default per-lookup Crossref ceiling permits
+five physical port calls but blocks the sixth. The corresponding focused
+offline command ran 59 tests with 0 failures/errors and 2 explicitly opt-in
+Redis smoke skips.
+
+The controlled limits remain unchanged: two OpenAlex rounds, one refinement,
+ten business steps for the complete two-round path, 45 globally unique
+candidates, 45 Agent-level Crossref calls, and five actual Crossref lookups
+per `CrossrefCandidateLookupService` invocation. `AgentBudgetPolicy` proves
+the global limits before actions start; the executor proves rejected actions do
+not call OpenAlex, Crossref, or the refiner; the lookup-service test proves the
+earlier reachable per-invocation Crossref boundary. Search-plan refinement
+tests preserve the original query, explicit years, and result limit; the Agent
+loop preserves cross-round deduplication and accepts only `VERIFIED` papers
+with normalized DOIs.
+
+`./mvnw.cmd test` and `./mvnw.cmd clean verify` each ran 460 tests with 0
+failures and 0 errors; each had 4 explicit opt-in network smoke skips, and the
+clean build produced the executable JAR. These are deterministic offline
+tests using fixed clocks, fakes, or Mockito counters where timing semantics are
+under test. After the timing instrumentation, the prompt-specified focused
+Agent/service/persistence/cache command ran 52 tests with 0 failures/errors and
+2 explicit Redis smoke skips.
+
+An explicitly authorized, serial real-service observation was then run on
+2026-08-04. A local MySQL 8.0 schema started empty and Flyway applied V1 and V2;
+the first pre-migration request had failed closed at `CREATE_RUNNING_TASK`
+instead of returning a false success. After migration, the first fixed request
+returned HTTP 200 with 15 candidates, 15 unique candidates, 4 `VERIFIED`
+DOI-bearing formal papers, and `PARTIAL_SUCCESS/SAFELY_TERMINATED` in 91,534 ms.
+The immediately repeated request returned the same formal-paper counts in
+23,449 ms and generated four citations. It observed one OpenAlex cache hit and
+five Crossref cache hits; the corresponding Agent retrieval/verification steps
+fell from 8,008/2,035 ms to 19/5 ms.
+
+The cold observation recorded MySQL create/step/finalize totals of 26/39/111 ms
+and the repeated observation recorded 6/38/47 ms. LLM timings were measured
+independently for planning, action selection, refinement, and review; the
+repeated request recorded 2,739/2,324/5,024/13,273 ms. The cold request's
+slowest Agent action was OpenAlex search at 8,008 ms; the repeated request's
+slowest action was a safely failed refinement at 5,026 ms. These are single
+public-network observations, not an SLA or stability claim. The deterministic
+suite, rather than this variable external result, proves the first-round
+`COMPLETED`, refinement-success, partial-result, and zero-result contracts.
+
+`scripts/get-latest-literature-performance.ps1` aggregates only bounded
+operation/status/count/duration fields for one serial task window. It reports
+unmeasured categories explicitly and never emits cache keys, queries, DOIs,
+prompts, model output, abstracts, provider payloads, exception messages, or
+credentials.
+
 ## Planned 2026-08-06 milestone: Optional external API cache
 
 This milestone was completed early and validated on 2026-07-30.

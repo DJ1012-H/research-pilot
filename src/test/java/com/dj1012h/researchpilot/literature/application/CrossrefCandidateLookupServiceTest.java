@@ -19,6 +19,7 @@ import java.util.List;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
@@ -62,6 +63,34 @@ class CrossrefCandidateLookupServiceTest {
         verify(port).findByBibliographic(org.mockito.ArgumentMatchers.any());
         verify(port).findByDoi("10.1000/a");
         verify(port, never()).findByDoi("10.1000/b");
+    }
+
+    @Test
+    void shouldStopAtTheProductionFiveLookupLimitBeforeTheSixthPortCall() {
+        crossref.setEnabled(true);
+        when(port.findByDoi(org.mockito.ArgumentMatchers.anyString())).thenReturn(CrossrefLookupResult.notFound());
+
+        CrossrefLookupSummary summary = service.lookup(List.of(
+                candidate("10.1000/a", "Paper A"), candidate("10.1000/b", "Paper B"),
+                candidate("10.1000/c", "Paper C"), candidate("10.1000/d", "Paper D"),
+                candidate("10.1000/e", "Paper E"), candidate("10.1000/f", "Paper F")
+        ));
+
+        assertThat(summary.attemptedCount()).isEqualTo(5);
+        assertThat(summary.notFoundCount()).isEqualTo(5);
+        assertThat(summary.skippedByLimitCount()).isOne();
+        assertThat(summary.candidateResults())
+                .extracting(result -> result.status())
+                .containsExactly(
+                        com.dj1012h.researchpilot.literature.model.CandidateLookupResult.LookupStatus.NOT_FOUND,
+                        com.dj1012h.researchpilot.literature.model.CandidateLookupResult.LookupStatus.NOT_FOUND,
+                        com.dj1012h.researchpilot.literature.model.CandidateLookupResult.LookupStatus.NOT_FOUND,
+                        com.dj1012h.researchpilot.literature.model.CandidateLookupResult.LookupStatus.NOT_FOUND,
+                        com.dj1012h.researchpilot.literature.model.CandidateLookupResult.LookupStatus.NOT_FOUND,
+                        com.dj1012h.researchpilot.literature.model.CandidateLookupResult.LookupStatus.SKIPPED_BY_LIMIT
+                );
+        verify(port, times(5)).findByDoi(org.mockito.ArgumentMatchers.anyString());
+        verify(port, never()).findByDoi("10.1000/f");
     }
 
     @Test

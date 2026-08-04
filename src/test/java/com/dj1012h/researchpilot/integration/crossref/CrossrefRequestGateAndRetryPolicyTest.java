@@ -37,7 +37,11 @@ class CrossrefRequestGateAndRetryPolicyTest {
     void shouldReleasePermitAfterFailure() throws Exception {
         CrossrefProperties properties = properties();
         properties.setMaxConcurrency(1);
-        CrossrefRequestGate gate = new CrossrefRequestGate(properties, Clock.systemUTC(), duration -> { });
+        CrossrefRequestGate gate = new CrossrefRequestGate(
+                properties,
+                Clock.fixed(Instant.parse("2026-08-07T00:00:00Z"), ZoneOffset.UTC),
+                duration -> { }
+        );
         try {
             gate.execute(() -> { throw new CrossrefApiException(CrossrefFailureType.INVALID_RESPONSE, "test"); });
         } catch (CrossrefApiException ignored) {

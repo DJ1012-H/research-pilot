@@ -2,6 +2,9 @@ package com.dj1012h.researchpilot.integration.cache;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.springframework.boot.test.system.CapturedOutput;
+import org.springframework.boot.test.system.OutputCaptureExtension;
 
 import java.time.Clock;
 import java.time.Duration;
@@ -13,6 +16,7 @@ import java.util.Optional;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+@ExtendWith(OutputCaptureExtension.class)
 public class LiteratureCacheServiceTest {
 
     @Test
@@ -46,7 +50,8 @@ public class LiteratureCacheServiceTest {
         RecordingStore store = new RecordingStore();
         LiteratureCacheProperties properties = new LiteratureCacheProperties();
         properties.setEnabled(false);
-        LiteratureCacheService cache = new LiteratureCacheService(properties, store, new ObjectMapper(), Clock.systemUTC());
+        LiteratureCacheService cache = new LiteratureCacheService(
+                properties, store, new ObjectMapper(), new MutableClock());
 
         cache.write("key", CacheValueKind.OPENALEX_SEARCH, "value", Duration.ofMinutes(1));
         assertThat(cache.read("key", CacheValueKind.OPENALEX_SEARCH, String.class)).isEmpty();
@@ -74,7 +79,7 @@ public class LiteratureCacheServiceTest {
         properties.setEnabled(true);
         properties.setMaxPayloadBytes(8);
         LiteratureCacheService cache = new LiteratureCacheService(
-                properties, store, new ObjectMapper(), Clock.systemUTC());
+                properties, store, new ObjectMapper(), new MutableClock());
         store.values.put("read-key", "too-large");
 
         assertThat(cache.read("read-key", CacheValueKind.OPENALEX_SEARCH, String.class)).isEmpty();
@@ -95,6 +100,28 @@ public class LiteratureCacheServiceTest {
 
         assertThat(store.writeCount).isEqualTo(1);
         assertThat(store.readCount).isZero();
+    }
+
+    @Test
+    void safePerformanceEventsReportMissWriteAndHitWithoutTheCacheKey(CapturedOutput output) {
+        RecordingStore store = new RecordingStore();
+        LiteratureCacheService cache = cache(store, new MutableClock());
+        String privateKey = "private-cache-key-must-not-appear";
+
+        assertThat(cache.read(privateKey, CacheValueKind.OPENALEX_SEARCH, String.class)).isEmpty();
+        cache.write(privateKey, CacheValueKind.OPENALEX_SEARCH, "value", Duration.ofMinutes(1));
+        assertThat(cache.read(privateKey, CacheValueKind.OPENALEX_SEARCH, String.class))
+                .contains("value");
+
+        assertThat(output)
+                .contains("event=literature_cache_access")
+                .contains("provider=openalex")
+                .contains("operation=search")
+                .contains("outcome=MISS")
+                .contains("outcome=SUCCEEDED")
+                .contains("outcome=HIT")
+                .doesNotContain(privateKey)
+                .doesNotContain("value");
     }
 
     @Test

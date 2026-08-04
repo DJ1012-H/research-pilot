@@ -16,11 +16,14 @@ import com.dj1012h.researchpilot.literature.model.PaperDTO;
 import com.dj1012h.researchpilot.literature.model.SearchPlan;
 import com.dj1012h.researchpilot.literature.model.SearchSort;
 import com.dj1012h.researchpilot.literature.model.VerificationResult;
+import com.dj1012h.researchpilot.literature.persistence.LiteraturePersistenceFacade;
 import com.dj1012h.researchpilot.literature.review.EvidenceReviewOrchestrator;
 import com.dj1012h.researchpilot.literature.review.ReviewOutcome;
 import com.dj1012h.researchpilot.literature.review.ReviewOutcomeStatus;
 import org.junit.jupiter.api.Test;
-import org.mockito.ArgumentCaptor;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.springframework.boot.test.system.CapturedOutput;
+import org.springframework.boot.test.system.OutputCaptureExtension;
 
 import java.time.Clock;
 import java.time.Duration;
@@ -36,6 +39,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoMoreInteractions;
 import static org.mockito.Mockito.when;
 
+@ExtendWith(OutputCaptureExtension.class)
 class LiteratureSearchServiceTest {
 
     private static final Clock CLOCK =
@@ -172,6 +176,58 @@ class LiteratureSearchServiceTest {
 
         assertThat(response.elapsedMs()).isEqualTo(5_000);
         assertThat(response.completedAt()).isEqualTo(startedAt.plusSeconds(5));
+    }
+
+    @Test
+    void shouldMeasureTaskPersistenceWithoutLoggingRequestContent(CapturedOutput output) {
+        LiteraturePersistenceFacade persistence = mock(LiteraturePersistenceFacade.class);
+        LiteratureSearchService persistentService = new LiteratureSearchService(
+                searchAgent,
+                literatureResearchAgent,
+                evidenceReviewOrchestrator,
+                new ReviewResponseAssembler(),
+                new PublicTerminationReasonMapper(),
+                persistence,
+                CLOCK
+        );
+        String privateQuery = "private-query-must-not-appear";
+        SearchRequest request = new SearchRequest(privateQuery, null, null, 5);
+        ValidatedSearchPlanContext context = mock(ValidatedSearchPlanContext.class);
+        AgentState initialState = mock(AgentState.class);
+        when(initialState.requestedCount()).thenReturn(5);
+        AgentRunResult runResult = runResult(
+                plan(request),
+                List.of(),
+                List.of(),
+                0,
+                0,
+                TerminationReason.NO_VERIFIED_RESULTS
+        );
+        when(searchAgent.createPlanContext(request)).thenReturn(context);
+        when(literatureResearchAgent.initialize(request)).thenReturn(initialState);
+        when(literatureResearchAgent.execute(any(), any(), any())).thenReturn(runResult);
+
+        SearchResponse response = persistentService.search(request);
+
+        verify(persistence).createRunningTask(
+                response.taskId(), request, 5, Instant.parse("2026-08-01T08:00:00Z")
+        );
+        verify(persistence).finalizeSuccess(
+                response.taskId(), runResult, ReviewOutcome.failed(
+                        ReviewOutcomeStatus.INSUFFICIENT_EVIDENCE,
+                        0,
+                        0,
+                        0,
+                        "TEST_INSUFFICIENT_EVIDENCE"
+                ), Instant.parse("2026-08-01T08:00:00Z")
+        );
+        assertThat(output)
+                .contains("event=literature_persistence")
+                .contains("operation=CREATE_RUNNING_TASK")
+                .contains("operation=FINALIZE_SUCCESS")
+                .contains("outcome=SUCCEEDED")
+                .containsPattern("durationMs=\\d+")
+                .doesNotContain(privateQuery);
     }
 
     private AgentRunResult runResult(

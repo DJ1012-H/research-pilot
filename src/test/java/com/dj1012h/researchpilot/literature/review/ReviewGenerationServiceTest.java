@@ -16,6 +16,7 @@ import org.junit.jupiter.api.Test;
 import java.time.Instant;
 import java.time.Clock;
 import java.time.Duration;
+import java.time.ZoneOffset;
 import java.util.List;
 import java.util.Set;
 
@@ -114,7 +115,10 @@ class ReviewGenerationServiceTest {
         ReviewInputFactory factory = new ReviewInputFactory(new DoiNormalizer());
 
         assertThatThrownBy(() -> factory.prepare(AgentState.initialize(
-                "safe query", 5, Clock.systemUTC(), Duration.ofSeconds(30)
+                "safe query",
+                5,
+                Clock.fixed(Instant.parse("2026-08-04T00:00:00Z"), ZoneOffset.UTC),
+                Duration.ofSeconds(30)
         ))).isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("completed final state");
     }

@@ -25,6 +25,7 @@ import java.time.Instant;
 import java.util.List;
 import java.util.Objects;
 import java.util.UUID;
+import java.util.concurrent.TimeUnit;
 
 /** Executes the trusted retrieval, Crossref verification, and formal-output chain. */
 @Service
@@ -86,7 +87,11 @@ public class LiteratureSearchService {
             ValidatedSearchPlanContext initialPlanContext;
             if (persistenceEnabled) {
                 initialState = literatureResearchAgent.initialize(request);
-                persistence.createRunningTask(taskId, request, initialState.requestedCount(), startedAt);
+                recordPersistence(
+                        "CREATE_RUNNING_TASK",
+                        () -> persistence.createRunningTask(
+                                taskId, request, initialState.requestedCount(), startedAt)
+                );
                 runningTaskCreated = true;
                 initialPlanContext = searchAgent.createPlanContext(request);
             } else {
@@ -120,7 +125,14 @@ public class LiteratureSearchService {
                     elapsedMs,
                     completedAt
             );
-            persistence.finalizeSuccess(taskId, runResult, reviewOutcome, completedAt);
+            if (persistenceEnabled) {
+                recordPersistence(
+                        "FINALIZE_SUCCESS",
+                        () -> persistence.finalizeSuccess(taskId, runResult, reviewOutcome, completedAt)
+                );
+            } else {
+                persistence.finalizeSuccess(taskId, runResult, reviewOutcome, completedAt);
+            }
 
             log.info(
                 "event=literature_search_completed taskId={} agentStage={} terminationReason={} "
@@ -138,7 +150,11 @@ public class LiteratureSearchService {
         } catch (RuntimeException exception) {
             if (runningTaskCreated) {
                 try {
-                    persistence.finalizeFailure(taskId, stableFailureCode(exception), Instant.now(clock));
+                    recordPersistence(
+                            "FINALIZE_FAILURE",
+                            () -> persistence.finalizeFailure(
+                                    taskId, stableFailureCode(exception), Instant.now(clock))
+                    );
                 } catch (RuntimeException persistenceFailure) {
                     LiteraturePersistenceException infrastructureFailure = new LiteraturePersistenceException(
                             "could not persist the task failure state", persistenceFailure);
@@ -148,6 +164,27 @@ public class LiteratureSearchService {
             }
             throw exception;
         }
+    }
+
+    private void recordPersistence(String operation, Runnable persistenceCall) {
+        long startedAt = System.nanoTime();
+        try {
+            persistenceCall.run();
+            log.info(
+                    "event=literature_persistence operation={} outcome=SUCCEEDED durationMs={}",
+                    operation, elapsedMillis(startedAt)
+            );
+        } catch (RuntimeException exception) {
+            log.warn(
+                    "event=literature_persistence operation={} outcome=FAILED durationMs={} exceptionType={}",
+                    operation, elapsedMillis(startedAt), exception.getClass().getSimpleName()
+            );
+            throw exception;
+        }
+    }
+
+    private long elapsedMillis(long startedAt) {
+        return Math.max(0, TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - startedAt));
     }
 
     private String stableFailureCode(RuntimeException exception) {

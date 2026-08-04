@@ -1,6 +1,9 @@
 package com.dj1012h.researchpilot.literature.agent;
 
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.springframework.boot.test.system.CapturedOutput;
+import org.springframework.boot.test.system.OutputCaptureExtension;
 
 import java.time.Instant;
 import java.util.ArrayList;
@@ -12,6 +15,7 @@ import java.util.concurrent.Executors;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+@ExtendWith(OutputCaptureExtension.class)
 class InMemoryExecutionTraceRecorderTest {
 
     private static final Instant AT = Instant.parse("2026-07-31T00:00:00Z");
@@ -72,6 +76,23 @@ class InMemoryExecutionTraceRecorderTest {
         assertThat(ExecutionTraceEntry.class.getRecordComponents())
                 .extracting(java.lang.reflect.RecordComponent::getName)
                 .doesNotContain("prompt", "rawModelOutput", "providerPayload", "apiKey", "token");
+    }
+
+    @Test
+    void shouldLogOnlySafeAgentStepPerformanceFields(CapturedOutput output) {
+        InMemoryExecutionTraceRecorder recorder = new InMemoryExecutionTraceRecorder();
+        UUID traceId = UUID.randomUUID();
+        String privateSummary = "private-summary-must-not-appear";
+
+        recorder.record(traceId, draft(privateSummary));
+
+        assertThat(output)
+                .contains("event=literature_agent_step")
+                .contains("action=SEARCH_OPENALEX")
+                .contains("status=SUCCEEDED")
+                .contains("durationMs=0")
+                .doesNotContain(traceId.toString())
+                .doesNotContain(privateSummary);
     }
 
     @Test

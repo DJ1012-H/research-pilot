@@ -1,5 +1,7 @@
 package com.dj1012h.researchpilot.literature.agent;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
 
 import java.util.ArrayList;
@@ -13,6 +15,7 @@ import java.util.concurrent.ConcurrentMap;
 @Component
 public class InMemoryExecutionTraceRecorder implements ExecutionTraceRecorder {
 
+    private static final Logger log = LoggerFactory.getLogger(InMemoryExecutionTraceRecorder.class);
     private final ConcurrentMap<UUID, List<ExecutionTraceEntry>> traces = new ConcurrentHashMap<>();
 
     @Override
@@ -40,6 +43,10 @@ public class InMemoryExecutionTraceRecorder implements ExecutionTraceRecorder {
                     draft.finishedAt()
             );
             entries.add(entry);
+            log.info(
+                    "event=literature_agent_step action={} status={} durationMs={}",
+                    entry.action(), entry.status(), entry.elapsedMs()
+            );
             return entry;
         }
     }

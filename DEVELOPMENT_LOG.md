@@ -1444,3 +1444,87 @@ Spring Boot 的条件装配回退，使它成为 MVC 使用的全局 Mapper；�
 - `./mvnw.cmd clean verify` completed successfully: 441 tests, 0 failures, 0
   errors, and 2 explicit opt-in Crossref smoke tests skipped. The Spring Boot
   JAR was packaged successfully.
+
+## 2026-08-04 - Trusted Agent normal, boundary, budget, and timing regression evidence
+
+- Audited and reused existing coverage rather than duplicating it. Existing
+  Agent-loop tests already prove first-round completion, one-refinement success,
+  partial results, deadline preemption, invalid-state rejection, cross-round
+  candidate deduplication, and the `VERIFIED` formal-paper gate. Existing
+  service, persistence, and cache tests retain response, H2 persistence, and
+  port-decorator regression coverage.
+- Added the missing complete two-round zero-result path: after exactly one
+  controlled refinement, two OpenAlex rounds, and no `VERIFIED` paper, the
+  Agent completes with `NO_VERIFIED_RESULTS`, empty formal papers, and no third
+  external round. The test uses a fixed Clock and Mockito only.
+- Added the production-default per-lookup Crossref boundary: five distinct
+  candidates perform five port calls, while the sixth is recorded as
+  `SKIPPED_BY_LIMIT` without a sixth port call. This is intentionally distinct
+  from the Agent-wide 45-call policy limit, which remains covered by
+  `AgentBudgetPolicyTest` and executor pre-action checks.
+- The retained budget evidence covers two permitted search rounds then denial,
+  one permitted refinement then denial, ten business steps then denial, the 45
+  unique-candidate and 45 Crossref-call limits, deadline equality, terminal
+  state, and invalid action rejection before external tools. The complete
+  two-round route remains a ten-business-step route; no budget, public API,
+  verification threshold, or cache semantic changed.
+- Focused offline regression command ran 59 tests with 0 failures, 0 errors,
+  and 2 explicit opt-in Redis smoke skips. After adding safe timing-event
+  assertions, the prompt-specified final focused command ran 52 tests with
+  0 failures, 0 errors, and 2 explicit Redis smoke skips.
+  `./mvnw.cmd test` and `./mvnw.cmd clean verify` each ran 460 tests with
+  0 failures, 0 errors, and
+  4 explicit opt-in network smoke skips; `clean verify` rebuilt the executable
+  Spring Boot JAR.
+- Added safe performance events without changing public DTOs or business
+  semantics. `LiteratureCacheService` records provider/operation/read-write
+  phase/outcome/duration without keys or values; `ModelInvoker` records the
+  fixed operation, configured model name, input length, outcome and duration
+  without prompt/output; persistence records only fixed operation names,
+  outcome, duration and safe exception type; the in-memory Trace recorder
+  records only Agent action, status and elapsed time.
+- Added `scripts/get-latest-literature-performance.ps1`. For one explicitly
+  serialized request it isolates the log window at the later of application
+  start or the previous completed task, aggregates count/total/max/average
+  duration, identifies the slowest Agent action, and lists every unmeasured
+  category. It does not output raw log lines, task content, cache keys, query,
+  DOI, prompt, draft, abstract, provider payload or credentials.
+
+### Authorized real-service performance observation
+
+- The first persistence-enabled request exposed a real environment issue:
+  MySQL returned `literature_search_task` missing. The service logged
+  `CREATE_RUNNING_TASK` failure and returned HTTP 500; it did not continue to
+  LLM/OpenAlex/Crossref or report false success. After explicit restart with
+  Flyway enabled, MySQL 8.0 migrated the empty `research_pilot` schema through
+  immutable V1 and V2 in 669 ms.
+- Health then reported application, MySQL (`SELECT 1`) and Redis (`PONG`) UP,
+  with the LLM configured. A fixed, serial cold request returned HTTP 200,
+  `PARTIAL_SUCCESS/SAFELY_TERMINATED`, 15 candidates, 15 unique candidates,
+  4 `VERIFIED` formal papers with normalized DOI, and no leaked internal
+  response fields. Service elapsed time was 91,534 ms. Review validation
+  failed closed and returned no citations.
+- Cold cache evidence was OpenAlex one miss/one successful write; Crossref had
+  three misses with successful writes and two existing hits. MySQL timing was
+  task create 26 ms, five step appends 39 ms total (11 ms max), and success
+  finalization 111 ms. LLM planning/action/refinement took
+  3,247/2,947/3,547 ms; two review attempts totaled 71,638 ms (55,164 ms max).
+  The slowest Agent action was OpenAlex search at 8,008 ms.
+- The immediate identical request returned the same 15/15/4 counts and HTTP
+  200 in 23,449 ms; Review was `GENERATED` with four citations. OpenAlex had
+  one cache hit and Crossref five hits. MySQL create/step/finalize timings were
+  6/38/47 ms; LLM planning/action/refinement/review timings were
+  2,739/2,324/5,024/13,273 ms. Agent OpenAlex search fell to 19 ms and Crossref
+  verification to 5 ms; the slowest action was the safely failed refinement
+  at 5,026 ms.
+- A separate previously used Mamba query was also observed once after the
+  migration: HTTP 200, 15 candidates, 15 unique candidates, 4 normalized-DOI
+  `VERIFIED` papers, generated review with four citations, and 45,284 ms
+  service time. It remained `PARTIAL_SUCCESS/SAFELY_TERMINATED`; no production
+  threshold, budget or evidence label was changed to force a live
+  `COMPLETED` result.
+- All component categories requested for this opt-in observation were measured;
+  none were defaulted to zero or inferred from total time. The results are
+  individual public-network observations, not a development-machine SLA.
+  Deterministic offline tests remain the acceptance evidence for the complete
+  normal, controlled-refinement, partial and zero-result paths.

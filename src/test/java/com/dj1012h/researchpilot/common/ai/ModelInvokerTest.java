@@ -34,11 +34,20 @@ class ModelInvokerTest {
     private ChatModel chatModel;
 
     @Test
-    void shouldReturnModelAnswer() {
+    void shouldReturnModelAnswerAndLogOnlySafePerformanceFields(CapturedOutput output) {
         when(chatModelProvider.getIfAvailable()).thenReturn(chatModel);
         when(chatModel.chat("prompt")).thenReturn("answer");
 
         assertThat(invoker().invoke("search_plan", "prompt")).isEqualTo("answer");
+        assertThat(output)
+                .contains("event=model_call_succeeded")
+                .contains("operation=search_plan")
+                .contains("model=test-model")
+                .contains("inputLength=6")
+                .containsPattern("durationMs=\\d+")
+                .doesNotContain(API_KEY_MARKER)
+                .doesNotContain("prompt")
+                .doesNotContain("answer");
     }
 
     @Test

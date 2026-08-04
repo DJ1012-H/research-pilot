@@ -60,7 +60,7 @@ public class ModelInvoker {
         long startNanos = System.nanoTime();
         try {
             T output = call.execute(chatModel, input);
-            log.debug(
+            log.info(
                     "event=model_call_succeeded operation={} model={} inputLength={} durationMs={}",
                     valueForLog(operation),
                     modelNameForLog(),
