@@ -1,40 +1,48 @@
-# ADR-001：使用 Qdrant 作为向量数据库
+# ADR-001: MySQL authority and a rebuildable Qdrant index
 
-- 状态：已采纳
-- 决策日期：2026-07-16
-- 计划实施阶段：第三阶段
+- Status: Accepted
+- Original decision: 2026-07-16
+- RAG baseline frozen: 2026-08-10
 
-## 背景
+## Context
 
-当前 Redis 是基础 Redis，已经验证可以正常连接，但没有加载 RediSearch/Search 模块，因此不能使用 FT.CREATE、FT.SEARCH 或 KNN 向量检索。
+ResearchPilot already uses MySQL for durable literature-task evidence and Redis for short-lived provider-result caching. The available Redis service does not provide RediSearch, and cache availability is not an authority for paper eligibility.
 
-基础 Redis 连接成功不代表具备向量检索能力。
+Adding semantic retrieval creates a second representation of trusted papers. That representation can be stale, unavailable, or rebuilt, so it cannot decide whether a paper is verified.
 
-## 决策
+## Decision
 
-系统采用以下存储职责划分：
+- MySQL remains the durable source of truth for papers, verification status and evidence, task traces, and the active index version.
+- Redis remains a fail-open, TTL-bound cache. It does not store embeddings or admit papers.
+- Qdrant stores only vectorized segments projected from papers that are currently `VERIFIED` and have a normalized DOI.
+- Qdrant is a derived index that can be fully rebuilt from MySQL. Qdrant payload status is never accepted as proof of verification.
+- Results returned by Qdrant must be re-admitted against current MySQL state before answer generation.
+- Existing trusted literature search remains available when Ollama or Qdrant is disabled or unavailable.
 
-- MySQL 保存论文、检索任务、核验记录和最终可靠状态。
-- Redis 保存缓存、任务进度、限流信息和具有 TTL 的临时状态。
-- Qdrant 保存论文文本块向量和用于过滤、引用追溯的元数据。
+The local infrastructure pins Qdrant `v1.18.2`, binds HTTP `6333` and gRPC `6334` to loopback only, and stores data in a Docker named volume. The embedding model is Windows-native Ollama with `qwen3-embedding:0.6b`.
 
-第一阶段只记录该技术决策。第三阶段实现 Embedding 和向量检索时正式接入 Qdrant。
+The vector dimension must be measured from a real Ollama response before collection creation. It is not hard-coded from documentation or assumptions.
 
-## 一致性原则
+The complete collection, payload, point-identity, versioning, rebuild, and deletion rules are frozen in [the trusted RAG index contract](../design/trusted-rag-index-contract.md).
 
-- MySQL 是业务数据的最终事实来源。
-- Qdrant 索引可以根据 MySQL 数据重新构建。
-- 使用稳定的 paperId、chunkId 和 pointId。
-- 重复索引必须幂等，不能产生重复向量。
-- 更换 Embedding 模型或维度后创建新的 Collection。
-- 只有符合核验策略的论文才能写入 Qdrant。
+## Consequences
 
-## 风险
+Benefits:
 
-Qdrant 会增加一个部署组件，并带来 MySQL 与向量索引之间的短暂一致性问题。
+- Trust admission stays in the existing Java/MySQL boundary.
+- Index loss does not lose task or verification facts.
+- Deterministic point IDs and content hashes make repeated indexing idempotent.
+- Embedding, template, dimension, or chunking changes can migrate through a new version without silently mixing vectors.
 
-通过幂等写入、失败重试、稳定标识和索引重建流程降低风险。
+Costs:
 
-## 回退方案
+- MySQL and Qdrant can be temporarily inconsistent.
+- Retrieval requires a MySQL re-admission step.
+- Rebuild, drift detection, retry, and version activation need explicit implementation and tests.
+- Docker Desktop, WSL 2, Ollama, and Qdrant add local operational dependencies.
 
-如果 Qdrant 暂时无法部署，系统保留文献检索、核验、MySQL 和 Redis 功能，暂时关闭向量 RAG，不在基础 Redis 上假设 RediSearch 可用。
+## Failure and rollback
+
+If Qdrant or Ollama is unavailable, RAG is disabled or returns an explicit degraded result; the trusted literature search API continues unchanged. A failed new index never replaces the active version. The old collection is retained until the new collection passes count, dimension, filter, and retrieval checks.
+
+Named-volume or collection deletion is not part of normal restart. It requires explicit human confirmation after MySQL rebuildability has been verified.

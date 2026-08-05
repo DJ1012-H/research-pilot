@@ -1,3 +1,59 @@
+## 2026-08-06｜提前准备计划中的 2026-08-10 可信 RAG 基础设施基线
+
+### 已完成的仓库内容
+
+- 在已同步且工作区干净的可信检索提交 `238dcd9` 上创建本地
+  `v1.0.0-demo` 标签，并在独立分支 `codex/rag-day1` 开发，未修改既有
+  `POST /api/literature/search` 契约。
+- 新增锁定 `qdrant/qdrant:v1.18.2` 的 `infra/docker-compose.rag.yml`：
+  HTTP `6333` 与 gRPC `6334` 只绑定 `127.0.0.1`，使用命名卷、健康检查，
+  不包含真实密钥。
+- 新增受控环境验收脚本，检查 Docker/Compose、Ollama 模型、中文/英文向量
+  非空且维度一致、Qdrant readiness/collections，以及可选的保留卷 stop/start
+  恢复。脚本不输出输入文本或向量。
+- 更新 ADR，并冻结 MySQL 事实来源、Qdrant 可重建派生索引、仅 `VERIFIED`
+  且标准化 DOI 准入、MySQL 二次准入、Payload、稳定 Point ID、内容哈希、
+  索引版本、重建与人工确认删除边界。
+- 未新增 Embedding/Qdrant Java 业务包、RAG API、PDF/OCR 或 Collection；
+  Collection 向量维度必须等真实 Ollama 双语响应测量后才能确定。
+
+### 本机环境门禁（实际检查日期 2026-08-06）
+
+- Windows 构建号 `26200`；CPU 固件虚拟化和 VM Monitor Mode Extensions 为
+  `True`；C 盘检查时约有 `59.1 GB` 可用。
+- 初始检查时 Docker 命令不可用，WSL 仅有系统占位命令且运行层未安装。
+- 非提升权限的 `wsl --install` 未执行安装；通过 WinGet 安装 `Microsoft.WSL
+  2.7.11` 被系统以 `0x80073d28` 拒绝。经用户在 UAC 明确授权后，WSL
+  `2.7.11.0` 安装成功；随后直接启用 `VirtualMachinePlatform` 与
+  `Microsoft-Windows-Subsystem-Linux`，两个 DISM 操作均返回 `3010`
+  （成功，需要重启）。
+- 已安装当前用户版 Docker Desktop `4.85.0`，安装日志记录 188 个文件激活完成、
+  产品注册完成并使用 WSL 2 后端；安装包哈希验证通过。Windows 功能尚未重启生效，
+  因此 Docker Engine 未启动。
+- 首次通过 WinGet 安装 `Ollama 0.32.5` 在 180 秒窗口内超时且未落盘；确认官方
+  安装包约 1.45 GB 后，以 15 分钟受控窗口重试并通过官方哈希校验完成安装。
+- 已拉取 `qwen3-embedding:0.6b`（模型列表显示 639 MB）。真实 API smoke 中，
+  中文和英文输入均返回一个非空的 1024 维向量；冷启动中文请求 23,938 ms，
+  随后英文请求 4,611 ms。耗时是本机观测，不是 SLA。
+- Docker CLI/Compose 配置语法可以在不启动 Engine 时验证；Qdrant 健康及
+  stop/start 验收仍保持未测量。不得把仓库基线误记为完整环境验收通过。
+  用户保存工作并手工重启 Windows 后，必须启动 Docker Desktop，再运行
+  `scripts/verify-rag-environment.ps1 -RestartQdrant` 补齐证据。
+
+### 自动化验证
+
+- 聚焦命令
+  `.\mvnw.cmd "-Dtest=RagInfrastructureBaselineTest,ArchitectureConstraintsTest,AgentExecutionLoopTest" test`
+  运行 25 项：0 failures、0 errors、0 skipped。
+- `.\mvnw.cmd clean verify` 从空 `target` 编译 244 个生产源文件和 87 个测试源文件，
+  运行 467 项：0 failures、0 errors、4 项明确 opt-in 网络测试跳过；Spring Boot
+  可执行 JAR 打包成功。
+
+### 里程碑说明
+
+- 这些内容实际准备于 2026-08-06，属于计划中 2026-08-10 Day 1 的提前工作，
+  不表示系统环境已在 8 月 10 日通过，也不提前声称后续 RAG 功能完成。
+
 ## 2026-07-30｜提前完成计划中的 2026-08-06 Redis 外部 API 缓存里程碑
 
 ### 实际完成内容
