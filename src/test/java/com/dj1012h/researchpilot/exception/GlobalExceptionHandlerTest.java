@@ -3,6 +3,7 @@ package com.dj1012h.researchpilot.exception;
 import com.dj1012h.researchpilot.common.response.ApiErrorResponse;
 import com.dj1012h.researchpilot.controller.ChatController;
 import com.dj1012h.researchpilot.literature.application.SearchPlanGenerationException;
+import com.dj1012h.researchpilot.literature.persistence.LiteraturePersistenceException;
 import com.dj1012h.researchpilot.literature.validation.SearchPlanValidationException;
 import com.dj1012h.researchpilot.literature.validation.ValidationIssue;
 import com.dj1012h.researchpilot.literature.validation.ValidationStage;
@@ -117,8 +118,9 @@ class GlobalExceptionHandlerTest {
     }
 
     @Test
-    void shouldLogUnexpectedExceptionStackOnce(CapturedOutput output) throws Exception {
-        when(chatService.chat("hello")).thenThrow(new IllegalStateException("unexpected bug"));
+    void shouldLogUnexpectedExceptionMetadataWithoutLeakingMessageOrStack(CapturedOutput output) throws Exception {
+        String sentinel = "SENSITIVE_TOKEN_8A4F secret@example.invalid Bearer secret-value jdbc:mysql://private-host/example";
+        when(chatService.chat("hello")).thenThrow(new IllegalStateException(sentinel));
 
         mockMvc.perform(post("/api/chat")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -129,9 +131,30 @@ class GlobalExceptionHandlerTest {
 
         assertThat(output)
                 .contains("event=unhandled_request_error")
+                .contains("stableFailureCode=INTERNAL_ERROR")
                 .contains("exceptionType=java.lang.IllegalStateException")
-                .contains("unexpected bug");
+                .doesNotContain("SENSITIVE_TOKEN_8A4F")
+                .doesNotContain("secret@example.invalid")
+                .doesNotContain("Bearer secret-value")
+                .doesNotContain("jdbc:mysql://private-host/example");
         assertThat(countOccurrences(output.getOut(), "event=unhandled_request_error")).isOne();
+    }
+
+    @Test
+    void shouldMapPersistenceFailureWithoutLeakingInfrastructureDetails(CapturedOutput output) {
+        String sentinel = "jdbc:mysql://private-host/example?password=SENSITIVE_TOKEN_8A4F";
+        MockHttpServletRequest request = new MockHttpServletRequest("POST", "/api/literature/search");
+
+        ResponseEntity<ApiErrorResponse> response = new GlobalExceptionHandler().handlePersistence(
+                new LiteraturePersistenceException(sentinel, new IllegalStateException("secret@example.invalid")), request);
+
+        assertThat(response.getStatusCode().value()).isEqualTo(503);
+        assertThat(response.getBody()).isNotNull();
+        assertThat(response.getBody().code()).isEqualTo("LITERATURE_PERSISTENCE_FAILED");
+        assertThat(response.getBody().details()).containsExactlyInAnyOrderEntriesOf(
+                java.util.Map.of("stage", "PERSISTENCE", "failureCode", "LITERATURE_PERSISTENCE_FAILED"));
+        assertThat(response.getBody().toString()).doesNotContain("SENSITIVE_TOKEN_8A4F");
+        assertThat(output).doesNotContain("SENSITIVE_TOKEN_8A4F").doesNotContain("secret@example.invalid");
     }
 
     @ParameterizedTest

@@ -2,7 +2,9 @@ package com.dj1012h.researchpilot.integration.cache;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.dj1012h.researchpilot.observability.LiteratureObservationMetrics;
 import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -25,6 +27,7 @@ public class LiteratureCacheService {
     private final CacheStore store;
     private final ObjectMapper objectMapper;
     private final Clock clock;
+    private final LiteratureObservationMetrics metrics;
     private volatile Instant cacheUnavailableUntil = Instant.MIN;
 
     public LiteratureCacheService(
@@ -33,10 +36,22 @@ public class LiteratureCacheService {
             ObjectMapper objectMapper,
             @Qualifier("systemClock") Clock clock
     ) {
+        this(properties, store, objectMapper, clock, LiteratureObservationMetrics.noop());
+    }
+
+    @Autowired
+    public LiteratureCacheService(
+            LiteratureCacheProperties properties,
+            CacheStore store,
+            ObjectMapper objectMapper,
+            @Qualifier("systemClock") Clock clock,
+            LiteratureObservationMetrics metrics
+    ) {
         this.properties = properties;
         this.store = store;
         this.objectMapper = objectMapper;
         this.clock = clock;
+        this.metrics = metrics;
     }
 
     public <T> Optional<T> read(String key, CacheValueKind kind, Class<T> type) {
@@ -124,6 +139,7 @@ public class LiteratureCacheService {
                 "event=literature_cache_access provider={} operation={} phase={} outcome={} durationMs={}",
                 kind.provider(), kind.operation(), phase, outcome, durationMs
         );
+        metrics.recordCache(kind.provider(), kind.operation(), outcome, Duration.ofMillis(durationMs));
     }
 
     private void evictCorrupt(String key) {

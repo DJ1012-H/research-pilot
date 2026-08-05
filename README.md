@@ -1,5 +1,52 @@
 # ResearchPilot
 
+## 2026-08-05: Failure safety and observability (planned 2026-08-08 milestone)
+
+This work was completed early on 2026-08-05 without changing search budgets,
+Agent actions, Crossref verification thresholds, formal-paper admission, Redis
+cache correctness, public `SearchResponse`, or Flyway V1/V2.
+
+Every synchronous HTTP request now receives a server-generated `X-Request-Id`.
+It is scoped to SLF4J MDC and cleared in a `finally` block. When a literature
+task is created, `LiteratureSearchService` adds its `taskId` to the same
+logging scope and clears it on return. `SearchPlanGenerationContext.requestId`
+is now explicitly this HTTP correlation identifier when a request exists (or a
+fresh local correlation identifier for non-HTTP callers); it is not a second,
+independent request id and MDC never carries Agent business state.
+
+The public error boundary maps runtime persistence failures to HTTP 503
+`LITERATURE_PERSISTENCE_FAILED`, with only the stable `PERSISTENCE` stage and
+failure code in details. Unexpected errors log only event, correlation ids,
+HTTP metadata, stable failure code, exception type, and root-cause type; they
+do not log exception messages, provider payloads, or stack traces. Validation
+errors remain info-level and expose stable validation codes rather than rejected
+values or arbitrary default messages. The existing model, OpenAlex, and
+Crossref error codes remain compatible.
+
+Failure semantics remain deliberately distinct: initial-plan model failure does
+not create an untrusted plan; unavailable action-model output falls back only
+to the already-filtered allowed action; review failure affects only review;
+OpenAlex/Crossref preserve their existing controlled termination or
+`SOURCE_UNAVAILABLE` paths; Redis remains cache-only fail-open; and enabled
+persistence remains fail-closed. In every case, only `VERIFIED` papers with
+normalized DOIs reach formal results or persistence.
+
+Micrometer records bounded request, Agent-outcome, LLM, OpenAlex, Crossref,
+persistence, and cache timing/outcome dimensions. Tags are fixed enums such as
+provider, operation, outcome, failure type, termination reason, and cache
+result—never request/task/trace IDs, query, DOI, title, URL, exception message,
+or Redis key. Actuator still exposes only `health,info` by default; metrics and
+Prometheus endpoints are not newly exposed.
+
+Fixed offline tests use Mockito, MockMvc, `SimpleMeterRegistry`, existing
+fixtures, and fixed clocks. They cover secret-bearing unexpected/persistence
+errors, request-id generation and MDC cleanup, low-cardinality meter tags, and
+the existing LLM/provider/cache/persistence/Agent safety regressions. No live
+LLM, MySQL, Redis, OpenAlex, or Crossref fault injection was run for this
+milestone. `./mvnw.cmd test` passed 464 tests with 0 failures/errors and 4
+explicit opt-in network smoke skips; the final clean-build verification result
+is recorded in `DEVELOPMENT_LOG.md`.
+
 ## 2026-08-04: Trusted Agent boundary-regression evidence
 
 This acceptance pass reuses the existing focused Agent, service, persistence,

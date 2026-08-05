@@ -1528,3 +1528,54 @@ Spring Boot 的条件装配回退，使它成为 MVC 使用的全局 Mapper；�
   individual public-network observations, not a development-machine SLA.
   Deterministic offline tests remain the acceptance evidence for the complete
   normal, controlled-refinement, partial and zero-result paths.
+## 2026-08-05 - Failure safety and observability (completed early for the planned 2026-08-08 milestone)
+
+- Rechecked the current `main` baseline rather than relying on the prompt
+  snapshot. The workspace started clean at `d93aaa3`; the prior snapshot's
+  uncommitted boundary-test changes were already incorporated in that baseline.
+  Baseline `./mvnw.cmd test` passed 460 tests with 0 failures/errors and 4
+  explicit opt-in network smoke skips.
+- Added synchronous HTTP correlation only: `RequestCorrelationFilter` creates
+  a server-owned UUID, returns it in `X-Request-Id`, sets MDC for the request,
+  and removes both `requestId` and `taskId` in `finally`. Task correlation is
+  bound after `LiteratureSearchService` creates the task UUID and is not used to
+  pass business state to the Agent. Input validation occurs before task creation
+  and therefore has a request id but no invented task id.
+- Aligned `SearchPlanGenerationContext.requestId` with that request
+  correlation when a request exists; non-HTTP callers use a new local UUID.
+  This eliminates ambiguous dual request identifiers without changing public
+  DTOs or Agent contracts.
+- Hardened public/runtime failures: persistence operations are wrapped in
+  `LiteraturePersistenceException` and map to HTTP 503
+  `LITERATURE_PERSISTENCE_FAILED` with stable `PERSISTENCE` details. Generic
+  exceptions log only stable metadata and restore an interrupted thread when
+  the cause chain contains `InterruptedException`; exception message, stack,
+  provider payload, SQL, URL, credentials, prompt, query, DOI, title, and
+  abstract are not logged or returned. Expected validation remains info-level
+  with stable codes.
+- Added bounded Micrometer measurements for literature request duration, Agent
+  termination, LLM, OpenAlex, Crossref, persistence, and cache events. Tags
+  are constrained to provider/operation/outcome/failure type/termination
+  reason/cache result. IDs, query and provider-data fields are excluded. The
+  default Actuator exposure remains `health,info`; no metrics/Prometheus
+  endpoint is exposed by this milestone.
+- Recorded the failure matrix without changing its existing semantics:
+  initial plan LLM failure rejects before a trusted plan; action LLM falls back
+  only to existing allowed actions; review failure degrades review only;
+  OpenAlex/Crossref preserve controlled termination and `SOURCE_UNAVAILABLE`;
+  Redis fails open to its adapters; enabled persistence fails closed with 503.
+  Formal papers still require `VERIFIED` plus normalized DOI.
+- Offline replay uses existing Mockito, MockMvc, fixtures, fixed Clock and
+  `SimpleMeterRegistry`; it does not record or contact real providers. It now
+  covers secret-bearing generic/persistence failures, request-id response/log
+  agreement, MDC cleanup across consecutive requests, and low-cardinality
+  meter dimensions alongside existing LLM/OpenAlex/Crossref/Redis/persistence/
+  review/Agent regressions. No real fault injection or live-service smoke was
+  authorized or run.
+- The prompt-specified focused offline suite passed 99 tests with 0 failures,
+  0 errors and 2 explicit opt-in Redis smoke skips.
+  Full `./mvnw.cmd test` passed 464 tests with 0 failures, 0 errors and 4
+  explicit opt-in network smoke skips. Final `./mvnw.cmd clean verify` also
+  passed 464 tests with 0 failures, 0 errors and 4 explicit opt-in network
+  smoke skips, and rebuilt the executable Spring Boot JAR. The tracked-content
+  sensitive scan and diff checks are recorded with this delivery review.

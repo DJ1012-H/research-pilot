@@ -4,6 +4,7 @@ import com.dj1012h.researchpilot.config.AiProperties;
 import com.dj1012h.researchpilot.exception.ModelFailureType;
 import com.dj1012h.researchpilot.exception.ModelInvocationException;
 import com.dj1012h.researchpilot.exception.ModelNotConfiguredException;
+import com.dj1012h.researchpilot.observability.LiteratureObservationMetrics;
 import dev.langchain4j.exception.AuthenticationException;
 import dev.langchain4j.exception.InternalServerException;
 import dev.langchain4j.exception.InvalidRequestException;
@@ -16,6 +17,7 @@ import dev.langchain4j.model.chat.ChatModel;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.ObjectProvider;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
 import java.io.IOException;
@@ -35,10 +37,21 @@ public class ModelInvoker {
 
     private final ObjectProvider<ChatModel> chatModelProvider;
     private final AiProperties aiProperties;
+    private final LiteratureObservationMetrics metrics;
 
     public ModelInvoker(ObjectProvider<ChatModel> chatModelProvider, AiProperties aiProperties) {
+        this(chatModelProvider, aiProperties, LiteratureObservationMetrics.noop());
+    }
+
+    @Autowired
+    public ModelInvoker(
+            ObjectProvider<ChatModel> chatModelProvider,
+            AiProperties aiProperties,
+            LiteratureObservationMetrics metrics
+    ) {
         this.chatModelProvider = chatModelProvider;
         this.aiProperties = aiProperties;
+        this.metrics = metrics;
     }
 
     public String invoke(String operation, String input) {
@@ -50,14 +63,15 @@ public class ModelInvoker {
      * single model availability and exception-mapping boundary.
      */
     public <T> T invoke(String operation, String input, ModelCall<T> call) {
+        long startNanos = System.nanoTime();
         ChatModel chatModel = chatModelProvider.getIfAvailable();
         if (chatModel == null) {
+            metrics.recordModel(operation, "failed", "NOT_CONFIGURED", java.time.Duration.ofMillis(elapsedMillis(startNanos)));
             throw new ModelNotConfiguredException(
                     "聊天模型尚未启用，请配置 LLM_BASE_URL、LLM_API_KEY、LLM_MODEL_NAME，并设置 LLM_ENABLED=true"
             );
         }
 
-        long startNanos = System.nanoTime();
         try {
             T output = call.execute(chatModel, input);
             log.info(
@@ -67,6 +81,7 @@ public class ModelInvoker {
                     inputLength(input),
                     elapsedMillis(startNanos)
             );
+            metrics.recordModel(operation, "succeeded", null, java.time.Duration.ofMillis(elapsedMillis(startNanos)));
             return output;
         } catch (AuthenticationException exception) {
             throw knownFailure(ModelFailureType.AUTHENTICATION, exception, operation, input, startNanos);
@@ -111,6 +126,7 @@ public class ModelInvoker {
                 exception.getClass().getSimpleName(),
                 rootCause(exception).getClass().getSimpleName()
         );
+        metrics.recordModel(operation, "failed", failureType.name(), java.time.Duration.ofMillis(elapsedMillis(startNanos)));
         return new ModelInvocationException(failureType, exception);
     }
 

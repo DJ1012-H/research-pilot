@@ -15,6 +15,8 @@ import com.dj1012h.researchpilot.literature.persistence.LiteraturePersistenceExc
 import com.dj1012h.researchpilot.literature.persistence.NoOpLiteraturePersistenceFacade;
 import com.dj1012h.researchpilot.literature.review.EvidenceReviewOrchestrator;
 import com.dj1012h.researchpilot.literature.review.ReviewOutcome;
+import com.dj1012h.researchpilot.observability.LiteratureObservationMetrics;
+import com.dj1012h.researchpilot.observability.RequestCorrelation;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -40,6 +42,7 @@ public class LiteratureSearchService {
     private final PublicTerminationReasonMapper terminationReasonMapper;
     private final LiteraturePersistenceFacade persistence;
     private final Clock clock;
+    private final LiteratureObservationMetrics metrics;
 
     public LiteratureSearchService(
             SearchAgent searchAgent,
@@ -50,7 +53,20 @@ public class LiteratureSearchService {
             Clock clock
     ) {
         this(searchAgent, literatureResearchAgent, evidenceReviewOrchestrator, reviewResponseAssembler,
-                terminationReasonMapper, NoOpLiteraturePersistenceFacade.INSTANCE, clock);
+                terminationReasonMapper, NoOpLiteraturePersistenceFacade.INSTANCE, clock, LiteratureObservationMetrics.noop());
+    }
+
+    public LiteratureSearchService(
+            SearchAgent searchAgent,
+            LiteratureResearchAgent literatureResearchAgent,
+            EvidenceReviewOrchestrator evidenceReviewOrchestrator,
+            ReviewResponseAssembler reviewResponseAssembler,
+            PublicTerminationReasonMapper terminationReasonMapper,
+            LiteraturePersistenceFacade persistence,
+            Clock clock
+    ) {
+        this(searchAgent, literatureResearchAgent, evidenceReviewOrchestrator, reviewResponseAssembler,
+                terminationReasonMapper, persistence, clock, LiteratureObservationMetrics.noop());
     }
 
     @Autowired
@@ -61,7 +77,8 @@ public class LiteratureSearchService {
             ReviewResponseAssembler reviewResponseAssembler,
             PublicTerminationReasonMapper terminationReasonMapper,
             LiteraturePersistenceFacade persistence,
-            Clock clock
+            Clock clock,
+            LiteratureObservationMetrics metrics
     ) {
         this.searchAgent = Objects.requireNonNull(searchAgent, "searchAgent must not be null");
         this.literatureResearchAgent = Objects.requireNonNull(
@@ -74,11 +91,13 @@ public class LiteratureSearchService {
                 terminationReasonMapper, "terminationReasonMapper must not be null");
         this.persistence = Objects.requireNonNull(persistence, "persistence must not be null");
         this.clock = Objects.requireNonNull(clock, "clock must not be null");
+        this.metrics = Objects.requireNonNull(metrics, "metrics must not be null");
     }
 
     public SearchResponse search(SearchRequest request) {
         Objects.requireNonNull(request, "request must not be null");
         UUID taskId = UUID.randomUUID();
+        RequestCorrelation.bindTaskId(taskId);
         Instant startedAt = Instant.now(clock);
         boolean persistenceEnabled = !(persistence instanceof NoOpLiteraturePersistenceFacade);
         boolean runningTaskCreated = false;
@@ -135,19 +154,23 @@ public class LiteratureSearchService {
             }
 
             log.info(
-                "event=literature_search_completed taskId={} agentStage={} terminationReason={} "
+                "event=literature_search_completed requestId={} taskId={} agentStage={} terminationReason={} "
                         + "candidateCount={} uniqueCandidateCount={} crossrefAttemptedCount={} "
                         + "verifiedCount={} formalResultCount={} reviewStatus={} "
                         + "reviewModelCallCount={} reviewRepairCount={} reviewEvidenceCount={} "
                         + "reviewCitationCount={} elapsedMs={}",
-                taskId, finalState.currentStage(), publicTerminationReason, totalRetrievedCandidates(finalState),
+                RequestCorrelation.requestIdForLog(), taskId, finalState.currentStage(), publicTerminationReason, totalRetrievedCandidates(finalState),
                 finalState.uniqueCandidateCount(), finalState.crossrefCallCount(),
                 verificationSummary.verifiedCount(), papers.size(), reviewOutcome.status(),
                 reviewOutcome.modelCallCount(), reviewOutcome.repairCount(), reviewOutcome.evidenceCount(),
                 reviewResponse.citations().size(), elapsedMs
             );
+            metrics.recordRequest("succeeded", java.time.Duration.ofMillis(elapsedMs));
+            metrics.recordAgentOutcome(finalState.terminationReason() == null
+                    ? "UNSPECIFIED" : finalState.terminationReason().name());
             return response;
         } catch (RuntimeException exception) {
+            metrics.recordRequest("failed", java.time.Duration.between(startedAt, Instant.now(clock)));
             if (runningTaskCreated) {
                 try {
                     recordPersistence(
@@ -163,6 +186,8 @@ public class LiteratureSearchService {
                 }
             }
             throw exception;
+        } finally {
+            RequestCorrelation.clearTaskId();
         }
     }
 
@@ -174,12 +199,15 @@ public class LiteratureSearchService {
                     "event=literature_persistence operation={} outcome=SUCCEEDED durationMs={}",
                     operation, elapsedMillis(startedAt)
             );
+            metrics.recordPersistence(operation, "succeeded", java.time.Duration.ofMillis(elapsedMillis(startedAt)));
         } catch (RuntimeException exception) {
             log.warn(
                     "event=literature_persistence operation={} outcome=FAILED durationMs={} exceptionType={}",
                     operation, elapsedMillis(startedAt), exception.getClass().getSimpleName()
             );
-            throw exception;
+            metrics.recordPersistence(operation, "failed", java.time.Duration.ofMillis(elapsedMillis(startedAt)));
+            if (exception instanceof LiteraturePersistenceException) throw exception;
+            throw new LiteraturePersistenceException("literature persistence operation failed", exception);
         }
     }
 

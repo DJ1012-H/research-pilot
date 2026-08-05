@@ -1,6 +1,7 @@
 package com.dj1012h.researchpilot.literature.application;
 
 import com.dj1012h.researchpilot.literature.api.dto.SearchRequest;
+import com.dj1012h.researchpilot.observability.RequestCorrelation;
 
 import java.time.Clock;
 import java.time.Instant;
@@ -10,6 +11,8 @@ import java.util.UUID;
 
 /**
  * Stable metadata shared by initial search-plan generation and its optional retry.
+ * Its request id is the server-generated HTTP correlation id when one exists;
+ * non-HTTP callers receive a fresh local correlation id.
  */
 public record SearchPlanGenerationContext(
         UUID requestId,
@@ -30,7 +33,7 @@ public record SearchPlanGenerationContext(
     public static SearchPlanGenerationContext create(SearchRequest request, Clock clock) {
         Objects.requireNonNull(clock, "clock 不能为空");
         return new SearchPlanGenerationContext(
-                UUID.randomUUID(),
+                RequestCorrelation.requestIdOrNew(),
                 request,
                 Instant.now(clock),
                 Year.now(clock).getValue()

@@ -4,6 +4,8 @@ import com.dj1012h.researchpilot.common.response.ApiErrorResponse;
 import com.dj1012h.researchpilot.integration.openalex.OpenAlexApiException;
 import com.dj1012h.researchpilot.integration.crossref.CrossrefApiException;
 import com.dj1012h.researchpilot.literature.application.SearchPlanGenerationException;
+import com.dj1012h.researchpilot.literature.persistence.LiteraturePersistenceException;
+import com.dj1012h.researchpilot.observability.RequestCorrelation;
 import jakarta.servlet.http.HttpServletRequest;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -34,13 +36,14 @@ public class GlobalExceptionHandler {
         List<Integer> inputLengths = new ArrayList<>();
         List<String> reasons = new ArrayList<>();
         for (FieldError fieldError : exception.getBindingResult().getFieldErrors()) {
-            details.putIfAbsent(fieldError.getField(), fieldError.getDefaultMessage());
+            details.putIfAbsent(fieldError.getField(), stableValidationCode(fieldError));
             fields.add(fieldError.getField());
             inputLengths.add(inputLength(fieldError.getRejectedValue()));
             reasons.add(fieldError.getCode());
         }
         log.info(
-                "event=request_validation_failed method={} path={} fields={} inputLengths={} reasons={}",
+                "event=request_validation_failed requestId={} method={} path={} fields={} inputLengths={} reasons={}",
+                RequestCorrelation.requestIdForLog(),
                 request.getMethod(),
                 request.getRequestURI(),
                 fields,
@@ -54,7 +57,8 @@ public class GlobalExceptionHandler {
     ResponseEntity<ApiErrorResponse> handleUnreadableMessage(HttpMessageNotReadableException exception,
                                                               HttpServletRequest request) {
         log.info(
-                "event=request_body_invalid method={} path={} reason=INVALID_JSON exceptionType={}",
+                "event=request_body_invalid requestId={} method={} path={} reason=INVALID_JSON exceptionType={}",
+                RequestCorrelation.requestIdForLog(),
                 request.getMethod(),
                 request.getRequestURI(),
                 exception.getClass().getSimpleName()
@@ -219,7 +223,8 @@ public class GlobalExceptionHandler {
                 .distinct()
                 .toList();
         log.info(
-                "event=search_plan_generation_rejected method={} path={} stage={} codes={}",
+                "event=search_plan_generation_rejected requestId={} method={} path={} stage={} codes={}",
+                RequestCorrelation.requestIdForLog(),
                 request.getMethod(),
                 request.getRequestURI(),
                 exception.getFinalStage(),
@@ -234,20 +239,70 @@ public class GlobalExceptionHandler {
         );
     }
 
+    @ExceptionHandler(LiteraturePersistenceException.class)
+    ResponseEntity<ApiErrorResponse> handlePersistence(
+            LiteraturePersistenceException exception,
+            HttpServletRequest request
+    ) {
+        restoreInterruptIfNeeded(exception);
+        log.warn(
+                "event=literature_persistence_failed requestId={} taskId={} stage=PERSISTENCE failureCode=LITERATURE_PERSISTENCE_FAILED exceptionType={} rootCauseType={}",
+                RequestCorrelation.requestIdForLog(),
+                org.slf4j.MDC.get(RequestCorrelation.TASK_ID_KEY),
+                exception.getClass().getSimpleName(),
+                rootCause(exception).getClass().getSimpleName()
+        );
+        return build(
+                HttpStatus.SERVICE_UNAVAILABLE,
+                "LITERATURE_PERSISTENCE_FAILED",
+                "文献任务持久化暂时不可用，请稍后重试",
+                request,
+                Map.of("stage", "PERSISTENCE", "failureCode", "LITERATURE_PERSISTENCE_FAILED")
+        );
+    }
+
     @ExceptionHandler(Exception.class)
     ResponseEntity<ApiErrorResponse> handleUnexpected(Exception exception, HttpServletRequest request) {
+        restoreInterruptIfNeeded(exception);
         log.error(
-                "event=unhandled_request_error method={} path={} exceptionType={}",
+                "event=unhandled_request_error requestId={} taskId={} method={} path={} stableFailureCode=INTERNAL_ERROR exceptionType={} rootCauseType={}",
+                RequestCorrelation.requestIdForLog(),
+                org.slf4j.MDC.get(RequestCorrelation.TASK_ID_KEY),
                 request.getMethod(),
                 request.getRequestURI(),
                 exception.getClass().getName(),
-                exception
+                rootCause(exception).getClass().getName()
         );
         return build(HttpStatus.INTERNAL_SERVER_ERROR, "INTERNAL_ERROR", "服务器内部错误", request, Map.of());
     }
 
     private int inputLength(Object rejectedValue) {
         return rejectedValue instanceof CharSequence value ? value.length() : -1;
+    }
+
+    private String stableValidationCode(FieldError error) {
+        String code = error.getCode();
+        return code == null || code.isBlank() ? "INVALID" : code;
+    }
+
+    private void restoreInterruptIfNeeded(Throwable exception) {
+        Throwable current = exception;
+        while (current != null) {
+            if (current instanceof InterruptedException) {
+                Thread.currentThread().interrupt();
+                return;
+            }
+            Throwable cause = current.getCause();
+            current = cause == current ? null : cause;
+        }
+    }
+
+    private Throwable rootCause(Throwable exception) {
+        Throwable current = exception;
+        while (current.getCause() != null && current.getCause() != current) {
+            current = current.getCause();
+        }
+        return current;
     }
 
     private ResponseEntity<ApiErrorResponse> build(HttpStatus status,

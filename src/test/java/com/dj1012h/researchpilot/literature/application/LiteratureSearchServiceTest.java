@@ -17,6 +17,7 @@ import com.dj1012h.researchpilot.literature.model.SearchPlan;
 import com.dj1012h.researchpilot.literature.model.SearchSort;
 import com.dj1012h.researchpilot.literature.model.VerificationResult;
 import com.dj1012h.researchpilot.literature.persistence.LiteraturePersistenceFacade;
+import com.dj1012h.researchpilot.literature.persistence.LiteraturePersistenceException;
 import com.dj1012h.researchpilot.literature.review.EvidenceReviewOrchestrator;
 import com.dj1012h.researchpilot.literature.review.ReviewOutcome;
 import com.dj1012h.researchpilot.literature.review.ReviewOutcomeStatus;
@@ -33,8 +34,11 @@ import java.util.List;
 import java.util.Set;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoMoreInteractions;
 import static org.mockito.Mockito.when;
@@ -228,6 +232,26 @@ class LiteratureSearchServiceTest {
                 .contains("outcome=SUCCEEDED")
                 .containsPattern("durationMs=\\d+")
                 .doesNotContain(privateQuery);
+    }
+
+    @Test
+    void shouldWrapCreateTaskFailureAsStablePersistenceInfrastructureFailure() {
+        LiteraturePersistenceFacade persistence = mock(LiteraturePersistenceFacade.class);
+        LiteratureSearchService persistentService = new LiteratureSearchService(
+                searchAgent, literatureResearchAgent, evidenceReviewOrchestrator,
+                new ReviewResponseAssembler(), new PublicTerminationReasonMapper(), persistence, CLOCK);
+        SearchRequest request = new SearchRequest("offline query", null, null, 5);
+        AgentState initialState = mock(AgentState.class);
+        when(initialState.requestedCount()).thenReturn(5);
+        when(literatureResearchAgent.initialize(request)).thenReturn(initialState);
+        doThrow(new IllegalStateException("jdbc:mysql://private-host/example?password=SENSITIVE_TOKEN_8A4F"))
+                .when(persistence).createRunningTask(any(), any(), anyInt(), any());
+
+        assertThatThrownBy(() -> persistentService.search(request))
+                .isInstanceOf(LiteraturePersistenceException.class)
+                .hasMessage("literature persistence operation failed")
+                .hasRootCauseInstanceOf(IllegalStateException.class);
+        verifyNoMoreInteractions(searchAgent);
     }
 
     private AgentRunResult runResult(
