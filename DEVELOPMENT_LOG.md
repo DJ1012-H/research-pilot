@@ -1579,3 +1579,37 @@ Spring Boot 的条件装配回退，使它成为 MVC 使用的全局 Mapper；�
   passed 464 tests with 0 failures, 0 errors and 4 explicit opt-in network
   smoke skips, and rebuilt the executable Spring Boot JAR. The tracked-content
   sensitive scan and diff checks are recorded with this delivery review.
+
+## 2026-08-05 - Reproducible entry point, demonstration material, and startup modes
+
+- Replaced the date-stacked README entry point with a current quick-start for
+  the trusted literature Agent. Historical milestone facts remain in this
+  append-only log and in existing design documents; the new README does not
+  present H2 compatibility tests as MySQL 8 acceptance or fixtures as live
+  provider results.
+- Added three explicit PowerShell modes in `scripts/start-local.ps1`:
+  `OfflineBuild` performs only Maven verification; `TrustedSearch` enables the
+  LLM/OpenAlex/Crossref route without persistence; `FullDemo` additionally
+  enables Flyway and persistence for an authorized MySQL schema. Redis is
+  checked only with `-EnableCache`; MySQL is checked only for `FullDemo`.
+  The script never invokes `flyway clean`, destructive database commands, or
+  standalone provider probes, and it does not print passwords, tokens, or API
+  keys.
+- Added current HTTP examples, a focused deterministic regression script, and
+  `docs/demo/trusted-agent-demo.md`. The guide contains architecture, actual
+  Agent-stage, Flyway V1/V2 ER, and trusted-data-flow diagrams plus three
+  explainable scenarios. It labels external observations, fixed fixtures, and
+  deterministic tests separately.
+- Updated `.env.example` to describe only current feature switches and
+  non-secret placeholders. Qdrant/embedding settings were removed from the
+  example because those capabilities are not implemented and remain gated.
+- Baseline before this documentation/script work: `./mvnw.cmd clean verify`
+  passed 464 tests with 0 failures, 0 errors, and 4 explicit opt-in network
+  smoke skips, and rebuilt the executable JAR. The new focused
+  `verify-trusted-demo.ps1` command passed 42 tests with 0 failures, 0 errors,
+  and 2 explicit opt-in Redis smoke skips. The README `OfflineBuild` command
+  was then executed in a fresh PowerShell process and its final `clean verify`
+  again passed 464 tests with 0 failures, 0 errors, and 4 explicit opt-in
+  network smoke skips. No real LLM, OpenAlex, Crossref, MySQL, or Redis
+  demonstration was run for this documentation milestone because no live
+  configuration or authorization was supplied.

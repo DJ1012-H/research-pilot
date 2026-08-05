@@ -1,11 +1,39 @@
-### Application health (does not test MySQL or Redis by default)
-GET http://localhost:8080/actuator/health
+@baseUrl = http://localhost:8080
 
-### Explicit MySQL, Redis and LLM configuration check
-GET http://localhost:8080/api/system/status
+### Application health
+GET {{baseUrl}}/actuator/health
 
-### Chat model smoke test
-POST http://localhost:8080/api/chat
+### Diagnostic dependency status
+# This probes currently configured MySQL and Redis clients. It does not enable persistence or cache.
+GET {{baseUrl}}/api/system/status
+
+### Swagger UI (open this URL in a browser)
+GET {{baseUrl}}/swagger-ui.html
+
+### Trusted literature search: live external result varies by provider availability
+POST {{baseUrl}}/api/literature/search
+Content-Type: application/json
+
+{
+  "query": "近五年遥感变化检测研究",
+  "fromYear": 2021,
+  "toYear": 2026,
+  "limit": 5
+}
+
+### Valid contract boundary: minimum allowed result limit
+POST {{baseUrl}}/api/literature/search
+Content-Type: application/json
+
+{
+  "query": "remote sensing change detection",
+  "fromYear": 2021,
+  "toYear": 2026,
+  "limit": 1
+}
+
+### Optional chat endpoint: requires LLM_ENABLED=true
+POST {{baseUrl}}/api/chat
 Content-Type: application/json
 
 {
