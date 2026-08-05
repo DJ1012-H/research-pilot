@@ -1613,3 +1613,45 @@ Spring Boot 的条件装配回退，使它成为 MVC 使用的全局 Mapper；�
   network smoke skips. No real LLM, OpenAlex, Crossref, MySQL, or Redis
   demonstration was run for this documentation milestone because no live
   configuration or authorization was supplied.
+
+## 2026-08-05 - Crossref lookup capacity alignment
+
+- Increased the configured `CrossrefCandidateLookupService` ceiling from five
+  to ten new lookups per invocation. The executor supplies the trusted
+  requested target as a second bound, so the effective per-round limit is
+  `min(requested target, configured lookup ceiling)`. With at most two Agent
+  search rounds, a five-paper request retains its prior five-lookup ceiling
+  while the default 20-paper target can use at most ten plus ten lookups.
+- Kept the public maximum result limit, two-round/one-refinement Agent shape,
+  ten-business-step ceiling, 45 global unique-candidate and Crossref-call
+  budgets, 90-second deadline, provider concurrency, five-requests-per-second
+  gate, retry policy, and `VERIFIED` plus normalized-DOI admission unchanged.
+  A request above the bounded lookup capacity may still return an honest
+  partial result.
+- Added configuration-consistency coverage tying the default result target to
+  the two-round lookup capacity and retaining the larger Agent-level
+  Crossref-call ceiling. Updated the production boundary regression to prove
+  ten port calls are allowed and the eleventh is rejected before invocation;
+  a separate regression proves a five-paper caller still blocks the sixth.
+- The final focused configuration/lookup/executor/Agent/service command passed
+  32 tests with 0 failures, 0 errors and 0 skips. Final
+  `./mvnw.cmd clean verify` passed 465
+  tests with 0 failures, 0 errors and 4 explicit opt-in network smoke skips,
+  and rebuilt the executable Spring Boot JAR.
+- One explicitly authorized FullDemo observation was run against the
+  intermediate configured-ceiling implementation before the caller bound was
+  added. Flyway validated an existing MySQL 8 V2 schema; health, MySQL, Redis
+  and LLM configuration were UP. The fixed five-paper request completed
+  server-side with HTTP 200 and `TARGET_REACHED`: 15 candidates, 15 unique
+  candidates, 10 Crossref attempts, 10 verified outcomes, five formal papers,
+  a generated review with four citations, and 40,669 ms service time.
+  Persistence creation and finalization succeeded. The ten attempts for a
+  five-paper request exposed the over-query and directly motivated the caller
+  bound above; the final deterministic regression proves the correction.
+- The PowerShell client wrapper raised `NotSupportedException` while inspecting
+  the already-returned response, after the server had logged HTTP 200 and
+  durable finalization. No second external search was sent. After the final
+  clean build, the corrected JAR was restored with the same FullDemo
+  configuration; health, MySQL, Redis and LLM configuration were UP. This is
+  one public-network observation, not an SLA or a live proof of the final
+  caller-bound branch.

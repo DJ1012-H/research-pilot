@@ -80,8 +80,20 @@ public class CrossrefCandidateLookupService {
         return lookup(candidateDeduplicationService.deduplicate(candidates));
     }
 
+    public CrossrefLookupSummary lookup(List<CandidatePaper> candidates, int lookupLimit) {
+        Objects.requireNonNull(candidates, "candidates must not be null");
+        return lookup(candidateDeduplicationService.deduplicate(candidates), lookupLimit);
+    }
+
     public CrossrefLookupSummary lookup(CandidateDeduplicationResult deduplication) {
+        return lookup(deduplication, searchProperties.getMaxCrossrefLookupsPerRequest());
+    }
+
+    public CrossrefLookupSummary lookup(CandidateDeduplicationResult deduplication, int lookupLimit) {
         Objects.requireNonNull(deduplication, "deduplication must not be null");
+        if (lookupLimit < 1) {
+            throw new IllegalArgumentException("lookupLimit must be positive");
+        }
         LookupTargets targets = targets(deduplication);
         if (!crossrefProperties.isEnabled()) {
             // A disabled source performs no port, gate, retry, or HTTP operation.
@@ -100,7 +112,7 @@ public class CrossrefCandidateLookupService {
         List<CrossrefWorkMetadata> metadata = new ArrayList<>();
         List<CrossrefBibliographicLookupResult> bibliographicResults = new ArrayList<>();
         List<CandidateTarget> ordered = targets.candidates();
-        int budget = searchProperties.getMaxCrossrefLookupsPerRequest();
+        int budget = Math.min(searchProperties.getMaxCrossrefLookupsPerRequest(), lookupLimit);
         Map<String, LookupOutcome> cachedOutcomes = new HashMap<>();
         List<CandidateLookupResult> candidateResults = new ArrayList<>();
 

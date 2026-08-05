@@ -66,29 +66,47 @@ class CrossrefCandidateLookupServiceTest {
     }
 
     @Test
-    void shouldStopAtTheProductionFiveLookupLimitBeforeTheSixthPortCall() {
+    void shouldStopAtTheProductionTenLookupLimitBeforeTheEleventhPortCall() {
         crossref.setEnabled(true);
         when(port.findByDoi(org.mockito.ArgumentMatchers.anyString())).thenReturn(CrossrefLookupResult.notFound());
 
         CrossrefLookupSummary summary = service.lookup(List.of(
                 candidate("10.1000/a", "Paper A"), candidate("10.1000/b", "Paper B"),
                 candidate("10.1000/c", "Paper C"), candidate("10.1000/d", "Paper D"),
-                candidate("10.1000/e", "Paper E"), candidate("10.1000/f", "Paper F")
+                candidate("10.1000/e", "Paper E"), candidate("10.1000/f", "Paper F"),
+                candidate("10.1000/g", "Paper G"), candidate("10.1000/h", "Paper H"),
+                candidate("10.1000/i", "Paper I"), candidate("10.1000/j", "Paper J"),
+                candidate("10.1000/k", "Paper K")
         ));
+
+        assertThat(summary.attemptedCount()).isEqualTo(10);
+        assertThat(summary.notFoundCount()).isEqualTo(10);
+        assertThat(summary.skippedByLimitCount()).isOne();
+        assertThat(summary.candidateResults()).hasSize(11);
+        assertThat(summary.candidateResults().subList(0, 10))
+                .allMatch(result -> result.status()
+                        == com.dj1012h.researchpilot.literature.model.CandidateLookupResult.LookupStatus.NOT_FOUND);
+        assertThat(summary.candidateResults().get(10).status())
+                .isEqualTo(com.dj1012h.researchpilot.literature.model.CandidateLookupResult.LookupStatus.SKIPPED_BY_LIMIT);
+        verify(port, times(10)).findByDoi(org.mockito.ArgumentMatchers.anyString());
+        verify(port, never()).findByDoi("10.1000/k");
+    }
+
+    @Test
+    void shouldClampConfiguredLookupCapacityToTheCallerLimit() {
+        crossref.setEnabled(true);
+        when(port.findByDoi(org.mockito.ArgumentMatchers.anyString()))
+                .thenReturn(CrossrefLookupResult.notFound());
+
+        CrossrefLookupSummary summary = service.lookup(List.of(
+                candidate("10.1000/a", "Paper A"), candidate("10.1000/b", "Paper B"),
+                candidate("10.1000/c", "Paper C"), candidate("10.1000/d", "Paper D"),
+                candidate("10.1000/e", "Paper E"), candidate("10.1000/f", "Paper F")
+        ), 5);
 
         assertThat(summary.attemptedCount()).isEqualTo(5);
         assertThat(summary.notFoundCount()).isEqualTo(5);
         assertThat(summary.skippedByLimitCount()).isOne();
-        assertThat(summary.candidateResults())
-                .extracting(result -> result.status())
-                .containsExactly(
-                        com.dj1012h.researchpilot.literature.model.CandidateLookupResult.LookupStatus.NOT_FOUND,
-                        com.dj1012h.researchpilot.literature.model.CandidateLookupResult.LookupStatus.NOT_FOUND,
-                        com.dj1012h.researchpilot.literature.model.CandidateLookupResult.LookupStatus.NOT_FOUND,
-                        com.dj1012h.researchpilot.literature.model.CandidateLookupResult.LookupStatus.NOT_FOUND,
-                        com.dj1012h.researchpilot.literature.model.CandidateLookupResult.LookupStatus.NOT_FOUND,
-                        com.dj1012h.researchpilot.literature.model.CandidateLookupResult.LookupStatus.SKIPPED_BY_LIMIT
-                );
         verify(port, times(5)).findByDoi(org.mockito.ArgumentMatchers.anyString());
         verify(port, never()).findByDoi("10.1000/f");
     }

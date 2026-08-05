@@ -60,7 +60,7 @@ app:
       max-result-limit: ${LITERATURE_MAX_RESULT_LIMIT:50}
       candidate-multiplier: ${LITERATURE_CANDIDATE_MULTIPLIER:3}
       max-candidate-limit: ${LITERATURE_MAX_CANDIDATE_LIMIT:100}
-      max-crossref-lookups-per-request: ${LITERATURE_MAX_CROSSREF_LOOKUPS:5}
+      max-crossref-lookups-per-request: ${LITERATURE_MAX_CROSSREF_LOOKUPS:10}
       earliest-supported-year: ${LITERATURE_EARLIEST_SUPPORTED_YEAR:1900}
   research-agent:
     max-search-rounds: ${RESEARCH_AGENT_MAX_SEARCH_ROUNDS:2}

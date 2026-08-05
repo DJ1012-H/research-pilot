@@ -209,7 +209,9 @@ public class SearchActionExecutor {
             Instant startedAt,
             ActionExecutionPermit permit
     ) {
-        CrossrefLookupSummary lookup = crossrefLookupService.lookup(context.currentRoundDeduplication());
+        CrossrefLookupSummary lookup = crossrefLookupService.lookup(
+                context.currentRoundDeduplication(),
+                context.state().requestedCount());
         List<CandidateVerificationOutcome> currentOutcomes = verificationService.verify(lookup);
         List<CandidateVerificationOutcome> allOutcomes = new ArrayList<>(context.state().verificationResults());
         allOutcomes.addAll(currentOutcomes);

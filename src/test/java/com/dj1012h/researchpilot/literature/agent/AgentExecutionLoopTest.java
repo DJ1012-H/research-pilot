@@ -91,7 +91,7 @@ class AgentExecutionLoopTest {
         List<SearchResponse.PaperResult> papers = List.of(paper(first), paper(second));
         when(openAlex.search(any())).thenReturn(new OpenAlexSearchResult(2, List.of(first, second), null));
         when(deduplication.deduplicate(List.of(first, second))).thenReturn(deduplicated);
-        when(crossref.lookup(any(CandidateDeduplicationResult.class))).thenReturn(summary);
+        when(crossref.lookup(any(CandidateDeduplicationResult.class), anyInt())).thenReturn(summary);
         when(verification.verify(summary)).thenReturn(outcomes);
         when(eligible.filter(outcomes, 2)).thenReturn(papers);
 
@@ -131,7 +131,7 @@ class AgentExecutionLoopTest {
         when(deduplication.deduplicate(List.of(first))).thenReturn(deduplication(first));
         when(deduplication.deduplicate(List.of(duplicate, second, third)))
                 .thenReturn(deduplication(duplicate, second, third));
-        when(crossref.lookup(any(CandidateDeduplicationResult.class)))
+        when(crossref.lookup(any(CandidateDeduplicationResult.class), anyInt()))
                 .thenReturn(firstSummary)
                 .thenReturn(secondSummary);
         when(verification.verify(firstSummary)).thenReturn(firstOutcomes);
@@ -178,7 +178,7 @@ class AgentExecutionLoopTest {
         verify(decider, times(1)).decide(any());
         ArgumentCaptor<CandidateDeduplicationResult> capture =
                 ArgumentCaptor.forClass(CandidateDeduplicationResult.class);
-        verify(crossref, times(2)).lookup(capture.capture());
+        verify(crossref, times(2)).lookup(capture.capture(), anyInt());
         assertThat(capture.getAllValues().get(1).uniqueOriginalCandidates()).containsExactly(second, third);
     }
 
@@ -225,7 +225,7 @@ class AgentExecutionLoopTest {
                 .thenReturn(new OpenAlexSearchResult(1, List.of(second), null));
         when(deduplication.deduplicate(List.of(first))).thenReturn(deduplication(first));
         when(deduplication.deduplicate(List.of(second))).thenReturn(deduplication(second));
-        when(crossref.lookup(any(CandidateDeduplicationResult.class)))
+        when(crossref.lookup(any(CandidateDeduplicationResult.class), anyInt()))
                 .thenReturn(firstSummary)
                 .thenReturn(secondSummary);
         when(verification.verify(firstSummary)).thenReturn(List.of());
@@ -257,7 +257,7 @@ class AgentExecutionLoopTest {
                 AgentAction.COMPLETE
         );
         verify(openAlex, times(2)).search(any());
-        verify(crossref, times(2)).lookup(any(CandidateDeduplicationResult.class));
+        verify(crossref, times(2)).lookup(any(CandidateDeduplicationResult.class), anyInt());
         verify(refiner, times(1)).refine(any());
     }
 
@@ -267,7 +267,7 @@ class AgentExecutionLoopTest {
         CrossrefLookupSummary summary = availableSummary(1);
         when(openAlex.search(any())).thenReturn(new OpenAlexSearchResult(1, List.of(candidate), null));
         when(deduplication.deduplicate(List.of(candidate))).thenReturn(deduplication(candidate));
-        when(crossref.lookup(any(CandidateDeduplicationResult.class))).thenReturn(summary);
+        when(crossref.lookup(any(CandidateDeduplicationResult.class), anyInt())).thenReturn(summary);
         when(verification.verify(summary)).thenReturn(List.of());
         when(eligible.filter(any(), anyInt())).thenReturn(List.of());
         when(decider.decide(any())).thenReturn(
@@ -323,7 +323,7 @@ class AgentExecutionLoopTest {
             assertThat(entry.status()).isEqualTo(ExecutionStepStatus.BLOCKED);
         });
         verify(openAlex, never()).search(any());
-        verify(crossref, never()).lookup(any(CandidateDeduplicationResult.class));
+        verify(crossref, never()).lookup(any(CandidateDeduplicationResult.class), anyInt());
         verify(decider, never()).decide(any());
     }
 
@@ -337,7 +337,7 @@ class AgentExecutionLoopTest {
                 .thenReturn(new OpenAlexSearchResult(1, List.of(second), null));
         when(deduplication.deduplicate(List.of(first))).thenReturn(deduplication(first));
         when(deduplication.deduplicate(List.of(second))).thenReturn(deduplication(second));
-        when(crossref.lookup(any(CandidateDeduplicationResult.class)))
+        when(crossref.lookup(any(CandidateDeduplicationResult.class), anyInt()))
                 .thenReturn(firstSummary)
                 .thenReturn(secondSummary);
         when(verification.verify(firstSummary)).thenReturn(List.of(firstOutcome));

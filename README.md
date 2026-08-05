@@ -9,6 +9,7 @@ The public API is deliberately conservative. A successful HTTP request can legit
 - Trusted search-plan generation with JSON, schema, business, and security validation.
 - A bounded `LiteratureResearchAgent`: at most two OpenAlex rounds and one controlled plan refinement.
 - Candidate deduplication and Crossref DOI/bibliographic verification; formal output is gated by `VERIFIED` plus a normalized DOI.
+- Up to `min(requested target, 10)` new Crossref lookups per round, so small requests do not spend the larger capacity while the default 20-paper target fits two rounds; larger requested limits may still return an honest partial result.
 - Citation-validated, abstract-level review with one bounded repair and a safe no-review fallback.
 - Optional Flyway V1/V2 and MyBatis persistence. Once enabled, persistence failures fail closed rather than reporting a false success.
 - Optional Redis cache-aside decorators for OpenAlex and Crossref. Redis failures fail open to the providers; cache hits still go through verification.

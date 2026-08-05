@@ -10,6 +10,7 @@ import org.springframework.core.io.ClassPathResource;
 import java.io.IOException;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 class SearchConfigurationConsistencyTest {
 
@@ -19,6 +20,7 @@ class SearchConfigurationConsistencyTest {
     @Test
     void javaAndRuntimeLimitsMustStayAligned() {
         LiteratureSearchProperties properties = new LiteratureSearchProperties();
+        AgentBudgetProperties agentBudgets = new AgentBudgetProperties();
 
         assertThat(properties.getMaxResultLimit()).isEqualTo(SearchPlan.MAX_RESULT_LIMIT);
         assertThat(properties.getMaxCandidateLimit()).isEqualTo(SearchPlan.MAX_CANDIDATE_LIMIT);
@@ -26,7 +28,18 @@ class SearchConfigurationConsistencyTest {
                 .isEqualTo(SearchPlan.EARLIEST_SUPPORTED_YEAR);
         assertThat(OpenAlexQuery.MAX_PAGE_SIZE)
                 .isGreaterThanOrEqualTo(SearchPlan.MAX_CANDIDATE_LIMIT);
-        assertThat(properties.getMaxCrossrefLookupsPerRequest()).isBetween(1, 5);
+        assertThat(properties.getMaxCrossrefLookupsPerRequest())
+                .isEqualTo(LiteratureSearchProperties.MAX_CROSSREF_LOOKUPS_PER_REQUEST);
+        assertThat(properties.getDefaultResultLimit())
+                .isLessThanOrEqualTo(
+                        properties.getMaxCrossrefLookupsPerRequest()
+                                * agentBudgets.getMaxSearchRounds());
+        assertThat(agentBudgets.getMaxCrossrefCalls())
+                .isGreaterThanOrEqualTo(
+                        properties.getMaxCrossrefLookupsPerRequest()
+                                * agentBudgets.getMaxSearchRounds());
+        assertThatThrownBy(() -> properties.setMaxCrossrefLookupsPerRequest(11))
+                .isInstanceOf(IllegalArgumentException.class);
     }
 
     @Test

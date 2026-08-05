@@ -343,7 +343,7 @@ flowchart TD
 
 - `CrossrefClient` 只负责 HTTP、状态分类、受控重试和外部 DTO 反序列化；使用 URI Builder 构造 DOI 路径，不记录完整 URL、邮箱、Token 或原始响应。
 - `CrossrefSearchAdapter` 将 404 变为内部 `NOT_FOUND`，其余失败原样传播；只映射书目信息，不比较字段，也不产生核验结论。
-- `CrossrefCandidateLookupService` 保持 OpenAlex 候选顺序，对非空 DOI 稳定去重，按 `max-crossref-lookups-per-request`（1～5）顺序查询。限流、5xx、超时或传输失败会停止后续查询并保留已获得的元数据。
+- `CrossrefCandidateLookupService` 保持 OpenAlex 候选顺序，对非空 DOI 稳定去重。每轮实际新查询预算为 `min(可信请求目标, max-crossref-lookups-per-request)`；配置范围为 1～10，默认 10。受控 Agent 最多执行两轮，因此较小请求不会无谓使用更大容量，默认 20 篇目标仍与最多 20 次新 Crossref 查询的容量对齐；更高的公开结果目标允许诚实返回部分结果。限流、5xx、超时或传输失败会停止后续查询并保留已获得的元数据。
 - `CrossrefRequestGate` 使用公平 `Semaphore` 约束单进程并发，并实施本地请求速率；`Retry-After` 优先于封顶的指数退避。禁用、缺少 `mailto` 或 `User-Agent` 不会发出 HTTP 请求。
 - Crossref 找到记录不表示论文已 `VERIFIED`。`SearchResponse` 固定保持 `NO_VERIFIED_RESULTS`、`deduplicatedCount=0`、零核验统计与空 `papers`；消息和脱敏日志只呈现候选/查询计数。
 

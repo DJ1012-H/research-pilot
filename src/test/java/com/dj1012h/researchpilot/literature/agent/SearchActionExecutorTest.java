@@ -39,6 +39,7 @@ import java.util.stream.Collectors;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -86,7 +87,7 @@ class SearchActionExecutorTest {
         assertThat(result.status()).isEqualTo(ExecutionStepStatus.BLOCKED);
         assertThat(result.context().state().terminationReason()).isEqualTo(TerminationReason.INVALID_STATE);
         verify(openAlex, never()).search(any());
-        verify(crossref, never()).lookup(any(CandidateDeduplicationResult.class));
+        verify(crossref, never()).lookup(any(CandidateDeduplicationResult.class), anyInt());
     }
 
     @Test
@@ -100,7 +101,7 @@ class SearchActionExecutorTest {
         assertThat(result.context().state().terminationReason())
                 .isEqualTo(TerminationReason.EXTERNAL_SERVICE_UNAVAILABLE);
         assertThat(result.observationSummary()).doesNotContain("raw provider body");
-        verify(crossref, never()).lookup(any(CandidateDeduplicationResult.class));
+        verify(crossref, never()).lookup(any(CandidateDeduplicationResult.class), anyInt());
     }
 
     @Test
@@ -138,7 +139,7 @@ class SearchActionExecutorTest {
         when(summary.crossrefEnabled()).thenReturn(true);
         when(summary.sourceAvailable()).thenReturn(false);
         when(summary.attemptedCount()).thenReturn(1);
-        when(crossref.lookup(current)).thenReturn(summary);
+        when(crossref.lookup(current, 2)).thenReturn(summary);
         when(verification.verify(summary)).thenReturn(List.of());
         when(eligible.filter(any(), any(Integer.class))).thenReturn(List.of());
         AgentState state = stateAt(
@@ -220,7 +221,7 @@ class SearchActionExecutorTest {
                 .extracting(SearchActionExecutionResult::status)
                 .containsOnly(ExecutionStepStatus.BLOCKED);
         verify(openAlex, never()).search(any());
-        verify(crossref, never()).lookup(any(CandidateDeduplicationResult.class));
+        verify(crossref, never()).lookup(any(CandidateDeduplicationResult.class), anyInt());
         verify(refiner, never()).refine(any());
     }
 
