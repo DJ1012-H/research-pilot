@@ -55,7 +55,7 @@ literature
 | `query` | `String` | 是 | 用户原始自然语言研究主题，最长 500 字符 |
 | `fromYear` | `Integer` | 否 | 显式起始年份，优先于自然语言 |
 | `toYear` | `Integer` | 否 | 显式结束年份，优先于自然语言 |
-| `limit` | `Integer` | 否 | 希望最终返回的论文数，范围 1～50 |
+| `limit` | `Integer` | 否 | 希望最终返回的论文数，范围 1～15，未指定时默认 5 |
 
 默认值和 `fromYear <= toYear` 等跨字段规则由后续 `SearchPlanValidator` 处理。
 
@@ -76,7 +76,7 @@ literature
 | `fromYear` | `int` | 已解析并校验的起始年份 |
 | `toYear` | `int` | 已解析并校验的结束年份 |
 | `candidateLimit` | `int` | OpenAlex 候选池数量，1～100，且不小于 `resultLimit` |
-| `resultLimit` | `int` | 最终期望返回数量，1～50 |
+| `resultLimit` | `int` | 最终期望返回数量，1～15 |
 
 LLM 原始输出后续使用内部 `SearchPlanDraft` 表示。它必须经过 `SearchPlanValidator` 后才能生成 `SearchPlan`。
 
@@ -343,7 +343,7 @@ flowchart TD
 
 - `CrossrefClient` 只负责 HTTP、状态分类、受控重试和外部 DTO 反序列化；使用 URI Builder 构造 DOI 路径，不记录完整 URL、邮箱、Token 或原始响应。
 - `CrossrefSearchAdapter` 将 404 变为内部 `NOT_FOUND`，其余失败原样传播；只映射书目信息，不比较字段，也不产生核验结论。
-- `CrossrefCandidateLookupService` 保持 OpenAlex 候选顺序，对非空 DOI 稳定去重。每轮实际新查询预算为 `min(可信请求目标, max-crossref-lookups-per-request)`；配置范围为 1～10，默认 10。受控 Agent 最多执行两轮，因此较小请求不会无谓使用更大容量，默认 20 篇目标仍与最多 20 次新 Crossref 查询的容量对齐；更高的公开结果目标允许诚实返回部分结果。限流、5xx、超时或传输失败会停止后续查询并保留已获得的元数据。
+- `CrossrefCandidateLookupService` 保持 OpenAlex 候选顺序，对非空 DOI 稳定去重。每轮实际新查询预算为 `min(可信请求目标, max-crossref-lookups-per-request)`；配置范围为 1～10，默认 10。受控 Agent 最多执行两轮，因此较小请求不会无谓使用更大容量，公开默认目标为 5、上限为 15；15 篇目标可使用第二轮容量，并允许诚实返回部分结果。限流、5xx、超时或传输失败会停止后续查询并保留已获得的元数据。
 - `CrossrefRequestGate` 使用公平 `Semaphore` 约束单进程并发，并实施本地请求速率；`Retry-After` 优先于封顶的指数退避。禁用、缺少 `mailto` 或 `User-Agent` 不会发出 HTTP 请求。
 - Crossref 找到记录不表示论文已 `VERIFIED`。`SearchResponse` 固定保持 `NO_VERIFIED_RESULTS`、`deduplicatedCount=0`、零核验统计与空 `papers`；消息和脱敏日志只呈现候选/查询计数。
 

@@ -78,7 +78,7 @@
     "resultLimit": {
       "type": ["integer", "null"],
       "minimum": 1,
-      "maximum": 50
+      "maximum": 15
     }
   }
 }

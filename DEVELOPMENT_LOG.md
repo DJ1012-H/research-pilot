@@ -1655,3 +1655,35 @@ Spring Boot 的条件装配回退，使它成为 MVC 使用的全局 Mapper；�
   configuration; health, MySQL, Redis and LLM configuration were UP. This is
   one public-network observation, not an SLA or a live proof of the final
   caller-bound branch.
+
+## 2026-08-06 - Trusted demo main-plan closeout
+
+- Restored the approved public result contract to a default of 5 and a hard
+  maximum of 15 across request validation, the Java domain model, model-output
+  schema, runtime defaults, tests, README, and current design documentation.
+  Immutable Flyway V1 retains its historical wider storage envelope; it does
+  not override Java admission.
+- Retained the measured 10-business-action Agent ceiling and documented the
+  correction from the historical plan's stale estimate of 8. The operational
+  shape remains two search rounds and one controlled refinement, with terminal
+  completion not consuming an additional business action.
+- Added `scripts/replay-trusted-demo.ps1` and a fixed offline replay covering
+  first-round target, target after one refinement, and insufficient evidence.
+  The entry point prints only redacted statuses and counts. The two successful
+  paths each produced five formal papers and three citation-validated review
+  citations; the insufficient path produced no formal papers, no citations,
+  and no review-model call.
+- Final `./mvnw.cmd clean verify` passed 466 tests with 0 failures, 0 errors,
+  and 4 explicit opt-in external smoke skips, and rebuilt the executable JAR.
+- The final corrected JAR was started without a Windows reboot. Exactly one
+  fixed FullDemo literature request was sent and was not retried. It returned
+  HTTP 200, `COMPLETED`, 15 candidates, 15 unique candidates, 5 verified and
+  formal papers, `TARGET_REACHED`, a generated review with 5 citations, and
+  24,852 ms service time.
+- A read-only MySQL inspection of the same redacted task confirmed one task,
+  one plan attempt, five Agent steps, five task-paper links, and 15 verification
+  evidence rows. The task was `COMPLETED`, the review was `GENERATED`, and the
+  public termination reason was `TARGET_REACHED`.
+- Added `docs/demo/v1.0.0-demo-acceptance.md` as the English release evidence.
+  Qdrant, embeddings, PDF ingestion, and RAG business code remain excluded from
+  this main-plan release and isolated as a post-2026-08-10 extension.

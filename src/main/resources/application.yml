@@ -56,8 +56,8 @@ app:
       failure-cooldown: ${LITERATURE_CACHE_FAILURE_COOLDOWN:30s}
       max-payload-bytes: ${LITERATURE_CACHE_MAX_PAYLOAD_BYTES:2097152}
     search:
-      default-result-limit: ${LITERATURE_DEFAULT_RESULT_LIMIT:20}
-      max-result-limit: ${LITERATURE_MAX_RESULT_LIMIT:50}
+      default-result-limit: ${LITERATURE_DEFAULT_RESULT_LIMIT:5}
+      max-result-limit: ${LITERATURE_MAX_RESULT_LIMIT:15}
       candidate-multiplier: ${LITERATURE_CANDIDATE_MULTIPLIER:3}
       max-candidate-limit: ${LITERATURE_MAX_CANDIDATE_LIMIT:100}
       max-crossref-lookups-per-request: ${LITERATURE_MAX_CROSSREF_LOOKUPS:10}

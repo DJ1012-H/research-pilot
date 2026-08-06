@@ -136,3 +136,21 @@ powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\scripts\verify-trusted
 ```
 
 That suite is **DETERMINISTIC TEST** evidence based on existing Mockito/fake/fixed-clock/H2 coverage. Existing provider snapshots are **OFFLINE FIXTURE** evidence. A manually configured serial run against LLM, OpenAlex, Crossref, MySQL, or Redis is **REAL NETWORK** evidence: record only redacted HTTP/business status, counts, review status, termination reason, and elapsed time, and call it an observation rather than an SLA, benchmark, or stability proof.
+
+For a concise release replay of exactly the three paths above, run:
+
+```powershell
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\scripts\replay-trusted-demo.ps1
+```
+
+This non-public entry point runs fixed offline fixtures through the controlled
+Agent, formal-paper admission, review evidence gate, citation validation, and
+review response assembly. It emits only scenario names, safe statuses, counts,
+termination reasons, review statuses, and citation counts.
+
+The release implementation permits 10 business actions rather than the stale
+8-action estimate in the historical plan: an initial plan plus two four-action
+retrieval rounds and one controlled refinement. Terminal `COMPLETE` or
+`TERMINATE` records the outcome but does not consume an additional business
+action. This is a documented plan correction, not an increase in retrieval
+rounds or refinement count.

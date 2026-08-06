@@ -42,8 +42,12 @@ Status values are bounded `VARCHAR` rather than MySQL `ENUM`; Java owns enum
 mapping and business validation. The schema enforces positive requested counts
 and attempt numbers; non-negative counters, budgets, query length, and
 versions; candidate/verification-count conservation; `completed_at >=
-started_at`; SearchPlan's `1..50` result and `result_limit..100` candidate
-limits; and engineering score bounds of `[0,1]` (not probabilities).
+started_at`; the historical V1 storage envelope of `1..50` results and
+`result_limit..100` candidates; and engineering score bounds of `[0,1]` (not
+probabilities). The release application contract is narrower: Java validation,
+the request DTO, runtime configuration, and the model-output schema all enforce
+`1..15` results with a default of 5. V1 remains immutable and the wider
+database envelope does not admit an otherwise invalid plan.
 
 All timestamps are `DATETIME(6)` and represent UTC instants. Future Java code
 must use `Instant` in UTC. `created_at` is immutable creation time, `updated_at`

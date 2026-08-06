@@ -23,6 +23,10 @@ class SearchConfigurationConsistencyTest {
         AgentBudgetProperties agentBudgets = new AgentBudgetProperties();
 
         assertThat(properties.getMaxResultLimit()).isEqualTo(SearchPlan.MAX_RESULT_LIMIT);
+        assertThat(properties.getMaxResultLimit())
+                .isEqualTo(LiteratureSearchProperties.MAX_RESULT_LIMIT);
+        assertThat(properties.getDefaultResultLimit())
+                .isEqualTo(LiteratureSearchProperties.DEFAULT_RESULT_LIMIT);
         assertThat(properties.getMaxCandidateLimit()).isEqualTo(SearchPlan.MAX_CANDIDATE_LIMIT);
         assertThat(properties.getEarliestSupportedYear())
                 .isEqualTo(SearchPlan.EARLIEST_SUPPORTED_YEAR);
@@ -39,6 +43,10 @@ class SearchConfigurationConsistencyTest {
                         properties.getMaxCrossrefLookupsPerRequest()
                                 * agentBudgets.getMaxSearchRounds());
         assertThatThrownBy(() -> properties.setMaxCrossrefLookupsPerRequest(11))
+                .isInstanceOf(IllegalArgumentException.class);
+        assertThatThrownBy(() -> properties.setMaxResultLimit(16))
+                .isInstanceOf(IllegalArgumentException.class);
+        assertThatThrownBy(() -> properties.setDefaultResultLimit(16))
                 .isInstanceOf(IllegalArgumentException.class);
     }
 

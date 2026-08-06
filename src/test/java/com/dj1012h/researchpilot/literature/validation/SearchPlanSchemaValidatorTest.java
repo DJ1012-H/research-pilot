@@ -82,8 +82,8 @@ class SearchPlanSchemaValidatorTest {
                         "INVALID_ENUM_VALUE"
                 ),
                 Arguments.of(
-                        "result limit over 50",
-                        (Consumer<ObjectNode>) root -> root.put("resultLimit", 51),
+                        "result limit over 15",
+                        (Consumer<ObjectNode>) root -> root.put("resultLimit", 16),
                         "SCHEMA_VALIDATION_FAILED"
                 ),
                 Arguments.of(

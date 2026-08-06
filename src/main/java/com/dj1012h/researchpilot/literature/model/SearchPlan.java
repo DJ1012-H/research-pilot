@@ -32,7 +32,7 @@ public record SearchPlan(
     public static final int MAX_KEYWORD_COUNT = 10;
     public static final int MAX_KEYWORD_LENGTH = 100;
     public static final int MAX_SEARCH_QUERY_LENGTH = 300;
-    public static final int MAX_RESULT_LIMIT = 50;
+    public static final int MAX_RESULT_LIMIT = 15;
 
     public SearchPlan {
         originalQuery = requireText(originalQuery, "originalQuery");

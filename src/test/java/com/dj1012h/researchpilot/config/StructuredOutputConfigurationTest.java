@@ -33,7 +33,7 @@ class StructuredOutputConfigurationTest {
                 .contains("search-plan-v1");
         assertThat(schema.path("additionalProperties").booleanValue()).isFalse();
         assertThat(schema.path("required")).hasSize(10);
-        assertThat(schema.at("/properties/resultLimit/maximum").intValue()).isEqualTo(50);
+        assertThat(schema.at("/properties/resultLimit/maximum").intValue()).isEqualTo(15);
         assertThat(schema.at("/properties/languages/items/enum"))
                 .extracting(JsonNode::textValue)
                 .containsExactly("en", "zh");

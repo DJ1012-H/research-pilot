@@ -7,10 +7,12 @@ import org.springframework.stereotype.Component;
 @ConfigurationProperties(prefix = "app.literature.search")
 public class LiteratureSearchProperties {
 
+    public static final int DEFAULT_RESULT_LIMIT = 5;
+    public static final int MAX_RESULT_LIMIT = 15;
     public static final int MAX_CROSSREF_LOOKUPS_PER_REQUEST = 10;
 
-    private int defaultResultLimit = 20;
-    private int maxResultLimit = 50;
+    private int defaultResultLimit = DEFAULT_RESULT_LIMIT;
+    private int maxResultLimit = MAX_RESULT_LIMIT;
     private int candidateMultiplier = 3;
     private int maxCandidateLimit = 100;
     private int maxCrossrefLookupsPerRequest = MAX_CROSSREF_LOOKUPS_PER_REQUEST;
@@ -21,6 +23,10 @@ public class LiteratureSearchProperties {
     }
 
     public void setDefaultResultLimit(int defaultResultLimit) {
+        if (defaultResultLimit < 1 || defaultResultLimit > MAX_RESULT_LIMIT) {
+            throw new IllegalArgumentException(
+                    "default-result-limit must be between 1 and " + MAX_RESULT_LIMIT);
+        }
         this.defaultResultLimit = defaultResultLimit;
     }
 
@@ -29,6 +35,10 @@ public class LiteratureSearchProperties {
     }
 
     public void setMaxResultLimit(int maxResultLimit) {
+        if (maxResultLimit != MAX_RESULT_LIMIT) {
+            throw new IllegalArgumentException(
+                    "max-result-limit is fixed at " + MAX_RESULT_LIMIT);
+        }
         this.maxResultLimit = maxResultLimit;
     }
 

@@ -24,7 +24,7 @@ public record SearchRequest(
         Integer toYear,
 
         @Min(value = 1, message = "limit 不能小于 1")
-        @Max(value = 50, message = "limit 不能大于 50")
+        @Max(value = 15, message = "limit 不能大于 15")
         Integer limit
 ) {
 }

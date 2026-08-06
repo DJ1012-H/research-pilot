@@ -65,8 +65,8 @@ class SearchPlanValidationPipelineTest {
     @Test
     void shouldStopAtSchemaBeforeMappingUnknownField() {
         String invalid = validJson().replace(
-                "\"resultLimit\": 20",
-                "\"resultLimit\": 20, \"reasoning\": \"hidden\""
+                "\"resultLimit\": 15",
+                "\"resultLimit\": 15, \"reasoning\": \"hidden\""
         );
 
         assertThatThrownBy(() -> pipeline().validate(
@@ -164,7 +164,7 @@ class SearchPlanValidationPipelineTest {
                   "recentYears": null,
                   "fromYear": 2020,
                   "toYear": 2025,
-                  "resultLimit": 20
+                  "resultLimit": 15
                 }
                 """;
     }

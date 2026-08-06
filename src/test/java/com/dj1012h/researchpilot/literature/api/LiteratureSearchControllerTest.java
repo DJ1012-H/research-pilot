@@ -72,7 +72,7 @@ class LiteratureSearchControllerTest {
     void shouldRejectInvalidRequestBeforeCallingService() throws Exception {
         mockMvc.perform(post("/api/literature/search")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"query\":\"\",\"limit\":51}"))
+                        .content("{\"query\":\"valid query\",\"limit\":16}"))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.code").value("VALIDATION_ERROR"));
 

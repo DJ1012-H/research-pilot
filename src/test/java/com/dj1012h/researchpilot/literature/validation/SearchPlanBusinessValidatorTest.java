@@ -49,8 +49,8 @@ class SearchPlanBusinessValidatorTest {
 
         assertThat(plan.fromYear()).isEqualTo(2022);
         assertThat(plan.toYear()).isEqualTo(2026);
-        assertThat(plan.resultLimit()).isEqualTo(20);
-        assertThat(plan.candidateLimit()).isEqualTo(60);
+        assertThat(plan.resultLimit()).isEqualTo(5);
+        assertThat(plan.candidateLimit()).isEqualTo(15);
         assertThat(plan.sort()).isEqualTo(SearchSort.RELEVANCE);
     }
 
@@ -77,7 +77,7 @@ class SearchPlanBusinessValidatorTest {
                 null,
                 2020,
                 2026,
-                50
+                15
         );
 
         SearchPlan plan = validator.validate(
@@ -88,7 +88,7 @@ class SearchPlanBusinessValidatorTest {
         assertThat(plan.englishKeywords()).containsExactly("Mamba", "remote sensing");
         assertThat(plan.languages()).containsExactly(LanguageCode.EN, LanguageCode.ZH);
         assertThat(plan.sort()).isEqualTo(SearchSort.MOST_CITED);
-        assertThat(plan.candidateLimit()).isEqualTo(100);
+        assertThat(plan.candidateLimit()).isEqualTo(45);
     }
 
     @Test
