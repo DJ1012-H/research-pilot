@@ -17,6 +17,8 @@ The initial collection name is `research_pilot_paper_segments_v1`. It uses one d
 
 The initial environment observation on 2026-08-06 measured 1024 dimensions from both Chinese and English inputs using Ollama 0.32.5 and `qwen3-embedding:0.6b`. The cold Chinese request took 23,938 ms and the following English request took 4,611 ms. These timings are observations, not service-level objectives.
 
+A repeat smoke on 2026-08-09 using the same Windows-native Ollama model measured 1024 dimensions for both inputs; the Chinese request took 5,524 ms and the English request took 139 ms. These timings are also observations, not service-level objectives.
+
 The initial `embeddingVersion` is `qe06b-d1024-t1-c350-o30-n1`. It identifies the model family, measured dimension, template, chunk size, overlap, and normalization generation. The dimension must still not be trusted as a source-code assumption. Before creating or opening the collection, the controlled environment check must:
 
 1. call the configured Ollama model with one Chinese and one English input;

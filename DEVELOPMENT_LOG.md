@@ -1743,3 +1743,35 @@ Spring Boot 的条件装配回退，使它成为 MVC 使用的全局 Mapper；�
 - Added `docs/demo/v1.0.0-demo-acceptance.md` as the English release evidence.
   Qdrant, embeddings, PDF ingestion, and RAG business code remain excluded from
   this main-plan release and isolated as a post-2026-08-10 extension.
+
+## 2026-08-09 - RAG Day 1 environment acceptance
+
+- Rebased the Day 1 infrastructure baseline from `origin/main` at `9770c04`
+  and replayed the earlier `c159028` change as `4d3a599` on the new feature
+  branch. The trusted-search release remains the base and its result contract,
+  verification gate, and existing query budgets were not changed.
+- The accepted ADR and frozen index contract keep MySQL authoritative and
+  Qdrant rebuildable. They freeze the initial collection name,
+  `qe06b-d1024-t1-c350-o30-n1`, deterministic UUIDv5 point identity, payload
+  fields and indexes, `VERIFIED` plus normalized-DOI admission, active-version
+  migration, and explicit deletion/rebuild rules. No business Collection or
+  paper vector was created.
+- Windows-native Ollama 0.32.5 and `qwen3-embedding:0.6b` were available. A
+  live smoke returned one non-empty 1024-dimensional vector for each input:
+  Chinese 5,524 ms and English 139 ms. The timings are observations, not
+  service-level objectives, and no input text or vector values were logged.
+- Docker CLI 29.6.2 was installed, but the Docker Engine named pipe was absent.
+  Docker Desktop was started once and did not become engine-ready within 90
+  seconds; the requested `verify-rag-environment.ps1 -RestartQdrant` therefore
+  failed before Compose startup. WSL 2/Docker backend readiness, Docker Compose
+  server validation, Qdrant HTTP 6333, gRPC 6334, Dashboard, health, named
+  volume persistence, and stop/start recovery remain unmeasured.
+- No Windows restart, installation, system configuration change, Qdrant
+  collection creation, paper-vector write, or Day 2 Java RAG code was performed.
+  Once Docker Desktop/WSL is manually ready, rerun:
+
+  ```powershell
+  docker version
+  docker compose version
+  powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\scripts\verify-rag-environment.ps1 -RestartQdrant
+  ```
