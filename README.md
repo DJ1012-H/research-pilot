@@ -149,6 +149,8 @@ powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\scripts\verify-rag-env
 
 The script validates Docker Compose, measures and reports the real embedding dimension and latency without logging vectors or input text, checks Qdrant HTTP readiness and collection listing, and optionally verifies stop/start recovery without deleting the named volume. See [ADR-001](docs/decisions/ADR-001-vector-store-qdrant.md) and the [trusted RAG index contract](docs/design/trusted-rag-index-contract.md).
 
+The opt-in Java embedding adapter is disabled by default. When explicitly enabled, it calls the loopback Ollama `/api/embed` endpoint with the configured model and fails closed unless the response contains exactly one finite, non-empty, 1024-dimensional vector per controlled input for the initial embedding version. Default unit tests use a fake embedding port or a mocked HTTP server and do not require Ollama.
+
 ## Troubleshooting and security
 
 - `MODEL_NOT_CONFIGURED`: start `TrustedSearch` or `FullDemo` with valid LLM configuration; `OfflineBuild` deliberately disables the model.

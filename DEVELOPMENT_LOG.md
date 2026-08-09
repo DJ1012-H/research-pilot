@@ -1775,3 +1775,33 @@ Spring Boot 的条件装配回退，使它成为 MVC 使用的全局 Mapper；�
   docker compose version
   powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\scripts\verify-rag-environment.ps1 -RestartQdrant
   ```
+
+## 2026-08-09 - RAG Day 2 Java foundation
+
+- Added a provider-neutral embedding port and an opt-in Windows-native Ollama
+  adapter for `/api/embed`. The adapter defaults to the loopback endpoint and
+  `qwen3-embedding:0.6b`, keeps provider JSON DTOs inside the integration
+  package, returns immutable finite vectors with measured dimension and
+  client-observed latency, and fails closed on HTTP, transport, parsing,
+  cardinality, empty-vector, dimension, and non-finite-value failures.
+- Added deterministic controlled-paper document construction. The initial
+  `qe06b-d1024-t1-c350-o30-n1` rules now explicitly freeze NFC normalization,
+  Unicode whitespace collapse, the approximate multilingual tokenizer,
+  350-token abstract windows, 30-token overlap, LF templates, lowercase
+  SHA-256 content hashes, and independent zero-based segment indices.
+- Added an immutable verified-paper projection boundary. It requires the
+  authoritative numeric MySQL paper ID, exact normalized DOI, current
+  `VERIFIED` result, shared `verification-v1` policy version, and supplied
+  `sourceUpdatedAt` before calling the embedding port. UUIDv5 point IDs use the
+  fixed namespace and UTF-8 canonical name
+  `paperId|embeddingVersion|segmentType|segmentIndex`.
+- Added focused unit coverage for document boundaries and hashes, admission,
+  fake-port isolation, UUID identity, and malformed Ollama responses. The
+  requested Maven command could not reach compilation because the local cache
+  lacked the Spring Boot 3.5.16 parent POM and sandboxed Maven Central access
+  failed with `Permission denied: getsockopt`. No repository or Maven
+  configuration workaround was applied, so the tests remain unmeasured.
+- No Docker, Qdrant client, Collection, vector write, retrieval, RAG API,
+  database migration, live database, live Ollama, trusted-search API, result
+  limit, or Agent/query budget change was made. Day 2 and end-to-end RAG
+  acceptance remain open.

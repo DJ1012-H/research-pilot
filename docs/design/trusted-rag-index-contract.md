@@ -1,6 +1,6 @@
 # Trusted RAG index contract
 
-Status: frozen for the 2026-08-10 infrastructure baseline. No RAG business code is enabled by this document.
+Status: frozen for the 2026-08-10 infrastructure baseline and Day 2 Java projection foundation. No Qdrant business path or RAG API is enabled by this document.
 
 ## Authority and admission
 
@@ -49,7 +49,14 @@ An abstract segment uses the same metadata header followed by:
 Abstract: {abstract segment}
 ```
 
-Initial abstract chunking is at most approximately 350 tokens with approximately 30 tokens of overlap. Short abstracts stay whole. The exact tokenizer and normalization rules must be frozen with the first implemented `embeddingVersion`.
+Initial abstract chunking is at most approximately 350 tokens with approximately 30 tokens of overlap. Short abstracts stay whole. For `qe06b-d1024-t1-c350-o30-n1`, the implemented rules are frozen as follows:
+
+- Normalize every controlled string to Unicode NFC.
+- Treat Java Unicode whitespace plus Unicode space, line, and paragraph separators as whitespace; collapse each run to one ASCII space and trim leading and trailing whitespace. Reject non-whitespace ISO control characters.
+- Preserve the source order of authors and non-blank keywords, joining either list with comma plus one ASCII space. Missing optional scalar fields render as an empty value after their label. Template lines use LF (`\n`) and the final line has no trailing newline.
+- The deterministic approximate tokenizer emits each Han, Hangul, Hiragana, Katakana, or Bopomofo code point as one token; emits each maximal run of other Unicode letters, digits, and combining marks as one token; and emits every other non-whitespace code point as one token.
+- Abstract windows contain at most 350 such tokens. A following window starts at the first of the preceding window's final 30 tokens. An abstract of 350 tokens or fewer stays whole. Segment text starts and ends at token boundaries without adding ellipses or other text.
+- `METADATA` has segment index 0. `ABSTRACT` indices start at 0 independently and increase in chunk order.
 
 Raw OpenAlex/Crossref JSON, prompts, model drafts, internal traces, secrets, and unapproved full text are excluded. `contentHash` is the lowercase SHA-256 hex digest of the exact normalized UTF-8 text sent to the embedding model.
 
@@ -61,7 +68,7 @@ The canonical point-name fields are:
 paperId | embeddingVersion | segmentType | segmentIndex
 ```
 
-The implementation must validate that no string field contains the separator, encode the canonical name as UTF-8, and derive an RFC 4122 UUID version 5 using the fixed namespace `74fbcd22-6592-5cd8-a606-29d5ad4e5e9f`.
+The canonical name serializes the four fields without surrounding whitespace as `paperId|embeddingVersion|segmentType|segmentIndex`. Decimal numbers use their ordinary base-10 representation and `segmentType` uses its uppercase enum name. The implementation must validate every field before concatenation, reject a string field containing the separator, encode the canonical name as UTF-8, and derive an RFC 4122 UUID version 5 using the fixed namespace `74fbcd22-6592-5cd8-a606-29d5ad4e5e9f`.
 
 The same eligible paper, index version, segment type, and segment index must therefore produce the same point ID. Repeated upserts replace the same point rather than create duplicates.
 
