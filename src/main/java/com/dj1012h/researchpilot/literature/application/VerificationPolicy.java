@@ -20,6 +20,8 @@ import java.util.Objects;
 @Service
 public class VerificationPolicy {
 
+    public static final String VERSION = "verification-v1";
+
     private final DoiNormalizer doiNormalizer;
 
     public VerificationPolicy(DoiNormalizer doiNormalizer) {

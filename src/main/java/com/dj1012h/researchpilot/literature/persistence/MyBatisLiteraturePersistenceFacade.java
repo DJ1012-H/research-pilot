@@ -4,6 +4,7 @@ import com.dj1012h.researchpilot.literature.agent.AgentRunResult;
 import com.dj1012h.researchpilot.literature.agent.ExecutionTraceEntry;
 import com.dj1012h.researchpilot.literature.api.dto.SearchRequest;
 import com.dj1012h.researchpilot.literature.api.dto.SearchResponse;
+import com.dj1012h.researchpilot.literature.application.VerificationPolicy;
 import com.dj1012h.researchpilot.literature.model.CandidatePaper;
 import com.dj1012h.researchpilot.literature.model.CandidateVerificationOutcome;
 import com.dj1012h.researchpilot.literature.model.PaperDTO;
@@ -32,7 +33,6 @@ import java.util.stream.Collectors;
 @ConditionalOnProperty(name = "app.literature.persistence.enabled", havingValue = "true")
 public class MyBatisLiteraturePersistenceFacade implements LiteraturePersistenceFacade {
 
-    private static final String RULE_VERSION = "verification-v1";
     private final LiteraturePersistenceMapper mapper;
     private final FailureTaskFinalizer failureFinalizer;
 
@@ -129,7 +129,7 @@ public class MyBatisLiteraturePersistenceFacade implements LiteraturePersistence
         VerificationResult verification = outcome.verification();
         LiteratureVerificationEvidenceEntity evidence = new LiteratureVerificationEvidenceEntity(
                 taskId, paperId, fingerprint, verification.status().name(), verification.source().name(),
-                verification.referenceDoi(), verification.evidenceScore(), RULE_VERSION,
+                verification.referenceDoi(), verification.evidenceScore(), VerificationPolicy.VERSION,
                 canonical(verification.reasons(), 2000));
         try {
             mapper.insertEvidence(evidence);

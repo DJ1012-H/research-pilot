@@ -30,7 +30,7 @@
   ],
   "properties": {
     "schema_version": {"type": "string", "const": "crossref-policy-benchmark-result-v0.1"},
-    "benchmark_version": {"type": "string", "const": "v0.1"},
+    "benchmark_version": {"type": "string", "enum": ["v0.1", "v0.2"]},
     "dataset_version": {"type": "string", "const": "crossref-verification-v1"},
     "split_version": {"type": "string", "const": "v0.1"},
     "production_baseline_commit": {"type": "string", "pattern": "^[0-9a-f]{40}$"},

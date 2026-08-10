@@ -59,17 +59,16 @@ CandidatePaper + CrossrefWorkMetadata -> VerificationResult
 
 当前不评测实时网络可用性、HTTP 状态码、Retry-After、429/5xx/超时、重试、查询预算、候选排序、网络 orchestration 或停止策略；这些仍由现有协议层测试覆盖。已知限制包括样本量小、人工审核成本高、venue 跨提供方命名差异需要人工判断，以及 `ONLINE_FIRST_YEAR` 依赖当前 print-first 年份策略。
 
-v1 的 `formal_result_eligible` 是早期审核语义，与当前生产“仅 `VERIFIED` 且 DOI 可规范化才正式准入”的门禁不等价。policy benchmark 因此保留该字段作诊断，但不把它当作当前准入 oracle；当前准入 oracle 在
-`manifests/policy-benchmark-v0.1.json` 中显式版本化。
+v1 的 `formal_result_eligible` 是早期审核语义，与当前生产“仅 `VERIFIED` 且 DOI 可规范化才正式准入”的门禁不等价。policy benchmark 因此保留该字段作诊断，但不把它当作当前准入 oracle；准入 oracle 在版本化 manifest 中显式声明。`v0.1` 保留 `main@9770c04` 的历史钉住证据，`v0.2` 钉住合并 RAG 版本标识后的当前 `main@eac7f34`；两者不得互相覆盖。
 
-### 当前主线 policy benchmark（2026-08-10）
+### 版本化 policy benchmark（2026-08-10）
 
-- 生产基线：`9770c046ede5758b443dd2ca1af375b57fd88154`。
+- 历史生产基线：`v0.1` / `main@9770c04`；当前生产基线：`v0.2` / `main@eac7f34`。
 - 字段校准历史结果仍为 calibration `48/50`、acceptance `19/20`。
 - 论文级状态精确匹配为 `4/14`，冻结 acceptance 为 `2/4`，正式准入匹配为 `4/14`。
 - `crv1-case-0001` 至 `0009` 因当前策略把完整作者集合 `AUTHORS` 作为硬冲突而被判为 `CONFLICTED`；v1 只具备第一作者人工 oracle，不能据此自动修改生产策略或 Ground Truth。
 - `crv1-case-0013` 的人工状态为 `PARTIALLY_VERIFIED`，当前策略输出 `VERIFIED`，形成 1 次错误 `VERIFIED` 和 1 次错误正式准入。
-- 当前验收状态为 **FAIL**；详细证据见 `reports/policy-benchmark-v0.1.md`。
+- 当前验收状态仍为 **FAIL**；`v0.1` 报告保持历史不变，当前结果写入 `policy-benchmark-v0.2` 输出。
 
 新的独立样本、完整作者集合 oracle、缺失 DOI、多参考歧义、缺失字段、venue/work-type 冲突和多语言命名进入
 `crossref-verification-v2` 的人工审核流程。lookup protocol 与 orchestration 仍必须使用独立数据集，不能混入本目录。

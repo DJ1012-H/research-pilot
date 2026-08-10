@@ -1,3 +1,59 @@
+## 2026-08-06｜提前准备计划中的 2026-08-10 可信 RAG 基础设施基线
+
+### 已完成的仓库内容
+
+- 在已同步且工作区干净的可信检索提交 `238dcd9` 上创建本地
+  `v1.0.0-demo` 标签，并在独立分支 `codex/rag-day1` 开发，未修改既有
+  `POST /api/literature/search` 契约。
+- 新增锁定 `qdrant/qdrant:v1.18.2` 的 `infra/docker-compose.rag.yml`：
+  HTTP `6333` 与 gRPC `6334` 只绑定 `127.0.0.1`，使用命名卷、健康检查，
+  不包含真实密钥。
+- 新增受控环境验收脚本，检查 Docker/Compose、Ollama 模型、中文/英文向量
+  非空且维度一致、Qdrant readiness/collections，以及可选的保留卷 stop/start
+  恢复。脚本不输出输入文本或向量。
+- 更新 ADR，并冻结 MySQL 事实来源、Qdrant 可重建派生索引、仅 `VERIFIED`
+  且标准化 DOI 准入、MySQL 二次准入、Payload、稳定 Point ID、内容哈希、
+  索引版本、重建与人工确认删除边界。
+- 未新增 Embedding/Qdrant Java 业务包、RAG API、PDF/OCR 或 Collection；
+  Collection 向量维度必须等真实 Ollama 双语响应测量后才能确定。
+
+### 本机环境门禁（实际检查日期 2026-08-06）
+
+- Windows 构建号 `26200`；CPU 固件虚拟化和 VM Monitor Mode Extensions 为
+  `True`；C 盘检查时约有 `59.1 GB` 可用。
+- 初始检查时 Docker 命令不可用，WSL 仅有系统占位命令且运行层未安装。
+- 非提升权限的 `wsl --install` 未执行安装；通过 WinGet 安装 `Microsoft.WSL
+  2.7.11` 被系统以 `0x80073d28` 拒绝。经用户在 UAC 明确授权后，WSL
+  `2.7.11.0` 安装成功；随后直接启用 `VirtualMachinePlatform` 与
+  `Microsoft-Windows-Subsystem-Linux`，两个 DISM 操作均返回 `3010`
+  （成功，需要重启）。
+- 已安装当前用户版 Docker Desktop `4.85.0`，安装日志记录 188 个文件激活完成、
+  产品注册完成并使用 WSL 2 后端；安装包哈希验证通过。Windows 功能尚未重启生效，
+  因此 Docker Engine 未启动。
+- 首次通过 WinGet 安装 `Ollama 0.32.5` 在 180 秒窗口内超时且未落盘；确认官方
+  安装包约 1.45 GB 后，以 15 分钟受控窗口重试并通过官方哈希校验完成安装。
+- 已拉取 `qwen3-embedding:0.6b`（模型列表显示 639 MB）。真实 API smoke 中，
+  中文和英文输入均返回一个非空的 1024 维向量；冷启动中文请求 23,938 ms，
+  随后英文请求 4,611 ms。耗时是本机观测，不是 SLA。
+- Docker CLI/Compose 配置语法可以在不启动 Engine 时验证；Qdrant 健康及
+  stop/start 验收仍保持未测量。不得把仓库基线误记为完整环境验收通过。
+  用户保存工作并手工重启 Windows 后，必须启动 Docker Desktop，再运行
+  `scripts/verify-rag-environment.ps1 -RestartQdrant` 补齐证据。
+
+### 自动化验证
+
+- 聚焦命令
+  `.\mvnw.cmd "-Dtest=RagInfrastructureBaselineTest,ArchitectureConstraintsTest,AgentExecutionLoopTest" test`
+  运行 25 项：0 failures、0 errors、0 skipped。
+- `.\mvnw.cmd clean verify` 从空 `target` 编译 244 个生产源文件和 87 个测试源文件，
+  运行 467 项：0 failures、0 errors、4 项明确 opt-in 网络测试跳过；Spring Boot
+  可执行 JAR 打包成功。
+
+### 里程碑说明
+
+- 这些内容实际准备于 2026-08-06，属于计划中 2026-08-10 Day 1 的提前工作，
+  不表示系统环境已在 8 月 10 日通过，也不提前声称后续 RAG 功能完成。
+
 ## 2026-07-30｜提前完成计划中的 2026-08-06 Redis 外部 API 缓存里程碑
 
 ### 实际完成内容
@@ -1722,3 +1778,107 @@ Spring Boot 的条件装配回退，使它成为 MVC 使用的全局 Mapper；�
   the executable JAR. The formal policy script was also executed and correctly
   returned exit code 1 for the preserved FAIL result. No real Crossref,
   OpenAlex, model, MySQL, or Redis call was made.
+## 2026-08-09 - RAG Day 1 environment acceptance
+
+- Rebased the Day 1 infrastructure baseline from `origin/main` at `9770c04`
+  and replayed the earlier `c159028` change as `4d3a599` on the new feature
+  branch. The trusted-search release remains the base and its result contract,
+  verification gate, and existing query budgets were not changed.
+- The accepted ADR and frozen index contract keep MySQL authoritative and
+  Qdrant rebuildable. They freeze the initial collection name,
+  `qe06b-d1024-t1-c350-o30-n1`, deterministic UUIDv5 point identity, payload
+  fields and indexes, `VERIFIED` plus normalized-DOI admission, active-version
+  migration, and explicit deletion/rebuild rules. No business Collection or
+  paper vector was created.
+- Windows-native Ollama 0.32.5 and `qwen3-embedding:0.6b` were available. A
+  live smoke returned one non-empty 1024-dimensional vector for each input:
+  Chinese 5,524 ms and English 139 ms. The timings are observations, not
+  service-level objectives, and no input text or vector values were logged.
+- Docker CLI 29.6.2 was installed, but the Docker Engine named pipe was absent.
+  Docker Desktop was started once and did not become engine-ready within 90
+  seconds; the requested `verify-rag-environment.ps1 -RestartQdrant` therefore
+  failed before Compose startup. WSL 2/Docker backend readiness, Docker Compose
+  server validation, Qdrant HTTP 6333, gRPC 6334, Dashboard, health, named
+  volume persistence, and stop/start recovery remain unmeasured.
+- No Windows restart, installation, system configuration change, Qdrant
+  collection creation, paper-vector write, or Day 2 Java RAG code was performed.
+  Once Docker Desktop/WSL is manually ready, rerun:
+
+  ```powershell
+  docker version
+  docker compose version
+  powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\scripts\verify-rag-environment.ps1 -RestartQdrant
+  ```
+
+## 2026-08-09 - RAG Day 2 Java foundation
+
+- Added a provider-neutral embedding port and an opt-in Windows-native Ollama
+  adapter for `/api/embed`. The adapter defaults to the loopback endpoint and
+  `qwen3-embedding:0.6b`, keeps provider JSON DTOs inside the integration
+  package, returns immutable finite vectors with measured dimension and
+  client-observed latency, and fails closed on HTTP, transport, parsing,
+  cardinality, empty-vector, dimension, and non-finite-value failures.
+- Added deterministic controlled-paper document construction. The initial
+  `qe06b-d1024-t1-c350-o30-n1` rules now explicitly freeze NFC normalization,
+  Unicode whitespace collapse, the approximate multilingual tokenizer,
+  350-token abstract windows, 30-token overlap, LF templates, lowercase
+  SHA-256 content hashes, and independent zero-based segment indices.
+- Added an immutable verified-paper projection boundary. It requires the
+  authoritative numeric MySQL paper ID, exact normalized DOI, current
+  `VERIFIED` result, shared `verification-v1` policy version, and supplied
+  `sourceUpdatedAt` before calling the embedding port. UUIDv5 point IDs use the
+  fixed namespace and UTF-8 canonical name
+  `paperId|embeddingVersion|segmentType|segmentIndex`.
+- Added focused unit coverage for document boundaries and hashes, admission,
+  fake-port isolation, UUID identity, and malformed Ollama responses. The
+  requested Maven command could not reach compilation because the local cache
+  lacked the Spring Boot 3.5.16 parent POM and sandboxed Maven Central access
+  failed with `Permission denied: getsockopt`. No repository or Maven
+  configuration workaround was applied, so the tests remain unmeasured.
+- No Docker, Qdrant client, Collection, vector write, retrieval, RAG API,
+  database migration, live database, live Ollama, trusted-search API, result
+  limit, or Agent/query budget change was made. Day 2 and end-to-end RAG
+  acceptance remain open.
+
+## 2026-08-10 - RAG Day 2 focused acceptance follow-up
+
+- Confirmed that the Day 2 foundation had been preserved in commit `709e55c`
+  on `codex/rag-day1-main-rebased`; the worktree had subsequently been moved to
+  the unrelated Crossref evaluation branch, so it was switched back without
+  rewriting either branch.
+- Added conditional Spring composition for the pure document builder and
+  verified-paper projector. They become runtime beans only with the existing
+  opt-in Ollama embedding switch; disabled defaults still perform no live
+  provider call.
+- Added focused adapter coverage for a simulated connection failure and for a
+  configured model paired with a new embedding version. Separator rejection is
+  now classified before verification-version mismatch so every controlled
+  string containing `|` receives the explicit fail-closed reason.
+- Retried only the four focused Day 2 test classes. Maven again stopped before
+  compilation because the Spring Boot 3.5.16 parent POM was absent locally and
+  sandboxed Maven Central access failed with `Permission denied: getsockopt`.
+  No alternate repository, dependency, build configuration, or network
+  workaround was introduced. Focused Java test execution therefore remains
+  unmeasured rather than passed.
+- After explicit authorization to let Maven download only the dependencies
+  already declared by `pom.xml`, the same focused command compiled 265 main
+  sources and 92 test sources and passed 24 tests with 0 failures, 0 errors,
+  and 0 skips. The suite used fake embedding vectors and mocked Ollama HTTP;
+  it did not contact live Ollama, MySQL, Qdrant, or another external service.
+- During the branch-consolidation checkpoint, `.\mvnw.cmd clean verify` passed
+  492 tests with 0 failures, 0 errors, and 4 explicit opt-in smoke skips, then
+  rebuilt the executable JAR. This was an offline fixture/test-double result;
+  no live Ollama, Crossref, OpenAlex, MySQL, Redis, or Qdrant call was made.
+
+## 2026-08-10 - Crossref v2 immutable intake acquisition
+
+- Collected 20 real OpenAlex candidate snapshots, 20 paired Crossref reference
+  snapshots, and one fixed-seed OpenAlex selection response through anonymous
+  public API access. The acquisition script is sequential, bounded, retry-aware,
+  and refuses to overwrite an existing intake batch.
+- Kept all 20 entries at `NEEDS_REVIEW`: policy status, formal admission, and
+  field oracles remain `null`; reviewed and formal counts remain zero, no
+  holdout has been frozen, and acceptance remains `UNMEASURED`.
+- Preserved the v1 FAIL report and frozen evidence unchanged. The new snapshots
+  are review inputs only and neither online responses nor production-policy
+  output were used to generate Ground Truth.

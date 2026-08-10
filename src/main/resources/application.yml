@@ -31,6 +31,16 @@ spring:
       timeout: 2s
 
 app:
+  rag:
+    embedding:
+      ollama:
+        enabled: ${OLLAMA_EMBEDDING_ENABLED:false}
+        base-url: ${OLLAMA_EMBEDDING_BASE_URL:http://127.0.0.1:11434}
+        model: ${OLLAMA_EMBEDDING_MODEL:qwen3-embedding:0.6b}
+        embedding-version: ${RAG_EMBEDDING_VERSION:qe06b-d1024-t1-c350-o30-n1}
+        expected-dimensions: ${RAG_EMBEDDING_DIMENSIONS:1024}
+        connect-timeout: ${OLLAMA_EMBEDDING_CONNECT_TIMEOUT:3s}
+        read-timeout: ${OLLAMA_EMBEDDING_READ_TIMEOUT:60s}
   ai:
     enabled: ${LLM_ENABLED:false}
     base-url: ${LLM_BASE_URL:}

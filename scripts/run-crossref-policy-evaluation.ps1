@@ -3,7 +3,7 @@ param()
 
 $ErrorActionPreference = 'Stop'
 $repositoryRoot = Split-Path -Parent $PSScriptRoot
-$resultPath = Join-Path $repositoryRoot 'target\evaluation\crossref-verification-v1\policy-benchmark-v0.1.json'
+$resultPath = Join-Path $repositoryRoot 'target\evaluation\crossref-verification-v1\policy-benchmark-v0.2.json'
 
 Push-Location $repositoryRoot
 try {

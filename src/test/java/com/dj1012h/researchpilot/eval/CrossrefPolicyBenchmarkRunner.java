@@ -32,11 +32,11 @@ import java.util.Set;
 final class CrossrefPolicyBenchmarkRunner {
 
     static final Path MANIFEST = CrossrefVerificationDatasetSupport.DATASET
-            .resolve("manifests/policy-benchmark-v0.1.json");
+            .resolve("manifests/policy-benchmark-v0.2.json");
     static final Path JSON_OUTPUT = Path.of("target", "evaluation", "crossref-verification-v1",
-            "policy-benchmark-v0.1.json");
+            "policy-benchmark-v0.2.json");
     static final Path MARKDOWN_OUTPUT = Path.of("target", "evaluation", "crossref-verification-v1",
-            "policy-benchmark-v0.1.md");
+            "policy-benchmark-v0.2.md");
 
     private final CandidateNormalizationService normalizationService;
     private final PaperVerificationService verificationService;

@@ -151,11 +151,24 @@ For the complete regression and packaged JAR:
 .\mvnw.cmd clean verify
 ```
 
-## Operational boundaries and RAG gate
+## Operational boundaries and RAG baseline
 
 MySQL is the durable source of truth for enabled task evidence. Redis is a short-lived cache of mapped OpenAlex/Crossref port results; it is not a vector store and cannot admit papers directly.
 
-Qdrant, embeddings, PDF ingestion, and RAG business code are not part of the current application. The planned 2026-08-10 to 2026-08-15 RAG/Qdrant work remains gated on the trustworthy-search demo: only `VERIFIED` papers may be projected, Qdrant would be a rebuildable derived index, and any future RAG failure must not affect this trusted-search API.
+The trustworthy-search baseline is frozen at `v1.0.0-demo`. The 2026-08-10 infrastructure baseline adds a pinned, loopback-only Qdrant Compose service, a controlled Ollama/Qdrant environment check, and a frozen index contract. It does not add RAG business code or change the trusted-search API.
+
+Only `VERIFIED` papers with normalized DOIs may be projected. MySQL remains authoritative; Qdrant is a rebuildable derived index, and every future retrieval match must be re-admitted through MySQL. The initial `qwen3-embedding:0.6b` baseline measured 1024 dimensions for both Chinese and English inputs on 2026-08-06; startup must still recheck the live dimension before a Collection is created.
+
+After WSL 2, Docker Desktop, Windows-native Ollama, and `qwen3-embedding:0.6b` are installed:
+
+```powershell
+docker compose -f .\infra\docker-compose.rag.yml up -d
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\scripts\verify-rag-environment.ps1 -RestartQdrant
+```
+
+The script validates Docker Compose, measures and reports the real embedding dimension and latency without logging vectors or input text, checks Qdrant HTTP readiness and collection listing, and optionally verifies stop/start recovery without deleting the named volume. See [ADR-001](docs/decisions/ADR-001-vector-store-qdrant.md) and the [trusted RAG index contract](docs/design/trusted-rag-index-contract.md).
+
+The opt-in Java embedding adapter is disabled by default. When explicitly enabled, it calls the loopback Ollama `/api/embed` endpoint with the configured model and fails closed unless the response contains exactly one finite, non-empty, 1024-dimensional vector per controlled input for the initial embedding version. Default unit tests use a fake embedding port or a mocked HTTP server and do not require Ollama.
 
 ## Troubleshooting and security
 
