@@ -32,6 +32,8 @@ class CrossrefVerificationV2ScaffoldTest {
         assertThat(plan.path("reviewed_case_count").asInt()).isZero();
         assertThat(plan.path("unreviewed_intake_pair_count").asInt()).isEqualTo(20);
         assertThat(DATASET.resolve(plan.path("intake_batch_manifest").asText())).isRegularFile();
+        assertThat(plan.path("review_session_state").asText()).isEqualTo("AWAITING_CASE_DECISIONS");
+        assertThat(plan.path("human_case_decision_count").asInt()).isZero();
         assertThat(plan.path("independent_holdout_frozen").asBoolean()).isFalse();
         assertThat(plan.path("required_field_oracles")).extracting(JsonNode::asText)
                 .contains("AUTHORS", "WORK_TYPE", "FORMAL_ADMISSION");

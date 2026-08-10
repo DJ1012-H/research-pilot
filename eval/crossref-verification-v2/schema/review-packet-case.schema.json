@@ -1,0 +1,114 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://researchpilot.local/crossref-verification-v2/review-packet-case.schema.json",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "case_id", "review_state", "observations", "decision", "provenance"],
+  "properties": {
+    "schema_version": {"type": "string", "const": "crossref-verification-v2-review-packet-case"},
+    "case_id": {"type": "string", "pattern": "^crv2-case-[0-9]{4}$"},
+    "review_state": {"type": "string", "const": "AWAITING_HUMAN_DECISION"},
+    "observations": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["candidate", "reference"],
+      "properties": {
+        "candidate": {"$ref": "#/$defs/candidate"},
+        "reference": {"$ref": "#/$defs/reference"}
+      }
+    },
+    "decision": {"$ref": "#/$defs/empty_decision"},
+    "provenance": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["candidate_snapshot_path", "candidate_sha256", "reference_snapshot_path", "reference_sha256"],
+      "properties": {
+        "candidate_snapshot_path": {"type": "string", "pattern": "^eval/crossref-verification-v2/fixtures/intake-v0\\.1/candidate/.+\\.json$"},
+        "candidate_sha256": {"$ref": "#/$defs/sha256"},
+        "reference_snapshot_path": {"type": "string", "pattern": "^eval/crossref-verification-v2/fixtures/intake-v0\\.1/reference/.+\\.json$"},
+        "reference_sha256": {"$ref": "#/$defs/sha256"}
+      }
+    }
+  },
+  "$defs": {
+    "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "nullable_string": {"type": ["string", "null"]},
+    "date_parts": {
+      "type": ["array", "null"],
+      "minItems": 1,
+      "maxItems": 3,
+      "items": {"type": "integer", "minimum": 1}
+    },
+    "candidate_author": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["display_name", "orcid"],
+      "properties": {
+        "display_name": {"type": "string", "minLength": 1},
+        "orcid": {"$ref": "#/$defs/nullable_string"}
+      }
+    },
+    "candidate": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["source_id", "doi", "title", "authors", "publication_year", "publication_date", "venue", "work_type", "language"],
+      "properties": {
+        "source_id": {"type": "string", "minLength": 1},
+        "doi": {"$ref": "#/$defs/nullable_string"},
+        "title": {"$ref": "#/$defs/nullable_string"},
+        "authors": {"type": "array", "minItems": 1, "items": {"$ref": "#/$defs/candidate_author"}},
+        "publication_year": {"type": "integer", "minimum": 1000, "maximum": 2100},
+        "publication_date": {"$ref": "#/$defs/nullable_string"},
+        "venue": {"$ref": "#/$defs/nullable_string"},
+        "work_type": {"$ref": "#/$defs/nullable_string"},
+        "language": {"$ref": "#/$defs/nullable_string"}
+      }
+    },
+    "reference": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["source_id", "doi", "title", "authors", "published_online", "published_print", "issued", "venue", "work_type", "publisher", "language"],
+      "properties": {
+        "source_id": {"type": "string", "minLength": 1},
+        "doi": {"$ref": "#/$defs/nullable_string"},
+        "title": {"$ref": "#/$defs/nullable_string"},
+        "authors": {"type": "array", "items": {"type": "string", "minLength": 1}},
+        "published_online": {"$ref": "#/$defs/date_parts"},
+        "published_print": {"$ref": "#/$defs/date_parts"},
+        "issued": {"$ref": "#/$defs/date_parts"},
+        "venue": {"$ref": "#/$defs/nullable_string"},
+        "work_type": {"$ref": "#/$defs/nullable_string"},
+        "publisher": {"$ref": "#/$defs/nullable_string"},
+        "language": {"$ref": "#/$defs/nullable_string"}
+      }
+    },
+    "field_oracles": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["doi", "title", "first_author", "authors", "year", "venue", "work_type"],
+      "properties": {
+        "doi": {"type": "null"},
+        "title": {"type": "null"},
+        "first_author": {"type": "null"},
+        "authors": {"type": "null"},
+        "year": {"type": "null"},
+        "venue": {"type": "null"},
+        "work_type": {"type": "null"}
+      }
+    },
+    "empty_decision": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["reviewer", "reviewed_at", "review_version", "field_oracles", "policy_status", "formal_admission", "rationale"],
+      "properties": {
+        "reviewer": {"type": "null"},
+        "reviewed_at": {"type": "null"},
+        "review_version": {"type": "null"},
+        "field_oracles": {"$ref": "#/$defs/field_oracles"},
+        "policy_status": {"type": "null"},
+        "formal_admission": {"type": "null"},
+        "rationale": {"type": "null"}
+      }
+    }
+  }
+}

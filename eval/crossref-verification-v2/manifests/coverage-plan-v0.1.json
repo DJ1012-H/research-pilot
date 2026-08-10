@@ -7,6 +7,8 @@
   "reviewed_case_count": 0,
   "unreviewed_intake_pair_count": 20,
   "intake_batch_manifest": "manifests/intake-batch-v0.1.json",
+  "review_session_state": "AWAITING_CASE_DECISIONS",
+  "human_case_decision_count": 0,
   "independent_holdout_frozen": false,
   "engineering_target_minimum_independent_source_pairs": 20,
   "required_field_oracles": [

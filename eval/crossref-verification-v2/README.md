@@ -5,6 +5,8 @@
 - Formal cases: 0.
 - Reviewed cases: 0.
 - Unreviewed intake cases: 20.
+- Review authorization: recorded for `intake-v0.1`.
+- Human case decisions: 0/20; reviewer not yet assigned.
 - Independent holdout: not frozen.
 - Acceptance state: `UNMEASURED`.
 - Real API evidence: 20 OpenAlex/Crossref snapshot pairs plus the frozen OpenAlex selection response in `fixtures/intake-v0.1`.
@@ -12,6 +14,8 @@
 The `intake-v0.1` batch was acquired on 2026-08-10 using a deterministic OpenAlex sample seed and independent Crossref DOI lookups. It contains 20 distinct primary sources, 14 OpenAlex topic fields, publication years from 1977 through 2025, and four observed language states (`en`, `it`, `pt`, and missing). These are intake-diversity observations, not reviewed coverage or acceptance results.
 
 The immutable acquisition record is `manifests/intake-batch-v0.1.json`; its 20 draft records are in `draft/review-queue-v0.1.jsonl`. Every record remains `NEEDS_REVIEW`, every expected label and field oracle is `null`, and `provenance.review` is `null`.
+
+The explicit task authorization `APPROVE review intake-v0.1` is recorded in `review/intake-v0.1/review-session-v0.1.json`. The generated JSONL review packet and Markdown guide only unfold observed OpenAlex/Crossref fields. They intentionally keep the reviewer, review timestamp, every field oracle, policy status, formal-admission decision, and rationale empty. Authorization to begin review is not case-level Ground Truth approval.
 
 This directory is the versioned intake boundary for new independent bibliographic and policy cases. It does not replace or rewrite `crossref-verification-v1`.
 
@@ -37,3 +41,13 @@ powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\scripts\acquire-crossr
 ```
 
 The execution-policy override applies only to that PowerShell process. The script uses anonymous read-only public API requests, sequential throttling, bounded retries, a fixed sample seed, unique primary-source selection, and a maximum of three cases per OpenAlex topic field. Public API authentication and limits can change, so future batches must re-check the providers' current official documentation before acquisition.
+
+## Human review preparation
+
+Review preparation is offline, verifies the immutable intake hashes, and refuses to overwrite an existing review session:
+
+```powershell
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\scripts\prepare-crossref-v2-review.ps1 -ConfirmReviewAuthorization -ApproverId <approver-id>
+```
+
+The reviewer must separately provide an identity and case-level judgments. Each field judgment must be one of `MATCHED`, `EXPLAINABLE_DIFFERENCE`, `MISMATCHED`, or `UNKNOWN`, with a human rationale. `UNKNOWN`, missing decisions, and partial review remain fail closed and cannot enter a frozen split.

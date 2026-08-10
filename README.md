@@ -117,9 +117,9 @@ Run the policy and formal-admission benchmark on Windows with:
 powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\scripts\run-crossref-policy-evaluation.ps1
 ```
 
-The current pinned production baseline intentionally returns a non-zero exit
-code because `acceptance_passed=false`; see
-`eval/crossref-verification-v1/reports/policy-benchmark-v0.1.md`. A successful
+The current versioned production baseline intentionally returns a non-zero exit
+code because `acceptance_passed=false`. The committed v0.1 report remains the
+historical baseline, while the runner emits the current v0.2 result. A successful
 JUnit build means the recorded PASS/FAIL evidence is reproducible, not that the
 policy benchmark passed. New cases enter `crossref-verification-v2` as
 `NEEDS_REVIEW` with null expected labels until explicitly approved by a human.

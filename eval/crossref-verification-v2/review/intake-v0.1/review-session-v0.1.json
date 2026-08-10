@@ -1,0 +1,35 @@
+{
+    "$schema":  "../../schema/review-session.schema.json",
+    "schema_version":  "crossref-verification-v2-review-session",
+    "batch_id":  "intake-v0.1",
+    "review_version":  "human-review-v0.1",
+    "state":  "AWAITING_CASE_DECISIONS",
+    "authorization":  {
+                          "decision":  "APPROVE_REVIEW",
+                          "approval_phrase":  "APPROVE review intake-v0.1",
+                          "approver_id":  "codex-task-user",
+                          "recorded_at":  "2026-08-10T06:57:32.7756868Z",
+                          "source":  "Codex task user message"
+                      },
+    "reviewer_assignment":  null,
+    "input":  {
+                  "manifest_path":  "eval/crossref-verification-v2/manifests/intake-batch-v0.1.json",
+                  "manifest_sha256":  "86dbc4a3f3377e6a849f72a5c202c62cb5e4997580b9af33b4cab65cf6deac02",
+                  "queue_path":  "eval/crossref-verification-v2/draft/review-queue-v0.1.jsonl",
+                  "queue_sha256":  "f941163dc85730c1c55cd05c972945aa977aff8f2026be8e7da52c4edc467f93"
+              },
+    "outputs":  {
+                    "review_packet_path":  "eval/crossref-verification-v2/review/intake-v0.1/review-pack-v0.1.jsonl",
+                    "review_packet_sha256":  "8d5872a1fba9f728d7856908095edec9eff57c48147a51badce7a5c6e5e14b87",
+                    "review_guide_path":  "eval/crossref-verification-v2/review/intake-v0.1/review-guide-v0.1.md",
+                    "review_guide_sha256":  "4aafae65767099876c6dcdd60f6e3c61699f43039fba2c8c210b586a7dff2f24",
+                    "case_count":  20,
+                    "decision_count":  0
+                },
+    "constraints":  {
+                        "ground_truth_generated":  false,
+                        "promotion_allowed":  false,
+                        "human_case_decisions_required":  true
+                    },
+    "notes":  "Review authorization is recorded, but no case has a human field judgment or promotion approval yet."
+}

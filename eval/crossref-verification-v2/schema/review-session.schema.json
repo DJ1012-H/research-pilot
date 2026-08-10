@@ -1,0 +1,65 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://researchpilot.local/crossref-verification-v2/review-session.schema.json",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["$schema", "schema_version", "batch_id", "review_version", "state", "authorization", "reviewer_assignment", "input", "outputs", "constraints", "notes"],
+  "properties": {
+    "$schema": {"type": "string", "const": "../../schema/review-session.schema.json"},
+    "schema_version": {"type": "string", "const": "crossref-verification-v2-review-session"},
+    "batch_id": {"type": "string", "const": "intake-v0.1"},
+    "review_version": {"type": "string", "const": "human-review-v0.1"},
+    "state": {"type": "string", "const": "AWAITING_CASE_DECISIONS"},
+    "authorization": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["decision", "approval_phrase", "approver_id", "recorded_at", "source"],
+      "properties": {
+        "decision": {"type": "string", "const": "APPROVE_REVIEW"},
+        "approval_phrase": {"type": "string", "const": "APPROVE review intake-v0.1"},
+        "approver_id": {"type": "string", "minLength": 1},
+        "recorded_at": {"type": "string", "format": "date-time"},
+        "source": {"type": "string", "const": "Codex task user message"}
+      }
+    },
+    "reviewer_assignment": {"type": "null"},
+    "input": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["manifest_path", "manifest_sha256", "queue_path", "queue_sha256"],
+      "properties": {
+        "manifest_path": {"type": "string", "const": "eval/crossref-verification-v2/manifests/intake-batch-v0.1.json"},
+        "manifest_sha256": {"$ref": "#/$defs/sha256"},
+        "queue_path": {"type": "string", "const": "eval/crossref-verification-v2/draft/review-queue-v0.1.jsonl"},
+        "queue_sha256": {"$ref": "#/$defs/sha256"}
+      }
+    },
+    "outputs": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["review_packet_path", "review_packet_sha256", "review_guide_path", "review_guide_sha256", "case_count", "decision_count"],
+      "properties": {
+        "review_packet_path": {"type": "string", "const": "eval/crossref-verification-v2/review/intake-v0.1/review-pack-v0.1.jsonl"},
+        "review_packet_sha256": {"$ref": "#/$defs/sha256"},
+        "review_guide_path": {"type": "string", "const": "eval/crossref-verification-v2/review/intake-v0.1/review-guide-v0.1.md"},
+        "review_guide_sha256": {"$ref": "#/$defs/sha256"},
+        "case_count": {"type": "integer", "const": 20},
+        "decision_count": {"type": "integer", "const": 0}
+      }
+    },
+    "constraints": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["ground_truth_generated", "promotion_allowed", "human_case_decisions_required"],
+      "properties": {
+        "ground_truth_generated": {"type": "boolean", "const": false},
+        "promotion_allowed": {"type": "boolean", "const": false},
+        "human_case_decisions_required": {"type": "boolean", "const": true}
+      }
+    },
+    "notes": {"type": "string", "minLength": 1}
+  },
+  "$defs": {
+    "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+  }
+}

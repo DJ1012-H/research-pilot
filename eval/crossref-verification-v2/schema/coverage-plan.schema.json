@@ -12,6 +12,8 @@
     "reviewed_case_count",
     "unreviewed_intake_pair_count",
     "intake_batch_manifest",
+    "review_session_state",
+    "human_case_decision_count",
     "independent_holdout_frozen",
     "engineering_target_minimum_independent_source_pairs",
     "required_field_oracles",
@@ -28,6 +30,8 @@
     "reviewed_case_count": {"type": "integer", "const": 0},
     "unreviewed_intake_pair_count": {"type": "integer", "const": 20},
     "intake_batch_manifest": {"type": "string", "const": "manifests/intake-batch-v0.1.json"},
+    "review_session_state": {"type": "string", "const": "AWAITING_CASE_DECISIONS"},
+    "human_case_decision_count": {"type": "integer", "const": 0},
     "independent_holdout_frozen": {"type": "boolean", "const": false},
     "engineering_target_minimum_independent_source_pairs": {"type": "integer", "minimum": 20},
     "required_field_oracles": {

@@ -1882,3 +1882,16 @@ Spring Boot 的条件装配回退，使它成为 MVC 使用的全局 Mapper；�
 - Preserved the v1 FAIL report and frozen evidence unchanged. The new snapshots
   are review inputs only and neither online responses nor production-policy
   output were used to generate Ground Truth.
+- Recorded the explicit `APPROVE review intake-v0.1` authorization and generated
+  a 20-case dual-source review packet. The session remains
+  `AWAITING_CASE_DECISIONS`: no reviewer is assigned, decisions are 0/20, and
+  every expected label and field oracle remains `null`.
+- Merged current `main` into `eval`. Because `main` added the non-behavioral
+  `VerificationPolicy.VERSION` constant, the exact v0.1 production-source pin
+  correctly failed closed. The v0.1 manifest/report remain unchanged; a new
+  v0.2 manifest pins `main@eac7f34` and reproduces the same policy FAIL metrics.
+- Final `.\mvnw.cmd clean verify` passed 508 tests with 0 failures, 0 errors,
+  and 4 explicit opt-in smoke skips, then rebuilt the executable JAR. The v0.2
+  policy entry point returned exit code 1 with 4/14 overall status matches,
+  2/4 frozen-acceptance matches, one false `VERIFIED`, one false formal
+  admission, nine false formal exclusions, and zero runner exceptions.

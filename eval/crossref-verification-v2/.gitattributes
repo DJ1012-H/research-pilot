@@ -1,4 +1,7 @@
 fixtures/**/*.json -text
 draft/*.jsonl text eol=crlf
 manifests/*.json text eol=crlf
+review/**/*.json text eol=crlf
+review/**/*.jsonl text eol=crlf
+review/**/*.md text eol=lf
 schema/*.json text eol=lf
