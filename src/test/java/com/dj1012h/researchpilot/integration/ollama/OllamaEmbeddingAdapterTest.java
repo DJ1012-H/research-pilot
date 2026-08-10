@@ -11,6 +11,7 @@ import org.springframework.http.MediaType;
 import org.springframework.test.web.client.MockRestServiceServer;
 import org.springframework.web.client.RestClient;
 
+import java.io.IOException;
 import java.time.Duration;
 import java.util.List;
 import java.util.stream.Collectors;
@@ -19,6 +20,7 @@ import java.util.stream.IntStream;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.springframework.test.web.client.match.MockRestRequestMatchers.requestTo;
+import static org.springframework.test.web.client.match.MockRestRequestMatchers.content;
 import static org.springframework.test.web.client.response.MockRestResponseCreators.withStatus;
 import static org.springframework.test.web.client.response.MockRestResponseCreators.withSuccess;
 
@@ -30,6 +32,12 @@ class OllamaEmbeddingAdapterTest {
     void shouldReturnImmutableVectorsWithMeasuredDimensionAndElapsedTime() {
         Fixture fixture = fixture(RagEmbeddingProfile.INITIAL_VERSION, 1024);
         fixture.server.expect(requestTo(BASE_URL + "/api/embed"))
+                .andExpect(content().json("""
+                        {
+                          "model": "qwen3-embedding:0.6b",
+                          "input": ["controlled text"]
+                        }
+                        """))
                 .andRespond(withSuccess(responseJson(1, 1024), MediaType.APPLICATION_JSON));
 
         EmbeddingBatch result = fixture.adapter.embed(List.of("controlled text"));
@@ -41,6 +49,25 @@ class OllamaEmbeddingAdapterTest {
         assertThat(result.elapsed().isNegative()).isFalse();
         assertThatThrownBy(() -> result.embeddings().getFirst().values().add(1.0))
                 .isInstanceOf(UnsupportedOperationException.class);
+        fixture.server.verify();
+    }
+
+    @Test
+    void shouldUseAConfiguredModelWithANewEmbeddingVersion() {
+        Fixture fixture = fixture("custom-embedding-model", "custom-model-d2", 2);
+        fixture.server.expect(requestTo(BASE_URL + "/api/embed"))
+                .andExpect(content().json("""
+                        {
+                          "model": "custom-embedding-model",
+                          "input": ["controlled text"]
+                        }
+                        """))
+                .andRespond(withSuccess(responseJson(1, 2), MediaType.APPLICATION_JSON));
+
+        EmbeddingBatch result = fixture.adapter.embed(List.of("controlled text"));
+
+        assertThat(result.model()).isEqualTo("custom-embedding-model");
+        assertThat(result.dimensions()).isEqualTo(2);
         fixture.server.verify();
     }
 
@@ -72,6 +99,18 @@ class OllamaEmbeddingAdapterTest {
                 .andRespond(withStatus(HttpStatus.INTERNAL_SERVER_ERROR));
         assertFailure(httpFailure.adapter, List.of("text"), EmbeddingFailureType.HTTP_FAILURE);
         httpFailure.server.verify();
+    }
+
+    @Test
+    void shouldRejectConnectionFailure() {
+        Fixture fixture = fixture("test-d2", 2);
+        fixture.server.expect(requestTo(BASE_URL + "/api/embed"))
+                .andRespond(request -> {
+                    throw new IOException("simulated connection failure");
+                });
+
+        assertFailure(fixture.adapter, List.of("text"), EmbeddingFailureType.TRANSPORT_FAILURE);
+        fixture.server.verify();
     }
 
     @Test
@@ -147,19 +186,31 @@ class OllamaEmbeddingAdapterTest {
     }
 
     private Fixture fixture(String embeddingVersion, int expectedDimensions) {
+        return fixture(RagEmbeddingProfile.INITIAL_MODEL, embeddingVersion, expectedDimensions);
+    }
+
+    private Fixture fixture(String model, String embeddingVersion, int expectedDimensions) {
         RestClient.Builder builder = RestClient.builder().baseUrl(BASE_URL);
         MockRestServiceServer server = MockRestServiceServer.bindTo(builder).build();
         OllamaEmbeddingAdapter adapter = new OllamaEmbeddingAdapter(
                 builder.build(),
-                properties(embeddingVersion, expectedDimensions));
+                properties(model, embeddingVersion, expectedDimensions));
         return new Fixture(adapter, server);
     }
 
     private OllamaEmbeddingProperties properties(String embeddingVersion, int expectedDimensions) {
+        return properties(RagEmbeddingProfile.INITIAL_MODEL, embeddingVersion, expectedDimensions);
+    }
+
+    private OllamaEmbeddingProperties properties(
+            String model,
+            String embeddingVersion,
+            int expectedDimensions
+    ) {
         OllamaEmbeddingProperties properties = new OllamaEmbeddingProperties();
         properties.setEnabled(true);
         properties.setBaseUrl(BASE_URL);
-        properties.setModel(RagEmbeddingProfile.INITIAL_MODEL);
+        properties.setModel(model);
         properties.setEmbeddingVersion(embeddingVersion);
         properties.setExpectedDimensions(expectedDimensions);
         return properties;

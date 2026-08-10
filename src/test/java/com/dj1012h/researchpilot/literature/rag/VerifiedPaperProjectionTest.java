@@ -122,6 +122,9 @@ class VerifiedPaperProjectionTest {
                 42L, validPaper, verified, "10.1000/example", "verification-v2", SOURCE_UPDATED_AT))
                 .rejectionReason()).isEqualTo(ProjectionRejectionReason.VERIFICATION_VERSION_MISMATCH);
         assertThat(projector.project(new VerifiedPaperSource(
+                42L, validPaper, verified, "10.1000/example", "verification-v1|other", SOURCE_UPDATED_AT))
+                .rejectionReason()).isEqualTo(ProjectionRejectionReason.ILLEGAL_SEPARATOR);
+        assertThat(projector.project(new VerifiedPaperSource(
                 42L, validPaper, verified, "10.1000/example", VerificationPolicy.VERSION, null))
                 .rejectionReason()).isEqualTo(ProjectionRejectionReason.SOURCE_UPDATED_AT_MISSING);
         assertThat(projector.project(source(

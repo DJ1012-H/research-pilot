@@ -1,6 +1,10 @@
 package com.dj1012h.researchpilot.integration.ollama;
 
 import com.dj1012h.researchpilot.literature.rag.embedding.EmbeddingPort;
+import com.dj1012h.researchpilot.literature.normalization.DoiNormalizer;
+import com.dj1012h.researchpilot.literature.rag.RagDocumentBuilder;
+import com.dj1012h.researchpilot.literature.rag.VerifiedPaperProjector;
+import com.dj1012h.researchpilot.literature.rag.embedding.RagEmbeddingProfile;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
@@ -14,6 +18,11 @@ import java.time.Duration;
 @Configuration(proxyBeanMethods = false)
 @EnableConfigurationProperties(OllamaEmbeddingProperties.class)
 public class OllamaEmbeddingConfig {
+
+    @Bean
+    RagDocumentBuilder ragDocumentBuilder() {
+        return new RagDocumentBuilder();
+    }
 
     @Bean
     @ConditionalOnProperty(prefix = "app.rag.embedding.ollama", name = "enabled", havingValue = "true")
@@ -34,6 +43,27 @@ public class OllamaEmbeddingConfig {
             OllamaEmbeddingProperties properties
     ) {
         return new OllamaEmbeddingAdapter(ollamaEmbeddingRestClient, properties);
+    }
+
+    @Bean
+    @ConditionalOnProperty(prefix = "app.rag.embedding.ollama", name = "enabled", havingValue = "true")
+    RagEmbeddingProfile ragEmbeddingProfile(OllamaEmbeddingProperties properties) {
+        return properties.profile();
+    }
+
+    @Bean
+    @ConditionalOnProperty(prefix = "app.rag.embedding.ollama", name = "enabled", havingValue = "true")
+    VerifiedPaperProjector verifiedPaperProjector(
+            DoiNormalizer doiNormalizer,
+            RagDocumentBuilder ragDocumentBuilder,
+            @Qualifier("ollamaEmbeddingPort") EmbeddingPort embeddingPort,
+            RagEmbeddingProfile ragEmbeddingProfile
+    ) {
+        return new VerifiedPaperProjector(
+                doiNormalizer,
+                ragDocumentBuilder,
+                embeddingPort,
+                ragEmbeddingProfile);
     }
 
     private Duration positive(Duration duration, String property) {

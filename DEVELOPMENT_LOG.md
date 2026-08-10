@@ -1805,3 +1805,33 @@ Spring Boot 的条件装配回退，使它成为 MVC 使用的全局 Mapper；�
   database migration, live database, live Ollama, trusted-search API, result
   limit, or Agent/query budget change was made. Day 2 and end-to-end RAG
   acceptance remain open.
+
+## 2026-08-10 - RAG Day 2 focused acceptance follow-up
+
+- Confirmed that the Day 2 foundation had been preserved in commit `709e55c`
+  on `codex/rag-day1-main-rebased`; the worktree had subsequently been moved to
+  the unrelated Crossref evaluation branch, so it was switched back without
+  rewriting either branch.
+- Added conditional Spring composition for the pure document builder and
+  verified-paper projector. They become runtime beans only with the existing
+  opt-in Ollama embedding switch; disabled defaults still perform no live
+  provider call.
+- Added focused adapter coverage for a simulated connection failure and for a
+  configured model paired with a new embedding version. Separator rejection is
+  now classified before verification-version mismatch so every controlled
+  string containing `|` receives the explicit fail-closed reason.
+- Retried only the four focused Day 2 test classes. Maven again stopped before
+  compilation because the Spring Boot 3.5.16 parent POM was absent locally and
+  sandboxed Maven Central access failed with `Permission denied: getsockopt`.
+  No alternate repository, dependency, build configuration, or network
+  workaround was introduced. Focused Java test execution therefore remains
+  unmeasured rather than passed.
+- After explicit authorization to let Maven download only the dependencies
+  already declared by `pom.xml`, the same focused command compiled 265 main
+  sources and 92 test sources and passed 24 tests with 0 failures, 0 errors,
+  and 0 skips. The suite used fake embedding vectors and mocked Ollama HTTP;
+  it did not contact live Ollama, MySQL, Qdrant, or another external service.
+- During the branch-consolidation checkpoint, `.\mvnw.cmd clean verify` passed
+  492 tests with 0 failures, 0 errors, and 4 explicit opt-in smoke skips, then
+  rebuilt the executable JAR. This was an offline fixture/test-double result;
+  no live Ollama, Crossref, OpenAlex, MySQL, Redis, or Qdrant call was made.

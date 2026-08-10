@@ -96,6 +96,9 @@ public class VerifiedPaperProjector {
         if (source.sourceUpdatedAt() == null) {
             return ProjectionRejectionReason.SOURCE_UPDATED_AT_MISSING;
         }
+        if (containsSeparator(source)) {
+            return ProjectionRejectionReason.ILLEGAL_SEPARATOR;
+        }
         if (!VerificationPolicy.VERSION.equals(source.verificationVersion())) {
             return ProjectionRejectionReason.VERIFICATION_VERSION_MISMATCH;
         }
@@ -105,10 +108,6 @@ public class VerifiedPaperProjector {
                 || source.verification().referenceDoi().isBlank()) {
             return ProjectionRejectionReason.DOI_MISSING;
         }
-        if (containsSeparator(source)) {
-            return ProjectionRejectionReason.ILLEGAL_SEPARATOR;
-        }
-
         String sourceDoi = doiNormalizer.normalize(source.normalizedDoi());
         String paperDoi = doiNormalizer.normalize(source.paper().doi());
         String verificationDoi = doiNormalizer.normalize(source.verification().referenceDoi());
