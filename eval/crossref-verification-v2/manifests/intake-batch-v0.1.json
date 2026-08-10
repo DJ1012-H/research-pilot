@@ -1,0 +1,621 @@
+{
+    "$schema":  "../schema/intake-batch.schema.json",
+    "schema_version":  "crossref-verification-v2-intake-batch",
+    "batch_id":  "intake-v0.1",
+    "dataset_version":  "crossref-verification-v2",
+    "state":  "NEEDS_REVIEW",
+    "generated_at":  "2026-08-10T06:39:29.2271400Z",
+    "request_mode":  "ANONYMOUS_READ_ONLY",
+    "user_agent":  "ResearchPilot-Evaluation/0.1 (+https://github.com/DJ1012-H/research-pilot)",
+    "selection":  {
+                      "provider":  "OpenAlex",
+                      "seed":  20260810,
+                      "query_url":  "https://api.openalex.org/works?filter=type:article,has_doi:true,is_retracted:false\u0026sample=100\u0026per_page=100\u0026seed=20260810\u0026select=id,doi,title,display_name,publication_year,publication_date,type,language,authorships,primary_location,primary_topic,is_retracted",
+                      "snapshot_path":  "eval/crossref-verification-v2/fixtures/intake-v0.1/selection/openalex-sample-seed-20260810.json",
+                      "sha256":  "48f0bc23e2e422122e297ec80e6ebbfd188ce3cd8465e039d470fa6716eeed44",
+                      "retrieved_at":  "2026-08-10T06:39:01.1292160Z",
+                      "requested_sample_size":  100,
+                      "returned_count":  100
+                  },
+    "selection_policy":  {
+                             "target_pair_count":  20,
+                             "actual_pair_count":  20,
+                             "article_only":  true,
+                             "doi_required":  true,
+                             "retracted_excluded":  true,
+                             "unique_primary_source_required":  true,
+                             "max_cases_per_primary_topic_field":  3,
+                             "crossref_lookup_status_required":  200,
+                             "ground_truth_generated":  false
+                         },
+    "queue":  {
+                  "path":  "eval/crossref-verification-v2/draft/review-queue-v0.1.jsonl",
+                  "sha256":  "f941163dc85730c1c55cd05c972945aa977aff8f2026be8e7da52c4edc467f93",
+                  "case_count":  20,
+                  "review_state":  "NEEDS_REVIEW",
+                  "expected_labels_present":  false
+              },
+    "cases":  [
+                  {
+                      "case_id":  "crv2-case-0001",
+                      "doi":  "10.63913/ail.v1i4.44",
+                      "openalex_id":  "https://openalex.org/W7123346694",
+                      "publication_year":  2025,
+                      "language":  null,
+                      "primary_source":  {
+                                             "id":  "https://openalex.org/S5407049860",
+                                             "name":  "Artificial Intelligence in Learning"
+                                         },
+                      "primary_topic_field":  {
+                                                  "id":  "https://openalex.org/fields/33",
+                                                  "name":  "Social Sciences"
+                                              },
+                      "candidate_source":  {
+                                               "source_id":  "openalex-W7123346694",
+                                               "snapshot_path":  "eval/crossref-verification-v2/fixtures/intake-v0.1/candidate/crv2-case-0001-openalex.json",
+                                               "source_url":  "https://api.openalex.org/works/W7123346694?select=id,doi,title,display_name,publication_year,publication_date,type,language,authorships,primary_location,primary_topic,is_retracted",
+                                               "retrieved_at":  "2026-08-10T06:39:01.7331014Z",
+                                               "sha256":  "d69feef845b26545fef8bff27e44ee5203b2ce623fbf992c075cac7a7dff3819"
+                                           },
+                      "reference_source":  {
+                                               "source_id":  "crossref-doi:10.63913/ail.v1i4.44",
+                                               "snapshot_path":  "eval/crossref-verification-v2/fixtures/intake-v0.1/reference/crv2-case-0001-crossref.json",
+                                               "source_url":  "https://api.crossref.org/works/10.63913/ail.v1i4.44",
+                                               "retrieved_at":  "2026-08-10T06:39:02.8959629Z",
+                                               "sha256":  "e0304ecffd39b4985d0dc39c33015ef9275e61008d5c5ead28c4966b2835fe90"
+                                           }
+                  },
+                  {
+                      "case_id":  "crv2-case-0002",
+                      "doi":  "10.1136/bmj.325.7354.6/a",
+                      "openalex_id":  "https://openalex.org/W1980717243",
+                      "publication_year":  2002,
+                      "language":  "en",
+                      "primary_source":  {
+                                             "id":  "https://openalex.org/S4393911389",
+                                             "name":  "BMJ"
+                                         },
+                      "primary_topic_field":  {
+                                                  "id":  "https://openalex.org/fields/36",
+                                                  "name":  "Health Professions"
+                                              },
+                      "candidate_source":  {
+                                               "source_id":  "openalex-W1980717243",
+                                               "snapshot_path":  "eval/crossref-verification-v2/fixtures/intake-v0.1/candidate/crv2-case-0002-openalex.json",
+                                               "source_url":  "https://api.openalex.org/works/W1980717243?select=id,doi,title,display_name,publication_year,publication_date,type,language,authorships,primary_location,primary_topic,is_retracted",
+                                               "retrieved_at":  "2026-08-10T06:39:03.4512591Z",
+                                               "sha256":  "6dfc4ee39b604fe9049aad27b0c22cb2d6eb685853196e972b76c405cac65ade"
+                                           },
+                      "reference_source":  {
+                                               "source_id":  "crossref-doi:10.1136/bmj.325.7354.6/a",
+                                               "snapshot_path":  "eval/crossref-verification-v2/fixtures/intake-v0.1/reference/crv2-case-0002-crossref.json",
+                                               "source_url":  "https://api.crossref.org/works/10.1136/bmj.325.7354.6/a",
+                                               "retrieved_at":  "2026-08-10T06:39:04.0886779Z",
+                                               "sha256":  "43b6aeb69f461a07987ffb37c4b37baa31e3ca18373034a74de4dd18d06880d5"
+                                           }
+                  },
+                  {
+                      "case_id":  "crv2-case-0003",
+                      "doi":  "10.1177/030089161109700421",
+                      "openalex_id":  "https://openalex.org/W4245282579",
+                      "publication_year":  2011,
+                      "language":  "en",
+                      "primary_source":  {
+                                             "id":  "https://openalex.org/S4210189328",
+                                             "name":  "Tumori Journal"
+                                         },
+                      "primary_topic_field":  {
+                                                  "id":  "https://openalex.org/fields/27",
+                                                  "name":  "Medicine"
+                                              },
+                      "candidate_source":  {
+                                               "source_id":  "openalex-W4245282579",
+                                               "snapshot_path":  "eval/crossref-verification-v2/fixtures/intake-v0.1/candidate/crv2-case-0003-openalex.json",
+                                               "source_url":  "https://api.openalex.org/works/W4245282579?select=id,doi,title,display_name,publication_year,publication_date,type,language,authorships,primary_location,primary_topic,is_retracted",
+                                               "retrieved_at":  "2026-08-10T06:39:04.5851389Z",
+                                               "sha256":  "0bcc23d3405efd23a0d61237163fede8fbc2acee14427c319171136c79ac74ce"
+                                           },
+                      "reference_source":  {
+                                               "source_id":  "crossref-doi:10.1177/030089161109700421",
+                                               "snapshot_path":  "eval/crossref-verification-v2/fixtures/intake-v0.1/reference/crv2-case-0003-crossref.json",
+                                               "source_url":  "https://api.crossref.org/works/10.1177/030089161109700421",
+                                               "retrieved_at":  "2026-08-10T06:39:05.2661745Z",
+                                               "sha256":  "011a548cac241f0340a12ad1f1b28551c4526de83aa65328b2282015aa707529"
+                                           }
+                  },
+                  {
+                      "case_id":  "crv2-case-0004",
+                      "doi":  "10.1109/6.925286",
+                      "openalex_id":  "https://openalex.org/W2163250436",
+                      "publication_year":  2001,
+                      "language":  "en",
+                      "primary_source":  {
+                                             "id":  "https://openalex.org/S66124381",
+                                             "name":  "IEEE Spectrum"
+                                         },
+                      "primary_topic_field":  {
+                                                  "id":  "https://openalex.org/fields/14",
+                                                  "name":  "Business, Management and Accounting"
+                                              },
+                      "candidate_source":  {
+                                               "source_id":  "openalex-W2163250436",
+                                               "snapshot_path":  "eval/crossref-verification-v2/fixtures/intake-v0.1/candidate/crv2-case-0004-openalex.json",
+                                               "source_url":  "https://api.openalex.org/works/W2163250436?select=id,doi,title,display_name,publication_year,publication_date,type,language,authorships,primary_location,primary_topic,is_retracted",
+                                               "retrieved_at":  "2026-08-10T06:39:05.7841017Z",
+                                               "sha256":  "4dbacdbbaf7ef293bf2e63d88e77b3958926b27420897344a3930bbac8f6be74"
+                                           },
+                      "reference_source":  {
+                                               "source_id":  "crossref-doi:10.1109/6.925286",
+                                               "snapshot_path":  "eval/crossref-verification-v2/fixtures/intake-v0.1/reference/crv2-case-0004-crossref.json",
+                                               "source_url":  "https://api.crossref.org/works/10.1109/6.925286",
+                                               "retrieved_at":  "2026-08-10T06:39:06.4265177Z",
+                                               "sha256":  "d851ae5be79e307d9da4dc336a345897339ba8fa724594a79efbd4716de8d579"
+                                           }
+                  },
+                  {
+                      "case_id":  "crv2-case-0005",
+                      "doi":  "10.1086/ahr/82.3.689",
+                      "openalex_id":  "https://openalex.org/W4254581654",
+                      "publication_year":  1977,
+                      "language":  "it",
+                      "primary_source":  {
+                                             "id":  "https://openalex.org/S197437610",
+                                             "name":  "The American Historical Review"
+                                         },
+                      "primary_topic_field":  {
+                                                  "id":  "https://openalex.org/fields/33",
+                                                  "name":  "Social Sciences"
+                                              },
+                      "candidate_source":  {
+                                               "source_id":  "openalex-W4254581654",
+                                               "snapshot_path":  "eval/crossref-verification-v2/fixtures/intake-v0.1/candidate/crv2-case-0005-openalex.json",
+                                               "source_url":  "https://api.openalex.org/works/W4254581654?select=id,doi,title,display_name,publication_year,publication_date,type,language,authorships,primary_location,primary_topic,is_retracted",
+                                               "retrieved_at":  "2026-08-10T06:39:06.9566710Z",
+                                               "sha256":  "b0b3130aad21a5b8512f64b35e72ffe04f78a84447aa8cc1e195f44122d1a303"
+                                           },
+                      "reference_source":  {
+                                               "source_id":  "crossref-doi:10.1086/ahr/82.3.689",
+                                               "snapshot_path":  "eval/crossref-verification-v2/fixtures/intake-v0.1/reference/crv2-case-0005-crossref.json",
+                                               "source_url":  "https://api.crossref.org/works/10.1086/ahr/82.3.689",
+                                               "retrieved_at":  "2026-08-10T06:39:07.5786028Z",
+                                               "sha256":  "5789db8d7ff13c39d053dae1941ca77636bb2769f754cffbfb8b30533877751e"
+                                           }
+                  },
+                  {
+                      "case_id":  "crv2-case-0006",
+                      "doi":  "10.1016/s0014-5793(97)00064-1",
+                      "openalex_id":  "https://openalex.org/W2081738209",
+                      "publication_year":  1997,
+                      "language":  "en",
+                      "primary_source":  {
+                                             "id":  "https://openalex.org/S104830714",
+                                             "name":  "FEBS Letters"
+                                         },
+                      "primary_topic_field":  {
+                                                  "id":  "https://openalex.org/fields/11",
+                                                  "name":  "Agricultural and Biological Sciences"
+                                              },
+                      "candidate_source":  {
+                                               "source_id":  "openalex-W2081738209",
+                                               "snapshot_path":  "eval/crossref-verification-v2/fixtures/intake-v0.1/candidate/crv2-case-0006-openalex.json",
+                                               "source_url":  "https://api.openalex.org/works/W2081738209?select=id,doi,title,display_name,publication_year,publication_date,type,language,authorships,primary_location,primary_topic,is_retracted",
+                                               "retrieved_at":  "2026-08-10T06:39:08.0742240Z",
+                                               "sha256":  "cb5c28bf1388d1ae75997b20e657ce36c7654671bfd267260af6cba1b0730565"
+                                           },
+                      "reference_source":  {
+                                               "source_id":  "crossref-doi:10.1016/s0014-5793(97)00064-1",
+                                               "snapshot_path":  "eval/crossref-verification-v2/fixtures/intake-v0.1/reference/crv2-case-0006-crossref.json",
+                                               "source_url":  "https://api.crossref.org/works/10.1016/s0014-5793(97)00064-1",
+                                               "retrieved_at":  "2026-08-10T06:39:08.7307957Z",
+                                               "sha256":  "19c24c17672fcbf56b7786e511d781583666c6e81200b0be2020e40ea75091cc"
+                                           }
+                  },
+                  {
+                      "case_id":  "crv2-case-0007",
+                      "doi":  "10.12688/f1000research.2-242.v2",
+                      "openalex_id":  "https://openalex.org/W2034975662",
+                      "publication_year":  2014,
+                      "language":  "en",
+                      "primary_source":  {
+                                             "id":  "https://openalex.org/S4210239046",
+                                             "name":  "F1000Research"
+                                         },
+                      "primary_topic_field":  {
+                                                  "id":  "https://openalex.org/fields/13",
+                                                  "name":  "Biochemistry, Genetics and Molecular Biology"
+                                              },
+                      "candidate_source":  {
+                                               "source_id":  "openalex-W2034975662",
+                                               "snapshot_path":  "eval/crossref-verification-v2/fixtures/intake-v0.1/candidate/crv2-case-0007-openalex.json",
+                                               "source_url":  "https://api.openalex.org/works/W2034975662?select=id,doi,title,display_name,publication_year,publication_date,type,language,authorships,primary_location,primary_topic,is_retracted",
+                                               "retrieved_at":  "2026-08-10T06:39:09.2570462Z",
+                                               "sha256":  "6d178d075377b1c9803adfd174f16cf82fe95f54774e7b8d3de6607dd9c0be56"
+                                           },
+                      "reference_source":  {
+                                               "source_id":  "crossref-doi:10.12688/f1000research.2-242.v2",
+                                               "snapshot_path":  "eval/crossref-verification-v2/fixtures/intake-v0.1/reference/crv2-case-0007-crossref.json",
+                                               "source_url":  "https://api.crossref.org/works/10.12688/f1000research.2-242.v2",
+                                               "retrieved_at":  "2026-08-10T06:39:10.0870335Z",
+                                               "sha256":  "723764f12ff7ceffa05b2ac177e444063ed1141298974dc260eb1146382e692b"
+                                           }
+                  },
+                  {
+                      "case_id":  "crv2-case-0008",
+                      "doi":  "10.1093/eurpub/ckae144.1717",
+                      "openalex_id":  "https://openalex.org/W4403815455",
+                      "publication_year":  2024,
+                      "language":  "en",
+                      "primary_source":  {
+                                             "id":  "https://openalex.org/S4210220588",
+                                             "name":  "European Journal of Public Health"
+                                         },
+                      "primary_topic_field":  {
+                                                  "id":  "https://openalex.org/fields/32",
+                                                  "name":  "Psychology"
+                                              },
+                      "candidate_source":  {
+                                               "source_id":  "openalex-W4403815455",
+                                               "snapshot_path":  "eval/crossref-verification-v2/fixtures/intake-v0.1/candidate/crv2-case-0008-openalex.json",
+                                               "source_url":  "https://api.openalex.org/works/W4403815455?select=id,doi,title,display_name,publication_year,publication_date,type,language,authorships,primary_location,primary_topic,is_retracted",
+                                               "retrieved_at":  "2026-08-10T06:39:10.5975314Z",
+                                               "sha256":  "4fda56d5402ae3641097b6b46323cfa72a7c53971fd7dab843ca9a1d6f1cb3b9"
+                                           },
+                      "reference_source":  {
+                                               "source_id":  "crossref-doi:10.1093/eurpub/ckae144.1717",
+                                               "snapshot_path":  "eval/crossref-verification-v2/fixtures/intake-v0.1/reference/crv2-case-0008-crossref.json",
+                                               "source_url":  "https://api.crossref.org/works/10.1093/eurpub/ckae144.1717",
+                                               "retrieved_at":  "2026-08-10T06:39:11.2337099Z",
+                                               "sha256":  "488ef49d434dbb7aec283e7a138522c23a6ed2f87d0d0571bc48d8cfc70eda77"
+                                           }
+                  },
+                  {
+                      "case_id":  "crv2-case-0009",
+                      "doi":  "10.1364/ao.55.005548",
+                      "openalex_id":  "https://openalex.org/W2460470146",
+                      "publication_year":  2016,
+                      "language":  "en",
+                      "primary_source":  {
+                                             "id":  "https://openalex.org/S4210211917",
+                                             "name":  "Applied Optics"
+                                         },
+                      "primary_topic_field":  {
+                                                  "id":  "https://openalex.org/fields/25",
+                                                  "name":  "Materials Science"
+                                              },
+                      "candidate_source":  {
+                                               "source_id":  "openalex-W2460470146",
+                                               "snapshot_path":  "eval/crossref-verification-v2/fixtures/intake-v0.1/candidate/crv2-case-0009-openalex.json",
+                                               "source_url":  "https://api.openalex.org/works/W2460470146?select=id,doi,title,display_name,publication_year,publication_date,type,language,authorships,primary_location,primary_topic,is_retracted",
+                                               "retrieved_at":  "2026-08-10T06:39:12.0441364Z",
+                                               "sha256":  "8e598141f05cd1f0d7138787ba96178423ca75c8a4a7a950abce13e943984927"
+                                           },
+                      "reference_source":  {
+                                               "source_id":  "crossref-doi:10.1364/ao.55.005548",
+                                               "snapshot_path":  "eval/crossref-verification-v2/fixtures/intake-v0.1/reference/crv2-case-0009-crossref.json",
+                                               "source_url":  "https://api.crossref.org/works/10.1364/ao.55.005548",
+                                               "retrieved_at":  "2026-08-10T06:39:12.6882954Z",
+                                               "sha256":  "cc4a35d80d732c2ebe069bbbdb1710a8499df726a640286372ca1aac21f1c401"
+                                           }
+                  },
+                  {
+                      "case_id":  "crv2-case-0010",
+                      "doi":  "10.1016/j.foodres.2013.07.060",
+                      "openalex_id":  "https://openalex.org/W2084451241",
+                      "publication_year":  2013,
+                      "language":  "en",
+                      "primary_source":  {
+                                             "id":  "https://openalex.org/S38919146",
+                                             "name":  "Food Research International"
+                                         },
+                      "primary_topic_field":  {
+                                                  "id":  "https://openalex.org/fields/27",
+                                                  "name":  "Medicine"
+                                              },
+                      "candidate_source":  {
+                                               "source_id":  "openalex-W2084451241",
+                                               "snapshot_path":  "eval/crossref-verification-v2/fixtures/intake-v0.1/candidate/crv2-case-0010-openalex.json",
+                                               "source_url":  "https://api.openalex.org/works/W2084451241?select=id,doi,title,display_name,publication_year,publication_date,type,language,authorships,primary_location,primary_topic,is_retracted",
+                                               "retrieved_at":  "2026-08-10T06:39:13.2146161Z",
+                                               "sha256":  "e92e891ff60efe359e43404a38973905eecdf5c4a9677e29f96003d0100607cc"
+                                           },
+                      "reference_source":  {
+                                               "source_id":  "crossref-doi:10.1016/j.foodres.2013.07.060",
+                                               "snapshot_path":  "eval/crossref-verification-v2/fixtures/intake-v0.1/reference/crv2-case-0010-crossref.json",
+                                               "source_url":  "https://api.crossref.org/works/10.1016/j.foodres.2013.07.060",
+                                               "retrieved_at":  "2026-08-10T06:39:13.8681095Z",
+                                               "sha256":  "2ceea547bba5b06e65f87682e50d0e6c9cb867f0ffebe82551ab2ca7939da08f"
+                                           }
+                  },
+                  {
+                      "case_id":  "crv2-case-0011",
+                      "doi":  "10.1111/nph.19413",
+                      "openalex_id":  "https://openalex.org/W4388852235",
+                      "publication_year":  2023,
+                      "language":  "en",
+                      "primary_source":  {
+                                             "id":  "https://openalex.org/S58631098",
+                                             "name":  "New Phytologist"
+                                         },
+                      "primary_topic_field":  {
+                                                  "id":  "https://openalex.org/fields/23",
+                                                  "name":  "Environmental Science"
+                                              },
+                      "candidate_source":  {
+                                               "source_id":  "openalex-W4388852235",
+                                               "snapshot_path":  "eval/crossref-verification-v2/fixtures/intake-v0.1/candidate/crv2-case-0011-openalex.json",
+                                               "source_url":  "https://api.openalex.org/works/W4388852235?select=id,doi,title,display_name,publication_year,publication_date,type,language,authorships,primary_location,primary_topic,is_retracted",
+                                               "retrieved_at":  "2026-08-10T06:39:16.6798124Z",
+                                               "sha256":  "8f304ce72b90ca46f6fffa8256a0e52b71919de9376bb24ddaa74bb366908984"
+                                           },
+                      "reference_source":  {
+                                               "source_id":  "crossref-doi:10.1111/nph.19413",
+                                               "snapshot_path":  "eval/crossref-verification-v2/fixtures/intake-v0.1/reference/crv2-case-0011-crossref.json",
+                                               "source_url":  "https://api.crossref.org/works/10.1111/nph.19413",
+                                               "retrieved_at":  "2026-08-10T06:39:17.3505629Z",
+                                               "sha256":  "3eb8bb64c96a15be620ba87776ef2c8dec48dde895c7704f98f383cec017e857"
+                                           }
+                  },
+                  {
+                      "case_id":  "crv2-case-0012",
+                      "doi":  "10.3390/ph15070898",
+                      "openalex_id":  "https://openalex.org/W4286501078",
+                      "publication_year":  2022,
+                      "language":  "en",
+                      "primary_source":  {
+                                             "id":  "https://openalex.org/S16322639",
+                                             "name":  "Pharmaceuticals"
+                                         },
+                      "primary_topic_field":  {
+                                                  "id":  "https://openalex.org/fields/28",
+                                                  "name":  "Neuroscience"
+                                              },
+                      "candidate_source":  {
+                                               "source_id":  "openalex-W4286501078",
+                                               "snapshot_path":  "eval/crossref-verification-v2/fixtures/intake-v0.1/candidate/crv2-case-0012-openalex.json",
+                                               "source_url":  "https://api.openalex.org/works/W4286501078?select=id,doi,title,display_name,publication_year,publication_date,type,language,authorships,primary_location,primary_topic,is_retracted",
+                                               "retrieved_at":  "2026-08-10T06:39:17.8756730Z",
+                                               "sha256":  "a159259d018213627bf9e5232590f7091e5b719da3e8936f575cf55d4caba098"
+                                           },
+                      "reference_source":  {
+                                               "source_id":  "crossref-doi:10.3390/ph15070898",
+                                               "snapshot_path":  "eval/crossref-verification-v2/fixtures/intake-v0.1/reference/crv2-case-0012-crossref.json",
+                                               "source_url":  "https://api.crossref.org/works/10.3390/ph15070898",
+                                               "retrieved_at":  "2026-08-10T06:39:18.5844990Z",
+                                               "sha256":  "d66f62968725aaada3da32c517d087a3f889cf63c29b13a4f7f058a4e37b6a5b"
+                                           }
+                  },
+                  {
+                      "case_id":  "crv2-case-0013",
+                      "doi":  "10.1111/os.13051",
+                      "openalex_id":  "https://openalex.org/W3191284663",
+                      "publication_year":  2021,
+                      "language":  "en",
+                      "primary_source":  {
+                                             "id":  "https://openalex.org/S141658146",
+                                             "name":  "Orthopaedic Surgery"
+                                         },
+                      "primary_topic_field":  {
+                                                  "id":  "https://openalex.org/fields/27",
+                                                  "name":  "Medicine"
+                                              },
+                      "candidate_source":  {
+                                               "source_id":  "openalex-W3191284663",
+                                               "snapshot_path":  "eval/crossref-verification-v2/fixtures/intake-v0.1/candidate/crv2-case-0013-openalex.json",
+                                               "source_url":  "https://api.openalex.org/works/W3191284663?select=id,doi,title,display_name,publication_year,publication_date,type,language,authorships,primary_location,primary_topic,is_retracted",
+                                               "retrieved_at":  "2026-08-10T06:39:19.1081111Z",
+                                               "sha256":  "7df4c5b175b6cae886f4c1bb2d59230fe609ffbd5273169507f6800e99d798cc"
+                                           },
+                      "reference_source":  {
+                                               "source_id":  "crossref-doi:10.1111/os.13051",
+                                               "snapshot_path":  "eval/crossref-verification-v2/fixtures/intake-v0.1/reference/crv2-case-0013-crossref.json",
+                                               "source_url":  "https://api.crossref.org/works/10.1111/os.13051",
+                                               "retrieved_at":  "2026-08-10T06:39:19.7426360Z",
+                                               "sha256":  "ee2255ed1e8b725737891d4cf17279afeb7c0718981077d6f1e9a99daf85baa1"
+                                           }
+                  },
+                  {
+                      "case_id":  "crv2-case-0014",
+                      "doi":  "10.6008/cbpc2318-3047.2024.002.0005",
+                      "openalex_id":  "https://openalex.org/W4411733590",
+                      "publication_year":  2024,
+                      "language":  "pt",
+                      "primary_source":  {
+                                             "id":  "https://openalex.org/S4210219420",
+                                             "name":  "Educationis"
+                                         },
+                      "primary_topic_field":  {
+                                                  "id":  "https://openalex.org/fields/12",
+                                                  "name":  "Arts and Humanities"
+                                              },
+                      "candidate_source":  {
+                                               "source_id":  "openalex-W4411733590",
+                                               "snapshot_path":  "eval/crossref-verification-v2/fixtures/intake-v0.1/candidate/crv2-case-0014-openalex.json",
+                                               "source_url":  "https://api.openalex.org/works/W4411733590?select=id,doi,title,display_name,publication_year,publication_date,type,language,authorships,primary_location,primary_topic,is_retracted",
+                                               "retrieved_at":  "2026-08-10T06:39:20.2591844Z",
+                                               "sha256":  "662ac9625fbe5780390bdcd9f0bcd9a02952af1900c2dc29aae37d986b36ab37"
+                                           },
+                      "reference_source":  {
+                                               "source_id":  "crossref-doi:10.6008/cbpc2318-3047.2024.002.0005",
+                                               "snapshot_path":  "eval/crossref-verification-v2/fixtures/intake-v0.1/reference/crv2-case-0014-crossref.json",
+                                               "source_url":  "https://api.crossref.org/works/10.6008/cbpc2318-3047.2024.002.0005",
+                                               "retrieved_at":  "2026-08-10T06:39:20.9132983Z",
+                                               "sha256":  "08b62d3440bbea0e7bb3f25c152b4626148b35718ba3856885a0b73ab2fa717c"
+                                           }
+                  },
+                  {
+                      "case_id":  "crv2-case-0015",
+                      "doi":  "10.1007/s00265-008-0582-8",
+                      "openalex_id":  "https://openalex.org/W1981688741",
+                      "publication_year":  2008,
+                      "language":  "en",
+                      "primary_source":  {
+                                             "id":  "https://openalex.org/S136529485",
+                                             "name":  "Behavioral Ecology and Sociobiology"
+                                         },
+                      "primary_topic_field":  {
+                                                  "id":  "https://openalex.org/fields/11",
+                                                  "name":  "Agricultural and Biological Sciences"
+                                              },
+                      "candidate_source":  {
+                                               "source_id":  "openalex-W1981688741",
+                                               "snapshot_path":  "eval/crossref-verification-v2/fixtures/intake-v0.1/candidate/crv2-case-0015-openalex.json",
+                                               "source_url":  "https://api.openalex.org/works/W1981688741?select=id,doi,title,display_name,publication_year,publication_date,type,language,authorships,primary_location,primary_topic,is_retracted",
+                                               "retrieved_at":  "2026-08-10T06:39:21.4422100Z",
+                                               "sha256":  "d0d8e9ad3bb55b6f07cb8d4cc4fe0851bc65f8a48a040042cda3f3ff7bedcb9d"
+                                           },
+                      "reference_source":  {
+                                               "source_id":  "crossref-doi:10.1007/s00265-008-0582-8",
+                                               "snapshot_path":  "eval/crossref-verification-v2/fixtures/intake-v0.1/reference/crv2-case-0015-crossref.json",
+                                               "source_url":  "https://api.crossref.org/works/10.1007/s00265-008-0582-8",
+                                               "retrieved_at":  "2026-08-10T06:39:22.1028905Z",
+                                               "sha256":  "727fb8d901b8a214d1a2ed6086f57ed5a8854a3eaa6a1329b663cbfe252f7c4d"
+                                           }
+                  },
+                  {
+                      "case_id":  "crv2-case-0016",
+                      "doi":  "10.2460/ajvr.82.6.435",
+                      "openalex_id":  "https://openalex.org/W3165578746",
+                      "publication_year":  2021,
+                      "language":  "en",
+                      "primary_source":  {
+                                             "id":  "https://openalex.org/S196975874",
+                                             "name":  "American Journal of Veterinary Research"
+                                         },
+                      "primary_topic_field":  {
+                                                  "id":  "https://openalex.org/fields/34",
+                                                  "name":  "Veterinary"
+                                              },
+                      "candidate_source":  {
+                                               "source_id":  "openalex-W3165578746",
+                                               "snapshot_path":  "eval/crossref-verification-v2/fixtures/intake-v0.1/candidate/crv2-case-0016-openalex.json",
+                                               "source_url":  "https://api.openalex.org/works/W3165578746?select=id,doi,title,display_name,publication_year,publication_date,type,language,authorships,primary_location,primary_topic,is_retracted",
+                                               "retrieved_at":  "2026-08-10T06:39:22.6164297Z",
+                                               "sha256":  "cffe2a930cb4fec94828d408fa586d18ac05216deb3dbd0a383559d9f6b6192f"
+                                           },
+                      "reference_source":  {
+                                               "source_id":  "crossref-doi:10.2460/ajvr.82.6.435",
+                                               "snapshot_path":  "eval/crossref-verification-v2/fixtures/intake-v0.1/reference/crv2-case-0016-crossref.json",
+                                               "source_url":  "https://api.crossref.org/works/10.2460/ajvr.82.6.435",
+                                               "retrieved_at":  "2026-08-10T06:39:23.2900415Z",
+                                               "sha256":  "e759967adc60d3fff5cb0fbc2c761fc08b2bf2f9b3d7008c34a472d637bcde8b"
+                                           }
+                  },
+                  {
+                      "case_id":  "crv2-case-0017",
+                      "doi":  "10.1051/0004-6361/201525969",
+                      "openalex_id":  "https://openalex.org/W2001673465",
+                      "publication_year":  2015,
+                      "language":  "en",
+                      "primary_source":  {
+                                             "id":  "https://openalex.org/S205231332",
+                                             "name":  "Astronomy and Astrophysics"
+                                         },
+                      "primary_topic_field":  {
+                                                  "id":  "https://openalex.org/fields/31",
+                                                  "name":  "Physics and Astronomy"
+                                              },
+                      "candidate_source":  {
+                                               "source_id":  "openalex-W2001673465",
+                                               "snapshot_path":  "eval/crossref-verification-v2/fixtures/intake-v0.1/candidate/crv2-case-0017-openalex.json",
+                                               "source_url":  "https://api.openalex.org/works/W2001673465?select=id,doi,title,display_name,publication_year,publication_date,type,language,authorships,primary_location,primary_topic,is_retracted",
+                                               "retrieved_at":  "2026-08-10T06:39:23.8095568Z",
+                                               "sha256":  "c84fac4bd86cc6d845294180d22c9ab1604294629eb7640387881e50b680c2da"
+                                           },
+                      "reference_source":  {
+                                               "source_id":  "crossref-doi:10.1051/0004-6361/201525969",
+                                               "snapshot_path":  "eval/crossref-verification-v2/fixtures/intake-v0.1/reference/crv2-case-0017-crossref.json",
+                                               "source_url":  "https://api.crossref.org/works/10.1051/0004-6361/201525969",
+                                               "retrieved_at":  "2026-08-10T06:39:24.4776646Z",
+                                               "sha256":  "5c75d0477790490a9bd09eceb4f84bb31df855c0439a59128434acdacf086744"
+                                           }
+                  },
+                  {
+                      "case_id":  "crv2-case-0018",
+                      "doi":  "10.1016/j.renene.2025.123523",
+                      "openalex_id":  "https://openalex.org/W4410567444",
+                      "publication_year":  2025,
+                      "language":  "en",
+                      "primary_source":  {
+                                             "id":  "https://openalex.org/S815301",
+                                             "name":  "Renewable Energy"
+                                         },
+                      "primary_topic_field":  {
+                                                  "id":  "https://openalex.org/fields/22",
+                                                  "name":  "Engineering"
+                                              },
+                      "candidate_source":  {
+                                               "source_id":  "openalex-W4410567444",
+                                               "snapshot_path":  "eval/crossref-verification-v2/fixtures/intake-v0.1/candidate/crv2-case-0018-openalex.json",
+                                               "source_url":  "https://api.openalex.org/works/W4410567444?select=id,doi,title,display_name,publication_year,publication_date,type,language,authorships,primary_location,primary_topic,is_retracted",
+                                               "retrieved_at":  "2026-08-10T06:39:26.2769248Z",
+                                               "sha256":  "07900d0f69427a7e54c824c51bd3e7bef4a395ce141dcf045a7966fab32e843f"
+                                           },
+                      "reference_source":  {
+                                               "source_id":  "crossref-doi:10.1016/j.renene.2025.123523",
+                                               "snapshot_path":  "eval/crossref-verification-v2/fixtures/intake-v0.1/reference/crv2-case-0018-crossref.json",
+                                               "source_url":  "https://api.crossref.org/works/10.1016/j.renene.2025.123523",
+                                               "retrieved_at":  "2026-08-10T06:39:26.9279582Z",
+                                               "sha256":  "97898c049546a239356ca26defb9daf69f6b660cc144095c431f1245796db37a"
+                                           }
+                  },
+                  {
+                      "case_id":  "crv2-case-0019",
+                      "doi":  "10.15728/bbr.2008.5.2.3",
+                      "openalex_id":  "https://openalex.org/W2037885164",
+                      "publication_year":  2008,
+                      "language":  "en",
+                      "primary_source":  {
+                                             "id":  "https://openalex.org/S2764758797",
+                                             "name":  "Brazilian Business Review"
+                                         },
+                      "primary_topic_field":  {
+                                                  "id":  "https://openalex.org/fields/14",
+                                                  "name":  "Business, Management and Accounting"
+                                              },
+                      "candidate_source":  {
+                                               "source_id":  "openalex-W2037885164",
+                                               "snapshot_path":  "eval/crossref-verification-v2/fixtures/intake-v0.1/candidate/crv2-case-0019-openalex.json",
+                                               "source_url":  "https://api.openalex.org/works/W2037885164?select=id,doi,title,display_name,publication_year,publication_date,type,language,authorships,primary_location,primary_topic,is_retracted",
+                                               "retrieved_at":  "2026-08-10T06:39:27.4264817Z",
+                                               "sha256":  "72082f68f967f9ecb4f974d367d36c753fcb00dbd841f59c13188a7665b31349"
+                                           },
+                      "reference_source":  {
+                                               "source_id":  "crossref-doi:10.15728/bbr.2008.5.2.3",
+                                               "snapshot_path":  "eval/crossref-verification-v2/fixtures/intake-v0.1/reference/crv2-case-0019-crossref.json",
+                                               "source_url":  "https://api.crossref.org/works/10.15728/bbr.2008.5.2.3",
+                                               "retrieved_at":  "2026-08-10T06:39:28.0459773Z",
+                                               "sha256":  "03e8a10eb6e75c21ebad73c21a6c1489281512ad419f2277ae986dd00514e1d6"
+                                           }
+                  },
+                  {
+                      "case_id":  "crv2-case-0020",
+                      "doi":  "10.1016/j.ejso.2023.107368",
+                      "openalex_id":  "https://openalex.org/W4392092068",
+                      "publication_year":  2024,
+                      "language":  "en",
+                      "primary_source":  {
+                                             "id":  "https://openalex.org/S158473028",
+                                             "name":  "European Journal of Surgical Oncology"
+                                         },
+                      "primary_topic_field":  {
+                                                  "id":  "https://openalex.org/fields/13",
+                                                  "name":  "Biochemistry, Genetics and Molecular Biology"
+                                              },
+                      "candidate_source":  {
+                                               "source_id":  "openalex-W4392092068",
+                                               "snapshot_path":  "eval/crossref-verification-v2/fixtures/intake-v0.1/candidate/crv2-case-0020-openalex.json",
+                                               "source_url":  "https://api.openalex.org/works/W4392092068?select=id,doi,title,display_name,publication_year,publication_date,type,language,authorships,primary_location,primary_topic,is_retracted",
+                                               "retrieved_at":  "2026-08-10T06:39:28.5413515Z",
+                                               "sha256":  "72fbf54b98430b8d3a29feba13863c24b4d0ce053397b0a04d50ab500f77e52f"
+                                           },
+                      "reference_source":  {
+                                               "source_id":  "crossref-doi:10.1016/j.ejso.2023.107368",
+                                               "snapshot_path":  "eval/crossref-verification-v2/fixtures/intake-v0.1/reference/crv2-case-0020-crossref.json",
+                                               "source_url":  "https://api.crossref.org/works/10.1016/j.ejso.2023.107368",
+                                               "retrieved_at":  "2026-08-10T06:39:29.1745122Z",
+                                               "sha256":  "0771d57a56f6ab6c76886626bfd1c57bab00924f80c3abc2944e2f6c8e45f7ff"
+                                           }
+                  }
+              ],
+    "notes":  "Acquisition evidence only. No API response, production policy, or model output is treated as ground truth."
+}

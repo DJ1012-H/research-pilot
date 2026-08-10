@@ -1,0 +1,42 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "calibration-split.schema.json",
+  "title": "Crossref Verification Calibration Split v0.1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "version",
+    "dataset_version",
+    "calibration_case_ids",
+    "acceptance_case_ids",
+    "excluded_cases",
+    "notes"
+  ],
+  "properties": {
+    "version": {"type": "string", "minLength": 1},
+    "dataset_version": {"const": "crossref-verification-v1"},
+    "calibration_case_ids": {
+      "type": "array",
+      "items": {"type": "string", "pattern": "^crv1-case-[0-9]{4}$"},
+      "uniqueItems": true
+    },
+    "acceptance_case_ids": {
+      "type": "array",
+      "items": {"type": "string", "pattern": "^crv1-case-[0-9]{4}$"},
+      "uniqueItems": true
+    },
+    "excluded_cases": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["case_id", "reason"],
+        "properties": {
+          "case_id": {"type": "string", "pattern": "^crv1-case-[0-9]{4}$"},
+          "reason": {"type": "string", "minLength": 1}
+        }
+      }
+    },
+    "notes": {"type": "string", "minLength": 1}
+  }
+}

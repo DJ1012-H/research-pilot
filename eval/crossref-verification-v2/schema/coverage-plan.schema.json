@@ -1,0 +1,64 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://researchpilot.local/crossref-verification-v2/coverage-plan.schema.json",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "$schema",
+    "version",
+    "dataset_version",
+    "state",
+    "formal_case_count",
+    "reviewed_case_count",
+    "unreviewed_intake_pair_count",
+    "intake_batch_manifest",
+    "independent_holdout_frozen",
+    "engineering_target_minimum_independent_source_pairs",
+    "required_field_oracles",
+    "coverage_requirements",
+    "separate_dataset_requirements",
+    "notes"
+  ],
+  "properties": {
+    "$schema": {"type": "string", "const": "../schema/coverage-plan.schema.json"},
+    "version": {"type": "string", "const": "v0.1"},
+    "dataset_version": {"type": "string", "const": "crossref-verification-v2"},
+    "state": {"type": "string", "const": "UNMEASURED"},
+    "formal_case_count": {"type": "integer", "const": 0},
+    "reviewed_case_count": {"type": "integer", "const": 0},
+    "unreviewed_intake_pair_count": {"type": "integer", "const": 20},
+    "intake_batch_manifest": {"type": "string", "const": "manifests/intake-batch-v0.1.json"},
+    "independent_holdout_frozen": {"type": "boolean", "const": false},
+    "engineering_target_minimum_independent_source_pairs": {"type": "integer", "minimum": 20},
+    "required_field_oracles": {
+      "type": "array",
+      "minItems": 8,
+      "uniqueItems": true,
+      "items": {"type": "string", "minLength": 1}
+    },
+    "coverage_requirements": {
+      "type": "array",
+      "minItems": 7,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "planned_minimum", "reviewed_count"],
+        "properties": {
+          "id": {"type": "string", "minLength": 1},
+          "planned_minimum": {"type": "integer", "minimum": 1},
+          "reviewed_count": {"type": "integer", "const": 0}
+        }
+      }
+    },
+    "separate_dataset_requirements": {
+      "type": "array",
+      "uniqueItems": true,
+      "allOf": [
+        {"contains": {"const": "crossref-lookup-protocol-v1"}},
+        {"contains": {"const": "literature-orchestration-v1"}}
+      ],
+      "items": {"type": "string", "minLength": 1}
+    },
+    "notes": {"type": "string", "minLength": 1}
+  }
+}

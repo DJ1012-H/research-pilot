@@ -1,0 +1,107 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://researchpilot.local/crossref-verification-v2/intake-batch.schema.json",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["$schema", "schema_version", "batch_id", "dataset_version", "state", "generated_at", "request_mode", "user_agent", "selection", "selection_policy", "queue", "cases", "notes"],
+  "properties": {
+    "$schema": {"type": "string", "const": "../schema/intake-batch.schema.json"},
+    "schema_version": {"type": "string", "const": "crossref-verification-v2-intake-batch"},
+    "batch_id": {"type": "string", "const": "intake-v0.1"},
+    "dataset_version": {"type": "string", "const": "crossref-verification-v2"},
+    "state": {"type": "string", "const": "NEEDS_REVIEW"},
+    "generated_at": {"type": "string", "format": "date-time"},
+    "request_mode": {"type": "string", "const": "ANONYMOUS_READ_ONLY"},
+    "user_agent": {"type": "string", "minLength": 1},
+    "selection": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["provider", "seed", "query_url", "snapshot_path", "sha256", "retrieved_at", "requested_sample_size", "returned_count"],
+      "properties": {
+        "provider": {"type": "string", "const": "OpenAlex"},
+        "seed": {"type": "integer"},
+        "query_url": {"type": "string", "format": "uri"},
+        "snapshot_path": {"type": "string", "pattern": "^eval/crossref-verification-v2/fixtures/intake-v0\\.1/selection/.+\\.json$"},
+        "sha256": {"$ref": "#/$defs/sha256"},
+        "retrieved_at": {"type": "string", "format": "date-time"},
+        "requested_sample_size": {"type": "integer", "const": 100},
+        "returned_count": {"type": "integer", "minimum": 20, "maximum": 100}
+      }
+    },
+    "selection_policy": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["target_pair_count", "actual_pair_count", "article_only", "doi_required", "retracted_excluded", "unique_primary_source_required", "max_cases_per_primary_topic_field", "crossref_lookup_status_required", "ground_truth_generated"],
+      "properties": {
+        "target_pair_count": {"type": "integer", "const": 20},
+        "actual_pair_count": {"type": "integer", "const": 20},
+        "article_only": {"type": "boolean", "const": true},
+        "doi_required": {"type": "boolean", "const": true},
+        "retracted_excluded": {"type": "boolean", "const": true},
+        "unique_primary_source_required": {"type": "boolean", "const": true},
+        "max_cases_per_primary_topic_field": {"type": "integer", "const": 3},
+        "crossref_lookup_status_required": {"type": "integer", "const": 200},
+        "ground_truth_generated": {"type": "boolean", "const": false}
+      }
+    },
+    "queue": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["path", "sha256", "case_count", "review_state", "expected_labels_present"],
+      "properties": {
+        "path": {"type": "string", "const": "eval/crossref-verification-v2/draft/review-queue-v0.1.jsonl"},
+        "sha256": {"$ref": "#/$defs/sha256"},
+        "case_count": {"type": "integer", "const": 20},
+        "review_state": {"type": "string", "const": "NEEDS_REVIEW"},
+        "expected_labels_present": {"type": "boolean", "const": false}
+      }
+    },
+    "cases": {
+      "type": "array",
+      "minItems": 20,
+      "maxItems": 20,
+      "items": {"$ref": "#/$defs/case"}
+    },
+    "notes": {"type": "string", "minLength": 1}
+  },
+  "$defs": {
+    "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "named_id": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "name"],
+      "properties": {
+        "id": {"type": "string", "minLength": 1},
+        "name": {"type": "string", "minLength": 1}
+      }
+    },
+    "source": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["source_id", "snapshot_path", "source_url", "retrieved_at", "sha256"],
+      "properties": {
+        "source_id": {"type": "string", "minLength": 1},
+        "snapshot_path": {"type": "string", "pattern": "^eval/crossref-verification-v2/fixtures/intake-v0\\.1/(candidate|reference)/crv2-case-[0-9]{4}-(openalex|crossref)\\.json$"},
+        "source_url": {"type": "string", "format": "uri"},
+        "retrieved_at": {"type": "string", "format": "date-time"},
+        "sha256": {"$ref": "#/$defs/sha256"}
+      }
+    },
+    "case": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["case_id", "doi", "openalex_id", "publication_year", "language", "primary_source", "primary_topic_field", "candidate_source", "reference_source"],
+      "properties": {
+        "case_id": {"type": "string", "pattern": "^crv2-case-[0-9]{4}$"},
+        "doi": {"type": "string", "pattern": "^10\\..+/.+$"},
+        "openalex_id": {"type": "string", "pattern": "^https://openalex\\.org/W[0-9]+$"},
+        "publication_year": {"type": "integer", "minimum": 1000, "maximum": 2100},
+        "language": {"type": ["string", "null"]},
+        "primary_source": {"$ref": "#/$defs/named_id"},
+        "primary_topic_field": {"$ref": "#/$defs/named_id"},
+        "candidate_source": {"$ref": "#/$defs/source"},
+        "reference_source": {"$ref": "#/$defs/source"}
+      }
+    }
+  }
+}

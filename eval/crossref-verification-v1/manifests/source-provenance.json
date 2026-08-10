@@ -1,0 +1,49 @@
+{
+    "schema_version":  "crossref-verification-v1",
+    "sources":  [
+                    {
+                        "source_id":  "openalex-works-response-fixture",
+                        "provenance":  {
+                                           "origin_type":  "EXISTING_FIXTURE",
+                                           "source_path":  "src/test/resources/openalex/works-response.json",
+                                           "origin_test":  "com.dj1012h.researchpilot.integration.openalex.OpenAlexPaperMapperTest#shouldMapNormalPaperAndPreferBestOpenAccessLocation",
+                                           "source_url":  null,
+                                           "retrieved_at":  null,
+                                           "source_sha256":  "21024DFACD0065FB1C376137E09C0C620B42CA76B21C1D7DF02F8C8C64A7C6F9"
+                                       }
+                    },
+                    {
+                        "source_id":  "crossref-snapshot-10-1038-s41586-021-03819-2",
+                        "provenance":  {
+                                           "origin_type":  "MANUAL_SNAPSHOT",
+                                           "source_path":  "eval/crossref-verification-v1/fixtures/approved-references/crossref-10.1038-s41586-021-03819-2.json",
+                                           "origin_test":  null,
+                                           "source_url":  "https://api.crossref.org/works/10.1038%2Fs41586-021-03819-2",
+                                           "retrieved_at":  "2026-07-22T13:14:47.3605737Z",
+                                           "source_sha256":  "61227BF049B0F7211F5CF90C677EAB73F9F4B8779E48D34220B77709C375478E"
+                                       }
+                    },
+                    {
+                        "source_id":  "openalex-snapshot-W2926594661",
+                        "provenance":  {
+                                           "origin_type":  "MANUAL_SNAPSHOT",
+                                           "source_path":  "eval/crossref-verification-v1/fixtures/candidates/openalex-W2926594661.json",
+                                           "origin_test":  null,
+                                           "source_url":  "https://api.openalex.org/works/https://doi.org/10.1080/03610926.2019.1589515",
+                                           "retrieved_at":  "2026-07-25T05:01:14.6228757+00:00",
+                                           "source_sha256":  "6687E65DD0D4F05036739A7B9F8A2AFF05EA8E3C947709BB9A0C88F8AF4A1132"
+                                       }
+                    },
+                    {
+                        "source_id":  "crossref-snapshot-10-1080-03610926-2019-1589515",
+                        "provenance":  {
+                                           "origin_type":  "MANUAL_SNAPSHOT",
+                                           "source_path":  "eval/crossref-verification-v1/fixtures/approved-references/crossref-10.1080-03610926-2019-1589515.json",
+                                           "origin_test":  null,
+                                           "source_url":  "https://api.crossref.org/works/10.1080%2F03610926.2019.1589515",
+                                           "retrieved_at":  "2026-07-25T05:01:10.1601786+00:00",
+                                           "source_sha256":  "E71C1A2C2B6FDE99B54AFB1426544D44BF401DFBBE4C3611D4013742E30C02E6"
+                                       }
+                    }
+                ]
+}

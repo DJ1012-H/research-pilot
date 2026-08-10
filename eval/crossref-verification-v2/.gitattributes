@@ -1,0 +1,4 @@
+fixtures/**/*.json -text
+draft/*.jsonl text eol=crlf
+manifests/*.json text eol=crlf
+schema/*.json text eol=lf

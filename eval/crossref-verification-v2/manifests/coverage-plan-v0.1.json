@@ -1,0 +1,36 @@
+{
+  "$schema": "../schema/coverage-plan.schema.json",
+  "version": "v0.1",
+  "dataset_version": "crossref-verification-v2",
+  "state": "UNMEASURED",
+  "formal_case_count": 0,
+  "reviewed_case_count": 0,
+  "unreviewed_intake_pair_count": 20,
+  "intake_batch_manifest": "manifests/intake-batch-v0.1.json",
+  "independent_holdout_frozen": false,
+  "engineering_target_minimum_independent_source_pairs": 20,
+  "required_field_oracles": [
+    "DOI",
+    "TITLE",
+    "FIRST_AUTHOR",
+    "AUTHORS",
+    "YEAR",
+    "VENUE",
+    "WORK_TYPE",
+    "FORMAL_ADMISSION"
+  ],
+  "coverage_requirements": [
+    {"id": "DOI_HARD_CONFLICT", "planned_minimum": 4, "reviewed_count": 0},
+    {"id": "NO_DOI_UNIQUE_STRONG_MATCH", "planned_minimum": 4, "reviewed_count": 0},
+    {"id": "NO_DOI_MULTIPLE_STRONG_MATCHES", "planned_minimum": 4, "reviewed_count": 0},
+    {"id": "MISSING_FIELD_STATES", "planned_minimum": 8, "reviewed_count": 0},
+    {"id": "AUTHOR_IDENTITY_VARIANTS", "planned_minimum": 6, "reviewed_count": 0},
+    {"id": "VENUE_AND_WORK_TYPE_VARIANTS", "planned_minimum": 6, "reviewed_count": 0},
+    {"id": "MULTILINGUAL_AND_DIACRITIC_VARIANTS", "planned_minimum": 4, "reviewed_count": 0}
+  ],
+  "separate_dataset_requirements": [
+    "crossref-lookup-protocol-v1",
+    "literature-orchestration-v1"
+  ],
+  "notes": "The 20 acquired pairs are unreviewed intake evidence only. Zero reviewed cases means every v2 acceptance metric remains unmeasured and fails closed."
+}

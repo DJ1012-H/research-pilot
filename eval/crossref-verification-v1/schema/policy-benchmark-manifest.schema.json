@@ -1,0 +1,82 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://researchpilot.local/crossref-verification-v1/policy-benchmark-manifest.schema.json",
+  "title": "Crossref verification policy benchmark manifest",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "$schema",
+    "version",
+    "dataset_version",
+    "split_version",
+    "production_baseline_commit",
+    "production_sources",
+    "thresholds",
+    "formal_admission_oracle",
+    "legacy_formal_result_eligible_handling",
+    "acceptance_criteria"
+  ],
+  "properties": {
+    "$schema": {"type": "string", "const": "../schema/policy-benchmark-manifest.schema.json"},
+    "version": {"type": "string", "const": "v0.1"},
+    "dataset_version": {"type": "string", "const": "crossref-verification-v1"},
+    "split_version": {"type": "string", "const": "v0.1"},
+    "production_baseline_commit": {"type": "string", "pattern": "^[0-9a-f]{40}$"},
+    "production_sources": {
+      "type": "array",
+      "minItems": 4,
+      "uniqueItems": true,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["path", "sha256"],
+        "properties": {
+          "path": {"type": "string", "minLength": 1},
+          "sha256": {"type": "string", "pattern": "^[0-9A-F]{64}$"}
+        }
+      }
+    },
+    "thresholds": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "title_strong_match",
+        "title_possible_match",
+        "author_overlap",
+        "source_match",
+        "publication_year_tolerance"
+      ],
+      "properties": {
+        "title_strong_match": {"type": "number", "minimum": 0, "maximum": 1},
+        "title_possible_match": {"type": "number", "minimum": 0, "maximum": 1},
+        "author_overlap": {"type": "number", "minimum": 0, "maximum": 1},
+        "source_match": {"type": "number", "minimum": 0, "maximum": 1},
+        "publication_year_tolerance": {"type": "integer", "minimum": 0}
+      }
+    },
+    "formal_admission_oracle": {"type": "string", "minLength": 1},
+    "legacy_formal_result_eligible_handling": {"type": "string", "const": "DIAGNOSTIC_ONLY"},
+    "acceptance_criteria": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "required_reviewed_case_count",
+        "required_overall_status_match_count",
+        "required_acceptance_status_match_count",
+        "max_false_verified_count",
+        "max_false_formal_admission_count",
+        "max_false_formal_exclusion_count",
+        "max_exception_count"
+      ],
+      "properties": {
+        "required_reviewed_case_count": {"type": "integer", "minimum": 1},
+        "required_overall_status_match_count": {"type": "integer", "minimum": 1},
+        "required_acceptance_status_match_count": {"type": "integer", "minimum": 1},
+        "max_false_verified_count": {"type": "integer", "minimum": 0},
+        "max_false_formal_admission_count": {"type": "integer", "minimum": 0},
+        "max_false_formal_exclusion_count": {"type": "integer", "minimum": 0},
+        "max_exception_count": {"type": "integer", "minimum": 0}
+      }
+    }
+  }
+}

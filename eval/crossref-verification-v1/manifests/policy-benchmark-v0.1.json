@@ -1,0 +1,43 @@
+{
+  "$schema": "../schema/policy-benchmark-manifest.schema.json",
+  "version": "v0.1",
+  "dataset_version": "crossref-verification-v1",
+  "split_version": "v0.1",
+  "production_baseline_commit": "9770c046ede5758b443dd2ca1af375b57fd88154",
+  "production_sources": [
+    {
+      "path": "src/main/java/com/dj1012h/researchpilot/literature/application/VerificationPolicy.java",
+      "sha256": "37EB66934930DAE7F39B600F91BD147619A824B449177A113475A5976F13A042"
+    },
+    {
+      "path": "src/main/java/com/dj1012h/researchpilot/literature/application/EligiblePaperFilter.java",
+      "sha256": "B2303B37FDE29AD05A2DE006BB2A5F14BAA8577BD4543509095E51FDFD951328"
+    },
+    {
+      "path": "src/main/java/com/dj1012h/researchpilot/literature/application/CrossrefVerificationEvidenceService.java",
+      "sha256": "6B9561E3C31C821BA731FBAD9D50222BD33D93941B825F407DFDAD9E38ED7513"
+    },
+    {
+      "path": "src/main/java/com/dj1012h/researchpilot/integration/crossref/VerificationThresholdProperties.java",
+      "sha256": "63F3FA9C339E8373BDF35D2D2F01E001E1FF2CC1130410880A85FDB93144050E"
+    }
+  ],
+  "thresholds": {
+    "title_strong_match": 0.92,
+    "title_possible_match": 0.85,
+    "author_overlap": 0.60,
+    "source_match": 0.85,
+    "publication_year_tolerance": 1
+  },
+  "formal_admission_oracle": "reviewed verification_status is VERIFIED and the reference DOI normalizes successfully",
+  "legacy_formal_result_eligible_handling": "DIAGNOSTIC_ONLY",
+  "acceptance_criteria": {
+    "required_reviewed_case_count": 14,
+    "required_overall_status_match_count": 14,
+    "required_acceptance_status_match_count": 4,
+    "max_false_verified_count": 0,
+    "max_false_formal_admission_count": 0,
+    "max_false_formal_exclusion_count": 0,
+    "max_exception_count": 0
+  }
+}

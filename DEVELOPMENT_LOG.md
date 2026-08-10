@@ -1687,3 +1687,38 @@ Spring Boot 的条件装配回退，使它成为 MVC 使用的全局 Mapper；�
 - Added `docs/demo/v1.0.0-demo-acceptance.md` as the English release evidence.
   Qdrant, embeddings, PDF ingestion, and RAG business code remain excluded from
   this main-plan release and isolated as a post-2026-08-10 extension.
+
+## 2026-08-10 - Crossref policy benchmark and v2 review intake
+
+- Reintroduced the frozen `crossref-verification-v1` assets on a clean branch
+  based on `main` `9770c04`. All 30 imported files matched the existing
+  `eval/crossref-verification-v1` Git blobs exactly before new work began; no
+  reviewed case, source snapshot, review record, mutation lineage, or frozen
+  split was changed.
+- Added a versioned offline policy benchmark that pins the production policy,
+  evidence service, formal-output gate, threshold sources, and configured
+  values by commit and SHA-256. The runner evaluates all 14 reviewed cases
+  through `PaperVerificationService`, `VerificationPolicy`, and
+  `EligiblePaperFilter`, emits JSON/Markdown under `target/evaluation`, and
+  treats missing metrics, exceptions, false verification, and incorrect
+  formal admission/exclusion as failures.
+- Preserved the first production-policy result as FAIL: policy status matched
+  4/14 overall and 2/4 on frozen acceptance; formal admission matched 4/14.
+  Cases 0001-0009 were excluded by `HARD_FIELD_CONFLICT_AUTHORS`, while case
+  0013 was promoted from the reviewed `PARTIALLY_VERIFIED` label to
+  `VERIFIED`. The measured errors are one false `VERIFIED`, one false formal
+  admission, nine false formal exclusions, and zero runner exceptions.
+- Did not change thresholds, production verification code, or Ground Truth to
+  make the benchmark pass. The missing full-author-set oracle and the
+  online-first policy decision remain explicit human-review inputs.
+- Added `crossref-verification-v2` as an empty fail-closed review intake:
+  zero formal cases, zero reviewed cases, no frozen holdout, and acceptance
+  `UNMEASURED`. Its schema requires null expected labels before explicit human
+  approval, while the coverage plan separates future lookup-protocol and
+  orchestration datasets from bibliographic policy cases.
+- Focused evaluation verification passed 14 tests with 0 failures, 0 errors,
+  and 0 skips. Final `./mvnw.cmd clean verify` passed 480 tests with 0
+  failures, 0 errors, and 4 explicit opt-in external smoke skips, and rebuilt
+  the executable JAR. The formal policy script was also executed and correctly
+  returned exit code 1 for the preserved FAIL result. No real Crossref,
+  OpenAlex, model, MySQL, or Redis call was made.

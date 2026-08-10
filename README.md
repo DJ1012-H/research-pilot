@@ -105,6 +105,25 @@ Content-Type: application/json
 
 `/api/system/status` intentionally probes currently configured MySQL and Redis clients. In an offline or cache-disabled start, a reported dependency state is diagnostic only; do not treat it as proof that persistence or cache is enabled.
 
+## Offline Crossref evaluation
+
+The `crossref-verification-v1` assets preserve 14 reviewed offline cases, their
+source hashes, mutation lineage, the frozen 10/4 calibration split, and the
+historical field-level calibration report. They do not call live provider APIs.
+
+Run the policy and formal-admission benchmark on Windows with:
+
+```powershell
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\scripts\run-crossref-policy-evaluation.ps1
+```
+
+The current pinned production baseline intentionally returns a non-zero exit
+code because `acceptance_passed=false`; see
+`eval/crossref-verification-v1/reports/policy-benchmark-v0.1.md`. A successful
+JUnit build means the recorded PASS/FAIL evidence is reproducible, not that the
+policy benchmark passed. New cases enter `crossref-verification-v2` as
+`NEEDS_REVIEW` with null expected labels until explicitly approved by a human.
+
 ## Architecture and demo evidence
 
 The executable boundaries, four diagrams, three demo paths, and evidence labels are in [docs/demo/trusted-agent-demo.md](docs/demo/trusted-agent-demo.md). It distinguishes:
