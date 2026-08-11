@@ -32,6 +32,17 @@ spring:
 
 app:
   rag:
+    indexing:
+      enabled: ${RAG_INDEXING_ENABLED:false}
+      rebuild-on-startup: ${RAG_REBUILD_ON_STARTUP:false}
+    qdrant:
+      enabled: ${QDRANT_ENABLED:false}
+      base-url: ${QDRANT_BASE_URL:http://127.0.0.1:6333}
+      collection-name: ${QDRANT_COLLECTION_NAME:research_pilot_paper_segments_v1}
+      batch-size: ${QDRANT_BATCH_SIZE:32}
+      scroll-page-size: ${QDRANT_SCROLL_PAGE_SIZE:256}
+      connect-timeout: ${QDRANT_CONNECT_TIMEOUT:3s}
+      read-timeout: ${QDRANT_READ_TIMEOUT:30s}
     embedding:
       ollama:
         enabled: ${OLLAMA_EMBEDDING_ENABLED:false}

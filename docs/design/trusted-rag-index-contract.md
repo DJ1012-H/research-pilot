@@ -1,6 +1,6 @@
 # Trusted RAG index contract
 
-Status: frozen for the 2026-08-10 infrastructure baseline and Day 2 Java projection foundation. No Qdrant business path or RAG API is enabled by this document.
+Status: frozen for the 2026-08-10 infrastructure baseline, Day 2 Java projection foundation, and opt-in Day 3 rebuild path. No public retrieval or RAG answer API is enabled by this document.
 
 ## Authority and admission
 

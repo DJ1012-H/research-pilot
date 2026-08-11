@@ -20,7 +20,7 @@ class LiteraturePersistenceMigrationTest {
     void shouldCreateTheSchemaAndRecordBothVersionsOnAnEmptyDatabase() throws SQLException {
         Flyway flyway = newFlyway();
 
-        assertThat(flyway.migrate().migrationsExecuted).isEqualTo(2);
+        assertThat(flyway.migrate().migrationsExecuted).isEqualTo(3);
 
         try (Connection connection = flyway.getConfiguration().getDataSource().getConnection()) {
             Set<String> tables = Set.of(
@@ -30,7 +30,8 @@ class LiteraturePersistenceMigrationTest {
                     "literature_verification_evidence",
                     "literature_verification_field_evidence",
                     "literature_agent_step",
-                    "literature_task_paper_result"
+                    "literature_task_paper_result",
+                    "literature_rag_index_version"
             );
             for (String table : tables) {
                 assertThat(tableExists(connection, table)).isTrue();
@@ -41,13 +42,16 @@ class LiteraturePersistenceMigrationTest {
             assertThat(queryForInt(connection,
                     "SELECT COUNT(*) FROM flyway_schema_history WHERE version = '2' AND success = TRUE"))
                     .isEqualTo(1);
+            assertThat(queryForInt(connection,
+                    "SELECT COUNT(*) FROM flyway_schema_history WHERE version = '3' AND success = TRUE"))
+                    .isEqualTo(1);
         }
     }
 
     @Test
     void shouldMakeRepeatedMigrationADataPreservingNoOp() throws SQLException {
         Flyway flyway = newFlyway();
-        assertThat(flyway.migrate().migrationsExecuted).isEqualTo(2);
+        assertThat(flyway.migrate().migrationsExecuted).isEqualTo(3);
 
         try (Connection connection = flyway.getConfiguration().getDataSource().getConnection()) {
             insertTask(connection, "00000000-0000-0000-0000-000000000001");

@@ -2,6 +2,10 @@ package com.dj1012h.researchpilot.service.impl;
 
 import com.dj1012h.researchpilot.dto.response.DependencyStatusResponse;
 import com.dj1012h.researchpilot.dto.response.SystemStatusResponse;
+import com.dj1012h.researchpilot.literature.rag.embedding.EmbeddingBatch;
+import com.dj1012h.researchpilot.literature.rag.embedding.EmbeddingPort;
+import com.dj1012h.researchpilot.literature.rag.index.RagIndexPort;
+import com.dj1012h.researchpilot.literature.rag.index.RagIndexProbe;
 import com.dj1012h.researchpilot.mapper.DatabaseProbeMapper;
 import com.dj1012h.researchpilot.service.SystemStatusService;
 import dev.langchain4j.model.chat.ChatModel;
@@ -10,21 +14,29 @@ import org.springframework.data.redis.core.RedisCallback;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 
+import java.util.List;
+
 @Service
 public class SystemStatusServiceImpl implements SystemStatusService {
-    //Mysql探测
-    private final ObjectProvider<DatabaseProbeMapper> databaseProbeMapperProvider;
-    //redis探测
-    private final ObjectProvider<StringRedisTemplate> redisTemplateProvider;
-    //LLM可用性分析
-    private final ObjectProvider<ChatModel> chatModelProvider;
 
-    public SystemStatusServiceImpl(ObjectProvider<DatabaseProbeMapper> databaseProbeMapperProvider,
-                                   ObjectProvider<StringRedisTemplate> redisTemplateProvider,
-                                   ObjectProvider<ChatModel> chatModelProvider) {
+    private final ObjectProvider<DatabaseProbeMapper> databaseProbeMapperProvider;
+    private final ObjectProvider<StringRedisTemplate> redisTemplateProvider;
+    private final ObjectProvider<ChatModel> chatModelProvider;
+    private final ObjectProvider<EmbeddingPort> embeddingPortProvider;
+    private final ObjectProvider<RagIndexPort> ragIndexPortProvider;
+
+    public SystemStatusServiceImpl(
+            ObjectProvider<DatabaseProbeMapper> databaseProbeMapperProvider,
+            ObjectProvider<StringRedisTemplate> redisTemplateProvider,
+            ObjectProvider<ChatModel> chatModelProvider,
+            ObjectProvider<EmbeddingPort> embeddingPortProvider,
+            ObjectProvider<RagIndexPort> ragIndexPortProvider
+    ) {
         this.databaseProbeMapperProvider = databaseProbeMapperProvider;
         this.redisTemplateProvider = redisTemplateProvider;
         this.chatModelProvider = chatModelProvider;
+        this.embeddingPortProvider = embeddingPortProvider;
+        this.ragIndexPortProvider = ragIndexPortProvider;
     }
 
     @Override
@@ -33,8 +45,9 @@ public class SystemStatusServiceImpl implements SystemStatusService {
                 "UP",
                 checkMySql(),
                 checkRedis(),
-                chatModelProvider.getIfAvailable() != null
-        );
+                checkOllamaEmbedding(),
+                checkQdrant(),
+                chatModelProvider.getIfAvailable() != null);
     }
 
     private DependencyStatusResponse checkMySql() {
@@ -63,6 +76,34 @@ public class SystemStatusServiceImpl implements SystemStatusService {
             return "PONG".equalsIgnoreCase(result)
                     ? new DependencyStatusResponse("UP", "PING returned PONG")
                     : new DependencyStatusResponse("DOWN", "Unexpected PING result");
+        } catch (RuntimeException exception) {
+            return failed(exception);
+        }
+    }
+
+    private DependencyStatusResponse checkOllamaEmbedding() {
+        EmbeddingPort embeddingPort = embeddingPortProvider.getIfAvailable();
+        if (embeddingPort == null) {
+            return new DependencyStatusResponse("DISABLED", "Ollama embedding bean is unavailable");
+        }
+        try {
+            EmbeddingBatch batch = embeddingPort.embed(List.of("ResearchPilot dependency readiness probe"));
+            return new DependencyStatusResponse(
+                    "UP",
+                    "Embedding probe succeeded with " + batch.dimensions() + " dimensions");
+        } catch (RuntimeException exception) {
+            return failed(exception);
+        }
+    }
+
+    private DependencyStatusResponse checkQdrant() {
+        RagIndexPort indexPort = ragIndexPortProvider.getIfAvailable();
+        if (indexPort == null) {
+            return new DependencyStatusResponse("DISABLED", "Qdrant index bean is unavailable");
+        }
+        try {
+            RagIndexProbe probe = indexPort.probe();
+            return new DependencyStatusResponse(probe.available() ? "UP" : "DOWN", probe.detail());
         } catch (RuntimeException exception) {
             return failed(exception);
         }

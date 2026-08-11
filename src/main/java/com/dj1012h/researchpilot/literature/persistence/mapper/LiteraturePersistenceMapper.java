@@ -28,8 +28,17 @@ public interface LiteraturePersistenceMapper {
     @Select("SELECT paper_id FROM literature_paper WHERE normalized_doi=#{doi}")
     Long findPaperId(@Param("doi") String doi);
 
-    @Insert("INSERT INTO literature_paper (normalized_doi, openalex_id, title, authors_canonical, publication_year, venue, publication_type, language, cited_by_count, source) VALUES (#{paper.normalizedDoi}, #{paper.openalexId}, #{paper.title}, #{paper.authorsCanonical}, #{paper.publicationYear}, #{paper.venue}, #{paper.publicationType}, #{paper.language}, #{paper.citedByCount}, #{paper.source})")
+    @Insert("INSERT INTO literature_paper (normalized_doi, openalex_id, title, authors_canonical, publication_year, venue, publication_type, language, abstract_text, cited_by_count, source, current_verification_status, verification_rule_version) VALUES (#{paper.normalizedDoi}, #{paper.openalexId}, #{paper.title}, #{paper.authorsCanonical}, #{paper.publicationYear}, #{paper.venue}, #{paper.publicationType}, #{paper.language}, #{paper.abstractText}, #{paper.citedByCount}, #{paper.source}, #{paper.currentVerificationStatus}, #{paper.verificationRuleVersion})")
     int insertPaper(@Param("paper") LiteraturePaperEntity paper);
+
+    @Update("UPDATE literature_paper SET openalex_id=#{paper.openalexId}, title=#{paper.title}, authors_canonical=#{paper.authorsCanonical}, publication_year=#{paper.publicationYear}, venue=#{paper.venue}, publication_type=#{paper.publicationType}, language=#{paper.language}, abstract_text=COALESCE(#{paper.abstractText}, abstract_text), cited_by_count=#{paper.citedByCount}, source=#{paper.source}, current_verification_status=#{paper.currentVerificationStatus}, verification_rule_version=#{paper.verificationRuleVersion}, updated_at=CURRENT_TIMESTAMP(6), version=version+1 WHERE paper_id=#{paperId}")
+    int updateVerifiedPaper(@Param("paperId") long paperId, @Param("paper") LiteraturePaperEntity paper);
+
+    @Update("UPDATE literature_paper SET current_verification_status=#{status}, verification_rule_version=#{verificationVersion}, updated_at=CASE WHEN current_verification_status<>#{status} OR verification_rule_version<>#{verificationVersion} THEN CURRENT_TIMESTAMP(6) ELSE updated_at END, version=CASE WHEN current_verification_status<>#{status} OR verification_rule_version<>#{verificationVersion} THEN version+1 ELSE version END WHERE paper_id=#{paperId}")
+    int updatePaperTrustState(
+            @Param("paperId") long paperId,
+            @Param("status") String status,
+            @Param("verificationVersion") String verificationVersion);
 
     @Select("SELECT evidence_id FROM literature_verification_evidence WHERE search_task_id=#{taskId} AND candidate_fingerprint=#{fingerprint}")
     Long findEvidenceId(@Param("taskId") long taskId, @Param("fingerprint") String fingerprint);

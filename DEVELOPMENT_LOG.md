@@ -1835,3 +1835,102 @@ Spring Boot 的条件装配回退，使它成为 MVC 使用的全局 Mapper；�
   492 tests with 0 failures, 0 errors, and 4 explicit opt-in smoke skips, then
   rebuilt the executable JAR. This was an offline fixture/test-double result;
   no live Ollama, Crossref, OpenAlex, MySQL, Redis, or Qdrant call was made.
+
+## 2026-08-10 - RAG Day 3 offline index-rebuild implementation
+
+- Added a provider-neutral vector-index port and a loopback Qdrant REST adapter
+  using the frozen Collection contract. Initialization creates or validates the
+  1024-dimensional Cosine Collection and the required `paperId`, DOI,
+  verification-status, publication-year, and embedding-version Payload Indexes.
+  Point reads, batched Upserts, payload-only replacements, counts, and explicit
+  point deletion fail closed on transport, HTTP, malformed-response, dimension,
+  version, or payload-contract mismatches.
+- Split trusted projection into a pre-embedding admission plan and an embedding
+  step. A rebuild can now compare deterministic Point IDs, exact text, and
+  `contentHash` before invoking Ollama. Unchanged content skips Embedding;
+  metadata-only changes replace Qdrant payloads; changed papers are re-embedded;
+  stale points and papers no longer currently `VERIFIED` are removed.
+- Added Flyway V3 for the current MySQL verification state and RAG index-version
+  build evidence. Only rows currently marked `VERIFIED` are exposed to the
+  rebuild source. A later non-VERIFIED outcome for an existing DOI updates that
+  authoritative state, and the active embedding version changes only after the
+  final Qdrant point count equals the complete rebuild plan and one sampled
+  Point-ID self-query passes forced paper-ID, `VERIFIED`, and embedding-version
+  filters. An empty index fails activation because it cannot satisfy this sample.
+- Added an opt-in startup rebuild runner and separate Ollama/Qdrant fields on
+  `/api/system/status`. All RAG switches remain disabled by default, and RAG
+  failures do not change application liveness or the trusted literature-search
+  contract.
+- Focused tests covered Collection/index initialization, dimension mismatch,
+  batched and partially failed Upserts, payload read/replace/count/delete,
+  idempotent repeated rebuilds, content changes, metadata-only timestamp changes,
+  verification downgrade deletion, retry after partial failure, Flyway V3,
+  MySQL source mapping, non-empty sampled activation, empty-index rejection, and
+  separated dependency status.
+- `.\mvnw.cmd clean verify` passed 504 tests with 0 failures, 0 errors, and 4
+  explicit opt-in external smoke skips, and rebuilt the executable JAR. This is
+  offline/H2/test-double evidence, not a live Qdrant acceptance result.
+- Docker Desktop was started in the background and the repository environment
+  script was attempted twice. Docker CLI 29.6.2 remained available, but the
+  Desktop Linux Engine returned HTTP 500 for its named-pipe version request on
+  both attempts. Qdrant was therefore not started, no Collection or vector was
+  written, and real Ollama-to-Qdrant indexing, point-count idempotency, named
+  volume persistence, and MySQL-backed rebuild acceptance remain unmeasured.
+
+## 2026-08-11 - RAG Day 3 real-service acceptance
+
+- Rechecked the real environment instead of carrying forward the earlier
+  Docker failure. Docker Desktop exposed a Linux Engine, Qdrant ran from the
+  fixed `qdrant/qdrant:v1.18.2` image on loopback ports, the named volume was
+  `research-pilot-qdrant-data`, and Windows-native Ollama 0.32.7 exposed
+  `qwen3-embedding:0.6b` with 1024 dimensions.
+- Applied and validated Flyway V3 against the authorized MySQL 8
+  `research_pilot` schema. The active index row was directly confirmed as
+  `SUCCEEDED`, `active=1`, 13 source papers, 13 points, and no failure code.
+  MySQL remained authoritative throughout the acceptance.
+- The first live MySQL-to-Ollama-to-Qdrant run exposed a real adapter defect:
+  Qdrant's nearest-neighbour query by point ID excludes the source point, so a
+  restrictive paper-ID self-filter returned no result. Activation now fetches
+  the stored point and vector first, validates payload/dimension/finiteness,
+  then queries with that vector and the forced paper-ID, `VERIFIED`, and
+  embedding-version filters. Focused adapter/rebuild coverage was added for the
+  corrected path and fail-closed vector dimensions.
+- A successful rebuild indexed 13 current `VERIFIED` papers as 13 `METADATA`
+  points. All points had distinct stable UUIDv5 IDs, a MySQL `paperId`, the
+  frozen embedding version, and `VERIFIED` payload state. The sampled filtered
+  activation query returned the expected point.
+- A second application start reported 13 source papers and points, zero embedded
+  papers, 13 skipped embeddings, zero payload-only changes, and zero deletions.
+  The sorted point identity/content snapshot remained unchanged, establishing
+  live point-count and content idempotency without duplicate vectors.
+- A controlled change to only the selected paper's `language` and
+  `sourceUpdatedAt` reported zero embedded papers and one payload-only update.
+  Qdrant changed those payload fields while preserving the point ID, exact
+  `contentHash`, 1024 dimensions, and the vector byte digest. The original
+  language was restored in the next controlled step.
+- Appending a bounded marker to the same paper's title reported one embedded
+  paper and 12 skipped papers. The stable point ID was preserved while both the
+  `contentHash` and vector digest changed. The original title was then restored.
+- Changing the current MySQL trust state from `VERIFIED` to `REJECTED` reduced
+  the authoritative source and Qdrant counts from 13 to 12, reported one deleted
+  point, and made the paper's stable point ID return HTTP 404. Re-admitting the
+  restored paper as `VERIFIED` recreated the point and returned both counts to
+  13. The restored text produced the original `contentHash`; its regenerated
+  vector remained valid and 1024-dimensional but was not byte-identical to the
+  first baseline, which is not a frozen contract requirement.
+- Stopping and restarting the Qdrant container preserved all 13 points and the
+  `research-pilot-qdrant-data:/qdrant/storage` mount. While Qdrant was stopped,
+  application health remained `UP`.
+- During a controlled Ollama outage, `/api/system/status` reported
+  `ollamaEmbedding=DOWN` with `ConnectException`, while application, MySQL,
+  Qdrant, and Actuator health remained `UP`. Ollama 0.32.7 and the embedding
+  model were restored immediately afterward. A validation-rejected request
+  confirmed that the trusted-search route remained reachable without making a
+  paid LLM, OpenAlex, or Crossref call.
+- The post-fix `./mvnw.cmd clean verify` passed 505 tests with 0 failures, 0
+  errors, and 4 explicit opt-in external smoke skips, and rebuilt the executable
+  JAR. Ordinary tests remained H2/fake/mock based; the live observations above
+  are reported separately.
+- No Collection, Docker volume, or MySQL row was deleted outside the controlled
+  verification-downgrade behavior. No paid model call, Windows restart, system
+  configuration change, tag, commit, or push occurred during acceptance.

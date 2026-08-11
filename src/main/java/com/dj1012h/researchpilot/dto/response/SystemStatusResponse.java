@@ -4,6 +4,8 @@ public record SystemStatusResponse(
         String application,
         DependencyStatusResponse mysql,
         DependencyStatusResponse redis,
+        DependencyStatusResponse ollamaEmbedding,
+        DependencyStatusResponse qdrant,
         boolean llmConfigured
 ) {
 }

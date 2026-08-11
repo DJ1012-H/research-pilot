@@ -2,15 +2,13 @@ package com.dj1012h.researchpilot.literature.rag;
 
 import com.dj1012h.researchpilot.literature.model.VerificationResult;
 
-import java.time.Duration;
 import java.time.Instant;
-import java.util.List;
 import java.util.Objects;
 import java.util.UUID;
 import java.util.regex.Pattern;
 
-/** Immutable, embedded paper segment ready for a later derived-index adapter. */
-public record VerifiedPaperProjection(
+/** Immutable controlled payload for one rebuildable vector-index point. */
+public record RagPointPayload(
         UUID pointId,
         long paperId,
         String doi,
@@ -26,15 +24,12 @@ public record VerifiedPaperProjection(
         String embeddingVersion,
         String contentHash,
         Instant sourceUpdatedAt,
-        String text,
-        List<Double> vector,
-        int vectorDimensions,
-        Duration embeddingElapsed
+        String text
 ) {
 
     private static final Pattern SHA_256 = Pattern.compile("[0-9a-f]{64}");
 
-    public VerifiedPaperProjection {
+    public RagPointPayload {
         pointId = Objects.requireNonNull(pointId, "pointId must not be null");
         if (paperId < 1) throw new IllegalArgumentException("paperId must be positive");
         doi = requireText(doi, "doi");
@@ -43,7 +38,7 @@ public record VerifiedPaperProjection(
         language = Objects.requireNonNull(language, "language must not be null");
         verificationStatus = Objects.requireNonNull(verificationStatus, "verificationStatus must not be null");
         if (verificationStatus != VerificationResult.VerificationStatus.VERIFIED) {
-            throw new IllegalArgumentException("projection verificationStatus must be VERIFIED");
+            throw new IllegalArgumentException("payload verificationStatus must be VERIFIED");
         }
         verificationVersion = requireText(verificationVersion, "verificationVersion");
         segmentType = Objects.requireNonNull(segmentType, "segmentType must not be null");
@@ -56,42 +51,11 @@ public record VerifiedPaperProjection(
         }
         sourceUpdatedAt = Objects.requireNonNull(sourceUpdatedAt, "sourceUpdatedAt must not be null");
         text = requireText(text, "text");
-        vector = List.copyOf(Objects.requireNonNull(vector, "vector must not be null"));
-        if (vectorDimensions < 1 || vector.size() != vectorDimensions) {
-            throw new IllegalArgumentException("vector must have the measured dimensions");
-        }
-        if (vector.stream().anyMatch(value -> value == null || !Double.isFinite(value))) {
-            throw new IllegalArgumentException("vector must contain only finite values");
-        }
-        embeddingElapsed = Objects.requireNonNull(embeddingElapsed, "embeddingElapsed must not be null");
-        if (embeddingElapsed.isNegative()) {
-            throw new IllegalArgumentException("embeddingElapsed must not be negative");
-        }
     }
 
     private static String requireText(String value, String field) {
         Objects.requireNonNull(value, field + " must not be null");
         if (value.isBlank()) throw new IllegalArgumentException(field + " must not be blank");
         return value;
-    }
-
-    public RagPointPayload payload() {
-        return new RagPointPayload(
-                pointId,
-                paperId,
-                doi,
-                title,
-                publicationYear,
-                venue,
-                language,
-                verificationStatus,
-                verificationVersion,
-                segmentType,
-                segmentIndex,
-                embeddingModel,
-                embeddingVersion,
-                contentHash,
-                sourceUpdatedAt,
-                text);
     }
 }

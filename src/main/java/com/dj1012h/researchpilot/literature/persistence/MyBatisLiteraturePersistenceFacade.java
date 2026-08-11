@@ -10,6 +10,7 @@ import com.dj1012h.researchpilot.literature.model.CandidateVerificationOutcome;
 import com.dj1012h.researchpilot.literature.model.PaperDTO;
 import com.dj1012h.researchpilot.literature.model.SearchPlan;
 import com.dj1012h.researchpilot.literature.model.VerificationResult;
+import com.dj1012h.researchpilot.literature.normalization.DoiNormalizer;
 import com.dj1012h.researchpilot.literature.persistence.entity.*;
 import com.dj1012h.researchpilot.literature.persistence.mapper.LiteraturePersistenceMapper;
 import com.dj1012h.researchpilot.literature.review.ReviewOutcome;
@@ -35,13 +36,16 @@ public class MyBatisLiteraturePersistenceFacade implements LiteraturePersistence
 
     private final LiteraturePersistenceMapper mapper;
     private final FailureTaskFinalizer failureFinalizer;
+    private final DoiNormalizer doiNormalizer;
 
     public MyBatisLiteraturePersistenceFacade(
             LiteraturePersistenceMapper mapper,
-            FailureTaskFinalizer failureFinalizer
+            FailureTaskFinalizer failureFinalizer,
+            DoiNormalizer doiNormalizer
     ) {
         this.mapper = Objects.requireNonNull(mapper, "mapper must not be null");
         this.failureFinalizer = Objects.requireNonNull(failureFinalizer, "failureFinalizer must not be null");
+        this.doiNormalizer = Objects.requireNonNull(doiNormalizer, "doiNormalizer must not be null");
     }
 
     @Override
@@ -125,8 +129,11 @@ public class MyBatisLiteraturePersistenceFacade implements LiteraturePersistence
     ) {
         String fingerprint = candidateFingerprint(outcome.candidate());
         if (mapper.findEvidenceId(taskId, fingerprint) != null) return;
-        Long paperId = paperIdForFormalOutcome(outcome, formalPapers);
         VerificationResult verification = outcome.verification();
+        Long paperId = paperIdForOutcome(outcome, formalPapers);
+        if (paperId != null) {
+            mapper.updatePaperTrustState(paperId, verification.status().name(), VerificationPolicy.VERSION);
+        }
         LiteratureVerificationEvidenceEntity evidence = new LiteratureVerificationEvidenceEntity(
                 taskId, paperId, fingerprint, verification.status().name(), verification.source().name(),
                 verification.referenceDoi(), verification.evidenceScore(), VerificationPolicy.VERSION,
@@ -148,10 +155,15 @@ public class MyBatisLiteraturePersistenceFacade implements LiteraturePersistence
         }
     }
 
-    private Long paperIdForFormalOutcome(
+    private Long paperIdForOutcome(
             CandidateVerificationOutcome outcome,
             List<SearchResponse.PaperResult> formalPapers
     ) {
+        String candidateDoi = doiNormalizer.normalize(outcome.candidate().doi());
+        if (candidateDoi != null) {
+            Long existing = mapper.findPaperId(candidateDoi);
+            if (existing != null) return existing;
+        }
         if (outcome.verification().status() != VerificationResult.VerificationStatus.VERIFIED) return null;
         return formalPapers.stream()
                 .filter(paper -> paper.verification() == outcome.verification())
@@ -168,19 +180,25 @@ public class MyBatisLiteraturePersistenceFacade implements LiteraturePersistence
             throw new IllegalArgumentException("only verified papers with normalized DOI may be persisted");
         }
         Long existing = mapper.findPaperId(result.paper().doi());
-        if (existing != null) return existing;
         PaperDTO paper = result.paper();
+        LiteraturePaperEntity entity = new LiteraturePaperEntity(
+                paper.doi(), truncate(paper.openAlexId(), 64), truncate(paper.title(), 1000),
+                canonical(paper.authors().stream().map(PaperDTO.Author::displayName).toList(), 4000),
+                paper.publicationYear(), truncate(paper.venue(), 1000), truncate(paper.publicationType(), 128),
+                truncate(paper.language(), 32), paper.abstractText(), paper.citedByCount(), paper.source().name(),
+                VerificationResult.VerificationStatus.VERIFIED.name(), VerificationPolicy.VERSION);
+        if (existing != null) {
+            mapper.updateVerifiedPaper(existing, entity);
+            return existing;
+        }
         try {
-            mapper.insertPaper(new LiteraturePaperEntity(
-                    paper.doi(), truncate(paper.openAlexId(), 64), truncate(paper.title(), 1000),
-                    canonical(paper.authors().stream().map(PaperDTO.Author::displayName).toList(), 4000),
-                    paper.publicationYear(), truncate(paper.venue(), 1000), truncate(paper.publicationType(), 128),
-                    truncate(paper.language(), 32), paper.citedByCount(), paper.source().name()));
+            mapper.insertPaper(entity);
         } catch (DuplicateKeyException duplicate) {
             if (mapper.findPaperId(paper.doi()) == null) throw duplicate;
         }
         Long id = mapper.findPaperId(paper.doi());
         if (id == null) throw new LiteraturePersistenceException("paper insert did not produce an identifier");
+        mapper.updateVerifiedPaper(id, entity);
         return id;
     }
 

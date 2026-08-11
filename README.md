@@ -136,7 +136,7 @@ For the complete regression and packaged JAR:
 
 MySQL is the durable source of truth for enabled task evidence. Redis is a short-lived cache of mapped OpenAlex/Crossref port results; it is not a vector store and cannot admit papers directly.
 
-The trustworthy-search baseline is frozen at `v1.0.0-demo`. The 2026-08-10 infrastructure baseline adds a pinned, loopback-only Qdrant Compose service, a controlled Ollama/Qdrant environment check, and a frozen index contract. It does not add RAG business code or change the trusted-search API.
+The trustworthy-search baseline is frozen at `v1.0.0-demo`. The RAG extension keeps the trusted-search API unchanged and disabled-by-default. Day 3 adds an opt-in MySQL-to-Qdrant indexing path: Flyway V3 records the current paper trust state and active embedding version, while Qdrant remains a derived index that can be rebuilt or discarded without changing paper eligibility.
 
 Only `VERIFIED` papers with normalized DOIs may be projected. MySQL remains authoritative; Qdrant is a rebuildable derived index, and every future retrieval match must be re-admitted through MySQL. The initial `qwen3-embedding:0.6b` baseline measured 1024 dimensions for both Chinese and English inputs on 2026-08-06; startup must still recheck the live dimension before a Collection is created.
 
@@ -149,7 +149,29 @@ powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\scripts\verify-rag-env
 
 The script validates Docker Compose, measures and reports the real embedding dimension and latency without logging vectors or input text, checks Qdrant HTTP readiness and collection listing, and optionally verifies stop/start recovery without deleting the named volume. See [ADR-001](docs/decisions/ADR-001-vector-store-qdrant.md) and the [trusted RAG index contract](docs/design/trusted-rag-index-contract.md).
 
-The opt-in Java embedding adapter is disabled by default. When explicitly enabled, it calls the loopback Ollama `/api/embed` endpoint with the configured model and fails closed unless the response contains exactly one finite, non-empty, 1024-dimensional vector per controlled input for the initial embedding version. Default unit tests use a fake embedding port or a mocked HTTP server and do not require Ollama.
+The opt-in Java embedding adapter is disabled by default. When explicitly enabled, it calls the loopback Ollama `/api/embed` endpoint with the configured model and fails closed unless the response contains exactly one finite, non-empty, 1024-dimensional vector per controlled input for the initial embedding version. Default unit tests use a fake embedding port or mocked HTTP and do not require Ollama or Qdrant.
+
+The Day 3 rebuild path is also disabled by default. It requires all of the following switches to be enabled deliberately: `FLYWAY_ENABLED`, `LITERATURE_PERSISTENCE_ENABLED`, `OLLAMA_EMBEDDING_ENABLED`, `QDRANT_ENABLED`, and `RAG_INDEXING_ENABLED`. Set `RAG_REBUILD_ON_STARTUP=true` only for a controlled rebuild run. The rebuild creates or validates the frozen Collection and its required Payload Indexes, skips Embedding when Point IDs and exact content hashes are unchanged, updates metadata-only payload changes without re-embedding, removes points for papers that are no longer currently `VERIFIED`, verifies the final point count, and runs one Point-ID self-query with forced `VERIFIED`, paper-ID, and embedding-version filters before activating the version in MySQL. An empty index cannot pass this activation gate.
+
+`GET /api/system/status` reports Ollama Embedding and Qdrant separately from application liveness. When the Ollama adapter is enabled, this status call performs one controlled live embedding probe; a failed RAG dependency reports `DOWN` without changing the application field from `UP` or disabling `POST /api/literature/search`.
+
+The controlled 2026-08-11 acceptance used an authorized MySQL 8 schema,
+Windows-native Ollama 0.32.7 with `qwen3-embedding:0.6b`, and
+`qdrant/qdrant:v1.18.2`. Flyway V3 activated 13 current `VERIFIED` papers as 13
+points. A second rebuild reused all 13 embeddings and preserved the complete
+point identity/content snapshot. Live mutation checks proved payload-only
+metadata updates, one-paper re-embedding after a content change, deletion after
+a verification downgrade, and restoration after re-admission. Qdrant retained
+all 13 points across a container stop/start using the named volume. During a
+controlled Ollama outage, `/api/system/status` reported Ollama Embedding as
+`DOWN` while application, MySQL, Qdrant, and Actuator liveness remained `UP`.
+These are dated local acceptance observations, not an SLA or a reason to enable
+RAG by default.
+
+Real-service acceptance is intentionally not part of ordinary `clean verify`.
+It changes an authorized test schema and derived index, and may temporarily stop
+local services. Keep it behind an explicit operator action, preserve a recovery
+baseline, and restore changed paper values and trust state before completion.
 
 ## Troubleshooting and security
 

@@ -64,6 +64,30 @@ class VerifiedPaperProjectionTest {
                 .isInstanceOf(UnsupportedOperationException.class);
     }
 
+    @Test
+    void shouldPrepareStablePayloadsWithoutCallingEmbeddingPort() {
+        FakeEmbeddingPort fake = new FakeEmbeddingPort(PROFILE);
+        VerifiedPaperProjector projector = projector(fake);
+        VerifiedPaperSource source = source(
+                paper("10.1000/example", "Controlled abstract."),
+                verification(VerificationResult.VerificationStatus.VERIFIED, "10.1000/example"),
+                "10.1000/example");
+
+        VerifiedPaperProjectionPlanResult first = projector.prepare(source);
+        VerifiedPaperProjectionPlanResult second = projector.prepare(source);
+
+        assertThat(first.admitted()).isTrue();
+        assertThat(first.plan()).isEqualTo(second.plan());
+        assertThat(first.plan().points()).hasSize(2);
+        assertThat(fake.callCount).isZero();
+
+        VerifiedPaperProjectionResult projected = projector.project(first.plan());
+        assertThat(projected.admitted()).isTrue();
+        assertThat(projected.projections().stream().map(VerifiedPaperProjection::payload).toList())
+                .containsExactlyElementsOf(first.plan().points());
+        assertThat(fake.callCount).isEqualTo(1);
+    }
+
     @ParameterizedTest
     @EnumSource(value = VerificationResult.VerificationStatus.class, names = "VERIFIED", mode = EnumSource.Mode.EXCLUDE)
     void shouldRejectEveryNonVerifiedStatusBeforeCallingEmbeddingPort(

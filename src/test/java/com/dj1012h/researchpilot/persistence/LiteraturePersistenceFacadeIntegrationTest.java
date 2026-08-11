@@ -18,6 +18,9 @@ import com.dj1012h.researchpilot.literature.model.SearchPlan;
 import com.dj1012h.researchpilot.literature.model.SearchSort;
 import com.dj1012h.researchpilot.literature.model.VerificationResult;
 import com.dj1012h.researchpilot.literature.persistence.LiteraturePersistenceFacade;
+import com.dj1012h.researchpilot.literature.rag.index.RagIndexDefinition;
+import com.dj1012h.researchpilot.literature.rag.index.RagIndexStateStore;
+import com.dj1012h.researchpilot.literature.rag.index.VerifiedPaperSourceRepository;
 import com.dj1012h.researchpilot.literature.review.ReviewOutcome;
 import com.dj1012h.researchpilot.literature.review.ReviewOutcomeStatus;
 import org.junit.jupiter.api.Test;
@@ -49,6 +52,8 @@ class LiteraturePersistenceFacadeIntegrationTest {
 
     @Autowired private LiteraturePersistenceFacade persistence;
     @Autowired private JdbcTemplate jdbcTemplate;
+    @Autowired private VerifiedPaperSourceRepository verifiedPaperSourceRepository;
+    @Autowired private RagIndexStateStore ragIndexStateStore;
 
     @Test
     void shouldPersistOneTaskAndIdempotentTraceStepWithoutQueryText() {
@@ -119,12 +124,63 @@ class LiteraturePersistenceFacadeIntegrationTest {
         assertThat(count("literature_verification_evidence", taskId)).isEqualTo(1);
         assertThat(jdbcTemplate.queryForObject("SELECT COUNT(*) FROM literature_verification_field_evidence", Integer.class))
                 .isGreaterThanOrEqualTo(1);
+        assertThat(verifiedPaperSourceRepository.findCurrentlyVerified())
+                .singleElement()
+                .satisfies(source -> {
+                    assertThat(source.paperId()).isPositive();
+                    assertThat(source.normalizedDoi()).isEqualTo("10.1000/persisted");
+                    assertThat(source.verification().status())
+                            .isEqualTo(VerificationResult.VerificationStatus.VERIFIED);
+                });
+
+        UUID downgradeTask = UUID.randomUUID();
+        persistence.createRunningTask(downgradeTask, request, 1, at);
+        VerificationResult partial = new VerificationResult(
+                VerificationResult.VerificationStatus.PARTIALLY_VERIFIED,
+                0.7,
+                VerificationResult.VerificationSource.CROSSREF,
+                "10.1000/persisted",
+                List.of(),
+                List.of("TEST_DOWNGRADE"));
+        CandidateVerificationOutcome downgradedOutcome = new CandidateVerificationOutcome(candidate, null, partial);
+        AgentState downgradedState = new AgentState(
+                request.query(), 1, plan, List.of(plan), AgentStage.COMPLETED, AgentAction.COMPLETE,
+                List.of(), List.of(), List.of(downgradedOutcome), List.of(), 0, 0, 0, 0, 0,
+                Set.of(), 0, List.of(), at, at.plus(Duration.ofSeconds(30)), at,
+                TerminationReason.NO_VERIFIED_RESULTS, "downgraded");
+        AgentRunResult downgradedRun = mock(AgentRunResult.class);
+        when(downgradedRun.finalState()).thenReturn(downgradedState);
+        when(downgradedRun.trace()).thenReturn(List.of());
+
+        persistence.finalizeSuccess(downgradeTask, downgradedRun, review, at);
+
+        assertThat(jdbcTemplate.queryForObject(
+                "SELECT current_verification_status FROM literature_paper WHERE normalized_doi = '10.1000/persisted'",
+                String.class)).isEqualTo("PARTIALLY_VERIFIED");
+        assertThat(verifiedPaperSourceRepository.findCurrentlyVerified()).isEmpty();
 
         UUID failedTask = UUID.randomUUID();
         persistence.createRunningTask(failedTask, request, 1, at);
         persistence.finalizeFailure(failedTask, "TEST_FAILURE", at);
         assertThat(jdbcTemplate.queryForObject("SELECT task_status FROM literature_search_task WHERE task_id = ?",
                 String.class, failedTask.toString())).isEqualTo("FAILED");
+    }
+
+    @Test
+    void shouldPersistAndActivateOneRagIndexVersion() {
+        RagIndexDefinition definition = new RagIndexDefinition("test_collection", "test-v1", 2);
+
+        ragIndexStateStore.begin(definition, Instant.parse("2026-08-10T01:00:00Z"));
+        ragIndexStateStore.activate(definition, 3, 6, Instant.parse("2026-08-10T01:01:00Z"));
+
+        assertThat(ragIndexStateStore.active())
+                .hasValueSatisfying(state -> {
+                    assertThat(state.embeddingVersion()).isEqualTo("test-v1");
+                    assertThat(state.collectionName()).isEqualTo("test_collection");
+                    assertThat(state.sourcePaperCount()).isEqualTo(3);
+                    assertThat(state.pointCount()).isEqualTo(6);
+                    assertThat(state.lastBuildStatus()).isEqualTo("SUCCEEDED");
+                });
     }
 
     private int count(String table, UUID taskId) {

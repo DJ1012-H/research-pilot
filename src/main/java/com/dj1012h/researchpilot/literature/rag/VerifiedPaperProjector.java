@@ -36,46 +36,82 @@ public class VerifiedPaperProjector {
     }
 
     public VerifiedPaperProjectionResult project(VerifiedPaperSource source) {
+        VerifiedPaperProjectionPlanResult planResult = prepare(source);
+        if (!planResult.admitted()) {
+            return VerifiedPaperProjectionResult.rejected(planResult.rejectionReason());
+        }
+        return project(planResult.plan());
+    }
+
+    public VerifiedPaperProjectionPlanResult prepare(VerifiedPaperSource source) {
         ProjectionRejectionReason rejection = admissionFailure(source);
         if (rejection != null) {
-            return VerifiedPaperProjectionResult.rejected(rejection);
+            return VerifiedPaperProjectionPlanResult.rejected(rejection);
         }
 
         RagPaperDocument document;
         try {
             document = documentBuilder.build(source.paper(), source.normalizedDoi());
         } catch (IllegalArgumentException exception) {
-            return VerifiedPaperProjectionResult.rejected(ProjectionRejectionReason.INVALID_INPUT);
+            return VerifiedPaperProjectionPlanResult.rejected(ProjectionRejectionReason.INVALID_INPUT);
         }
-        List<String> texts = document.segments().stream().map(RagDocumentSegment::text).toList();
+        try {
+            List<RagPointPayload> points = document.segments().stream()
+                    .map(segment -> new RagPointPayload(
+                            RagPointIdFactory.create(
+                                    source.paperId(),
+                                    embeddingProfile.version(),
+                                    segment.segmentType(),
+                                    segment.segmentIndex()),
+                            source.paperId(),
+                            document.doi(),
+                            document.title(),
+                            document.publicationYear(),
+                            document.venue(),
+                            document.language(),
+                            source.verification().status(),
+                            source.verificationVersion(),
+                            segment.segmentType(),
+                            segment.segmentIndex(),
+                            embeddingProfile.model(),
+                            embeddingProfile.version(),
+                            segment.contentHash(),
+                            source.sourceUpdatedAt(),
+                            segment.text()))
+                    .toList();
+            return VerifiedPaperProjectionPlanResult.admitted(new VerifiedPaperProjectionPlan(points));
+        } catch (IllegalArgumentException | NullPointerException exception) {
+            return VerifiedPaperProjectionPlanResult.rejected(ProjectionRejectionReason.INVALID_INPUT);
+        }
+    }
+
+    public VerifiedPaperProjectionResult project(VerifiedPaperProjectionPlan plan) {
+        Objects.requireNonNull(plan, "plan must not be null");
+        List<String> texts = plan.points().stream().map(RagPointPayload::text).toList();
         EmbeddingBatch batch = embeddingPort.embed(texts);
         validateEmbeddingBatch(batch, texts.size());
 
-        List<VerifiedPaperProjection> projections = new ArrayList<>(document.segments().size());
-        for (int index = 0; index < document.segments().size(); index++) {
-            RagDocumentSegment segment = document.segments().get(index);
+        List<VerifiedPaperProjection> projections = new ArrayList<>(plan.points().size());
+        for (int index = 0; index < plan.points().size(); index++) {
+            RagPointPayload point = plan.points().get(index);
             EmbeddingVector embedding = batch.embeddings().get(index);
             projections.add(new VerifiedPaperProjection(
-                    RagPointIdFactory.create(
-                            source.paperId(),
-                            embeddingProfile.version(),
-                            segment.segmentType(),
-                            segment.segmentIndex()),
-                    source.paperId(),
-                    document.doi(),
-                    document.title(),
-                    document.publicationYear(),
-                    document.venue(),
-                    document.language(),
-                    source.verification().status(),
-                    source.verificationVersion(),
-                    segment.segmentType(),
-                    segment.segmentIndex(),
-                    embeddingProfile.model(),
-                    embeddingProfile.version(),
-                    segment.contentHash(),
-                    source.sourceUpdatedAt(),
-                    segment.text(),
+                    point.pointId(),
+                    point.paperId(),
+                    point.doi(),
+                    point.title(),
+                    point.publicationYear(),
+                    point.venue(),
+                    point.language(),
+                    point.verificationStatus(),
+                    point.verificationVersion(),
+                    point.segmentType(),
+                    point.segmentIndex(),
+                    point.embeddingModel(),
+                    point.embeddingVersion(),
+                    point.contentHash(),
+                    point.sourceUpdatedAt(),
+                    point.text(),
                     embedding.values(),
                     batch.dimensions(),
                     batch.elapsed()));
