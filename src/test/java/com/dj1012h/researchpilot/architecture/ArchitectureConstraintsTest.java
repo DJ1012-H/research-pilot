@@ -284,6 +284,31 @@ class ArchitectureConstraintsTest {
                 .doesNotContain("integration.crossref.dto");
     }
 
+    @Test
+    void ragAnswerMustUseSharedModelBoundaryAndNotExposeInternalEvidence() throws IOException {
+        String answerSources = sourceTree(BASE.resolve(Path.of("literature", "rag", "answer")));
+        String generator = source(BASE.resolve(Path.of(
+                "literature", "rag", "answer", "LlmRagAnswerGenerator.java")));
+        String publicResponse = source(BASE.resolve(Path.of(
+                "literature", "rag", "answer", "ResearchAnswerResponse.java")));
+
+        assertThat(answerSources)
+                .doesNotContain("ChatModel")
+                .doesNotContain("OpenAlex")
+                .doesNotContain("Crossref")
+                .doesNotContain("AgentState")
+                .doesNotContain("@Tool")
+                .doesNotContain("Qdrant");
+        assertThat(generator)
+                .contains("ModelInvoker")
+                .contains("rag_answer")
+                .doesNotContain("ChatModel");
+        assertThat(publicResponse)
+                .doesNotContain("UntrustedRagAnswerDraft")
+                .doesNotContain("RagAnswerInput")
+                .doesNotContain("segmentText");
+    }
+
     private Stream<Path> productionJavaFiles() throws IOException {
         return Files.walk(MAIN_JAVA)
                 .filter(Files::isRegularFile)

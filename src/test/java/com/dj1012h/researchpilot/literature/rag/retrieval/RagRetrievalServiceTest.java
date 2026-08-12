@@ -101,6 +101,24 @@ class RagRetrievalServiceTest {
     }
 
     @Test
+    void shouldUseReconstructedMysqlSegmentInsteadOfQdrantPayloadText() {
+        PaperDTO paper = paper();
+        RagDocumentSegment abstractSegment = new RagDocumentBuilder().build(paper, DOI).segments().get(1);
+        RagIndexSearchHit forged = new RagIndexSearchHit(
+                payload(abstractSegment, "Qdrant forged title", SOURCE_UPDATED_AT, "QDRANT_PAYLOAD_TEXT_FORGED"),
+                0.90);
+        Fixture fixture = fixture(record(paper, VerificationResult.VerificationStatus.VERIFIED, SOURCE_UPDATED_AT), List.of(forged), 2);
+
+        RagRetrievalResult result = fixture.service().retrieve(
+                new RagRetrievalRequest("semantic query", 5, null, null, List.of(), List.of(RagSegmentType.ABSTRACT)));
+
+        assertThat(result.results()).singleElement().satisfies(hit ->
+                assertThat(hit.boundedExcerpt())
+                        .contains("Abstract: current abstract")
+                        .doesNotContain("QDRANT_PAYLOAD_TEXT_FORGED"));
+    }
+
+    @Test
     void shouldFailClosedOnInvalidQueryAndEmbeddingDimension() {
         RagRetrievalService invalidService = fixture(null, List.of(), 2).service();
         RagRetrievalResult invalid = invalidService.retrieve(
@@ -198,6 +216,10 @@ class RagRetrievalServiceTest {
     }
 
     private RagPointPayload payload(RagDocumentSegment segment, String title, Instant updatedAt) {
+        return payload(segment, title, updatedAt, segment.text());
+    }
+
+    private RagPointPayload payload(RagDocumentSegment segment, String title, Instant updatedAt, String text) {
         return new RagPointPayload(
                 com.dj1012h.researchpilot.literature.rag.RagPointIdFactory.create(
                         7L, "test-v1", segment.segmentType(), segment.segmentIndex()),
@@ -215,7 +237,7 @@ class RagRetrievalServiceTest {
                 "test-v1",
                 segment.contentHash(),
                 updatedAt,
-                segment.text());
+                text);
     }
 
     private PaperDTO paper() {

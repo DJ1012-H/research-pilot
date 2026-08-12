@@ -63,6 +63,17 @@ app:
       max-excerpt-chars: ${RAG_RETRIEVAL_MAX_EXCERPT_CHARS:500}
       earliest-supported-year: ${RAG_RETRIEVAL_EARLIEST_YEAR:1900}
       latest-supported-year: ${RAG_RETRIEVAL_LATEST_YEAR:2100}
+    answer:
+      enabled: ${RAG_ANSWER_ENABLED:false}
+      default-top-k: ${RAG_ANSWER_DEFAULT_TOP_K:5}
+      max-top-k: ${RAG_ANSWER_MAX_TOP_K:10}
+      max-evidence: ${RAG_ANSWER_MAX_EVIDENCE:5}
+      max-segment-chars: ${RAG_ANSWER_MAX_SEGMENT_CHARS:4000}
+      max-context-chars: ${RAG_ANSWER_MAX_CONTEXT_CHARS:20000}
+      max-prompt-chars: ${RAG_ANSWER_MAX_PROMPT_CHARS:32000}
+      max-raw-draft-chars: ${RAG_ANSWER_MAX_RAW_DRAFT_CHARS:12000}
+      max-repair-prompt-chars: ${RAG_ANSWER_MAX_REPAIR_PROMPT_CHARS:48000}
+      total-timeout: ${RAG_ANSWER_TOTAL_TIMEOUT:90s}
   ai:
     enabled: ${LLM_ENABLED:false}
     base-url: ${LLM_BASE_URL:}

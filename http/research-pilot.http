@@ -21,6 +21,18 @@ Content-Type: application/json
   "limit": 5
 }
 
+### Day 5 trusted RAG answer (disabled by default; reads active index only)
+POST {{baseUrl}}/api/research/ask
+Content-Type: application/json
+
+{
+  "question": "状态空间模型如何用于遥感影像变化检测？",
+  "topK": 5,
+  "fromYear": 2021,
+  "toYear": 2026,
+  "paperIds": []
+}
+
 ### Valid contract boundary: minimum allowed result limit
 POST {{baseUrl}}/api/literature/search
 Content-Type: application/json

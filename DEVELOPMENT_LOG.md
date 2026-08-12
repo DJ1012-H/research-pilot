@@ -1968,3 +1968,43 @@ Spring Boot 的条件装配回退，使它成为 MVC 使用的全局 Mapper；�
 - No existing trusted-search route, release tag, commit, push, database row,
   Collection, Point, volume, or external service state was changed by this
   implementation run.
+## 2026-08-12 - RAG Day 5 trusted cited answer and evidence degradation
+
+- Added disabled-by-default `POST /api/research/ask`. It is synchronous and
+  read-only: the answer path reuses the provider-neutral Day 4 trusted
+  retrieval result while forcing `ABSTRACT` evidence, the active embedding
+  version, and `VERIFIED` admission. No OpenAlex/Crossref call, MySQL write,
+  index rebuild, Collection creation, Point upsert, or Point deletion is part
+  of this route.
+- Refactored Day 4 re-admission to expose an internal trusted evidence result.
+  `RagDocumentBuilder` output from the current MySQL paper is now the source of
+  diagnostic excerpts and answer evidence; Qdrant payload text is not used.
+- Added bounded answer DTOs, untrusted evidence prompts, the
+  `rag-answer-draft-v1` schema, syntax/schema/DTO/business/CitationGuard
+  validation, and one controlled repair through the shared `ModelInvoker`.
+  Public citation metadata is assembled by Java. CitationGuard documents that
+  it proves format, existence, and request ownership, not semantic entailment
+  or full-text fact verification.
+- No ABSTRACT evidence fails closed with `INSUFFICIENT_EVIDENCE`, empty answer
+  and citations, and zero model/repair calls. Scores remain observations only;
+  no `minScore` threshold was added while Recall@K/MRR calibration remains
+  `UNMEASURED` on the separate evaluation branch.
+- Initial compile passed after authorized Maven dependency access. Day 4
+  retrieval and architecture focused tests passed. No real MySQL, Ollama,
+  Qdrant, DeepSeek, OpenAlex, or Crossref service was contacted; no external
+  writes, paid model calls, commit, push, tag, or eval-branch change occurred.
+- The preceding statement describes the initial offline implementation run.
+  During the later explicitly authorized live acceptance, one trusted
+  literature search (`requestId=7033110e-315b-43fd-8f7c-8d00edd95eb2`)
+  persisted source papers and abstracts through the existing search path. A
+  restart rebuild then reported 15 source papers and 19 Qdrant points: four
+  `ABSTRACT` points and 15 `METADATA` points, all under the active 1,024
+  dimension embedding version and `VERIFIED` admission boundary.
+- The real Day 5 request
+  (`requestId=91efb0bf-0412-4a9a-b9ae-c1df966df533`) completed HTTP 200 with
+  `SUCCESS`, four re-admitted ABSTRACT evidence items, one logical
+  `rag_answer` model call, zero repairs, and one Java-assembled citation owned
+  by evidence `P2`. `RAG_ANSWER_MAX_EVIDENCE=5` was active; only four evidence
+  items were available, so the five-item truncation boundary was not exercised.
+  Provider-side retries and external cost were not reported and remain
+  `UNMEASURED`. Redis was down but is not on the Day 5 answer dependency path.

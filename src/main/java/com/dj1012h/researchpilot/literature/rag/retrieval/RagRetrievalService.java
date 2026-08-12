@@ -79,31 +79,57 @@ public class RagRetrievalService {
     }
 
     public RagRetrievalResult retrieve(RagRetrievalRequest request) {
+        TrustedRagRetrieval trusted = retrieveTrusted(request, null);
+        List<RagSearchHit> results = trusted.evidence().stream()
+                .map(this::toDiagnosticHit)
+                .toList();
+        return new RagRetrievalResult(
+                trusted.status(),
+                trusted.activeEmbeddingVersion(),
+                trusted.requestedTopK(),
+                trusted.qdrantCandidateCount(),
+                trusted.uniquePaperCandidateCount(),
+                trusted.admittedPaperCount(),
+                trusted.filteredCount(),
+                trusted.elapsedMs(),
+                results,
+                new RagRetrievalDiagnostics(trusted.failureCode()));
+    }
+
+    /**
+     * Runs the same read-only trusted retrieval boundary for internal answer
+     * consumers. A non-null forced segment set replaces client segment
+     * filters, so callers cannot weaken the answer evidence contract.
+     */
+    public TrustedRagRetrieval retrieveTrusted(
+            RagRetrievalRequest request,
+            Set<RagSegmentType> forcedSegmentTypes
+    ) {
         long startedAt = System.nanoTime();
         int requestedTopK = requestedTopK(request);
         if (!properties.isEnabled()) {
-            return failure(requestedTopK, null, RagRetrievalFailureType.RAG_RETRIEVAL_DISABLED, startedAt, 0, 0, 0, 0);
+            return trustedFailure(requestedTopK, null, RagRetrievalFailureType.RAG_RETRIEVAL_DISABLED, startedAt, 0, 0, 0, 0);
         }
 
         RagSearchQuery query;
         try {
             query = validate(request);
         } catch (IllegalArgumentException exception) {
-            return failure(requestedTopK, null, RagRetrievalFailureType.RAG_QUERY_INVALID, startedAt, 0, 0, 0, 0);
+            return trustedFailure(requestedTopK, null, RagRetrievalFailureType.RAG_QUERY_INVALID, startedAt, 0, 0, 0, 0);
         }
 
         RagIndexVersionState active;
         try {
             RagIndexStateStore stateStore = stateStoreProvider.getIfAvailable();
             if (stateStore == null) {
-                return failure(query.topK(), null, RagRetrievalFailureType.RAG_ACTIVE_VERSION_MISSING, startedAt, 0, 0, 0, 0);
+                return trustedFailure(query.topK(), null, RagRetrievalFailureType.RAG_ACTIVE_VERSION_MISSING, startedAt, 0, 0, 0, 0);
             }
             active = stateStore.active().filter(this::isUsableActiveVersion).orElse(null);
             if (active == null) {
-                return failure(query.topK(), null, RagRetrievalFailureType.RAG_ACTIVE_VERSION_MISSING, startedAt, 0, 0, 0, 0);
+                return trustedFailure(query.topK(), null, RagRetrievalFailureType.RAG_ACTIVE_VERSION_MISSING, startedAt, 0, 0, 0, 0);
             }
         } catch (RuntimeException exception) {
-            return failure(query.topK(), null, RagRetrievalFailureType.RAG_ACTIVE_VERSION_MISSING, startedAt, 0, 0, 0, 0);
+            return trustedFailure(query.topK(), null, RagRetrievalFailureType.RAG_ACTIVE_VERSION_MISSING, startedAt, 0, 0, 0, 0);
         }
 
         int candidateLimit;
@@ -112,49 +138,49 @@ public class RagRetrievalService {
                     properties.getMaxCandidatePoints(),
                     Math.multiplyExact(query.topK(), properties.getCandidateMultiplier()));
         } catch (ArithmeticException exception) {
-            return failure(query.topK(), active.embeddingVersion(), RagRetrievalFailureType.RAG_QUERY_INVALID, startedAt, 0, 0, 0, 0);
+            return trustedFailure(query.topK(), active.embeddingVersion(), RagRetrievalFailureType.RAG_QUERY_INVALID, startedAt, 0, 0, 0, 0);
         }
         if (candidateLimit < query.topK()) {
-            return failure(query.topK(), active.embeddingVersion(), RagRetrievalFailureType.RAG_QUERY_INVALID, startedAt, 0, 0, 0, 0);
+            return trustedFailure(query.topK(), active.embeddingVersion(), RagRetrievalFailureType.RAG_QUERY_INVALID, startedAt, 0, 0, 0, 0);
         }
 
         RagEmbeddingProfile embeddingProfile = embeddingProfileProvider.getIfAvailable();
         if (embeddingProfile != null
                 && !active.embeddingVersion().equals(embeddingProfile.version())) {
-            return failure(query.topK(), active.embeddingVersion(), RagRetrievalFailureType.RAG_INDEX_VERSION_MISMATCH, startedAt, 0, 0, 0, 0);
+            return trustedFailure(query.topK(), active.embeddingVersion(), RagRetrievalFailureType.RAG_INDEX_VERSION_MISMATCH, startedAt, 0, 0, 0, 0);
         }
         if (embeddingProfile != null && embeddingProfile.expectedDimensions() != active.vectorDimensions()) {
-            return failure(query.topK(), active.embeddingVersion(), RagRetrievalFailureType.RAG_EMBEDDING_DIMENSION_MISMATCH, startedAt, 0, 0, 0, 0);
+            return trustedFailure(query.topK(), active.embeddingVersion(), RagRetrievalFailureType.RAG_EMBEDDING_DIMENSION_MISMATCH, startedAt, 0, 0, 0, 0);
         }
 
         EmbeddingBatch embedding;
         try {
             EmbeddingPort embeddingPort = embeddingPortProvider.getIfAvailable();
             if (embeddingPort == null) {
-                return failure(query.topK(), active.embeddingVersion(), RagRetrievalFailureType.RAG_EMBEDDING_UNAVAILABLE, startedAt, 0, 0, 0, 0);
+                return trustedFailure(query.topK(), active.embeddingVersion(), RagRetrievalFailureType.RAG_EMBEDDING_UNAVAILABLE, startedAt, 0, 0, 0, 0);
             }
             embedding = embeddingPort.embed(List.of(query.query()));
             if (embedding == null || embedding.embeddings().size() != 1) {
-                return failure(query.topK(), active.embeddingVersion(), RagRetrievalFailureType.RAG_EMBEDDING_UNAVAILABLE, startedAt, 0, 0, 0, 0);
+                return trustedFailure(query.topK(), active.embeddingVersion(), RagRetrievalFailureType.RAG_EMBEDDING_UNAVAILABLE, startedAt, 0, 0, 0, 0);
             }
             if (embedding.dimensions() != active.vectorDimensions()
                     || embedding.embeddings().getFirst().dimensions() != active.vectorDimensions()) {
-                return failure(query.topK(), active.embeddingVersion(), RagRetrievalFailureType.RAG_EMBEDDING_DIMENSION_MISMATCH, startedAt, 0, 0, 0, 0);
+                return trustedFailure(query.topK(), active.embeddingVersion(), RagRetrievalFailureType.RAG_EMBEDDING_DIMENSION_MISMATCH, startedAt, 0, 0, 0, 0);
             }
         } catch (EmbeddingException exception) {
             RagRetrievalFailureType code = exception.failureType() == EmbeddingFailureType.DIMENSION_MISMATCH
                     ? RagRetrievalFailureType.RAG_EMBEDDING_DIMENSION_MISMATCH
                     : RagRetrievalFailureType.RAG_EMBEDDING_UNAVAILABLE;
-            return failure(query.topK(), active.embeddingVersion(), code, startedAt, 0, 0, 0, 0);
+            return trustedFailure(query.topK(), active.embeddingVersion(), code, startedAt, 0, 0, 0, 0);
         } catch (RuntimeException exception) {
-            return failure(query.topK(), active.embeddingVersion(), RagRetrievalFailureType.RAG_EMBEDDING_UNAVAILABLE, startedAt, 0, 0, 0, 0);
+            return trustedFailure(query.topK(), active.embeddingVersion(), RagRetrievalFailureType.RAG_EMBEDDING_UNAVAILABLE, startedAt, 0, 0, 0, 0);
         }
 
         List<RagIndexSearchHit> candidates;
         try {
             RagIndexPort indexPort = indexPortProvider.getIfAvailable();
             if (indexPort == null) {
-                return failure(query.topK(), active.embeddingVersion(), RagRetrievalFailureType.RAG_INDEX_UNAVAILABLE, startedAt, 0, 0, 0, 0);
+                return trustedFailure(query.topK(), active.embeddingVersion(), RagRetrievalFailureType.RAG_INDEX_UNAVAILABLE, startedAt, 0, 0, 0, 0);
             }
             RagIndexDefinition definition = new RagIndexDefinition(
                     active.collectionName(), active.embeddingVersion(), active.vectorDimensions());
@@ -166,22 +192,22 @@ public class RagRetrievalService {
                             query.filter().fromYear(),
                             query.filter().toYear(),
                             query.filter().paperIds(),
-                            query.filter().segmentTypes()));
+                            effectiveSegmentTypes(query.filter(), forcedSegmentTypes)));
             if (candidates == null) {
-                return failure(query.topK(), active.embeddingVersion(), RagRetrievalFailureType.RAG_INDEX_RESPONSE_INVALID, startedAt, 0, 0, 0, 0);
+                return trustedFailure(query.topK(), active.embeddingVersion(), RagRetrievalFailureType.RAG_INDEX_RESPONSE_INVALID, startedAt, 0, 0, 0, 0);
             }
         } catch (RagIndexException exception) {
-            return failure(query.topK(), active.embeddingVersion(), mapIndexFailure(exception.failureType()), startedAt, 0, 0, 0, 0);
+            return trustedFailure(query.topK(), active.embeddingVersion(), mapIndexFailure(exception.failureType()), startedAt, 0, 0, 0, 0);
         } catch (RuntimeException exception) {
-            return failure(query.topK(), active.embeddingVersion(), RagRetrievalFailureType.RAG_INDEX_UNAVAILABLE, startedAt, 0, 0, 0, 0);
+            return trustedFailure(query.topK(), active.embeddingVersion(), RagRetrievalFailureType.RAG_INDEX_UNAVAILABLE, startedAt, 0, 0, 0, 0);
         }
 
         if (candidates.stream().anyMatch(Objects::isNull)) {
-            return failure(query.topK(), active.embeddingVersion(), RagRetrievalFailureType.RAG_INDEX_RESPONSE_INVALID,
+            return trustedFailure(query.topK(), active.embeddingVersion(), RagRetrievalFailureType.RAG_INDEX_RESPONSE_INVALID,
                     startedAt, candidates.size(), 0, 0, 0);
         }
         if (candidates.stream().anyMatch(hit -> !active.embeddingVersion().equals(hit.payload().embeddingVersion()))) {
-            return failure(query.topK(), active.embeddingVersion(), RagRetrievalFailureType.RAG_INDEX_VERSION_MISMATCH,
+            return trustedFailure(query.topK(), active.embeddingVersion(), RagRetrievalFailureType.RAG_INDEX_VERSION_MISMATCH,
                     startedAt, candidates.size(), 0, 0, 0);
         }
         List<RagIndexSearchHit> scopedCandidates = candidates.stream()
@@ -193,7 +219,7 @@ public class RagRetrievalService {
                 .sorted(candidateOrder())
                 .toList();
         if (uniqueCandidates.isEmpty()) {
-            return success(query.topK(), active.embeddingVersion(), candidates.size(), 0, 0, 0,
+            return trustedSuccess(query.topK(), active.embeddingVersion(), candidates.size(), 0, 0, 0,
                     List.of(), RagRetrievalFailureType.RAG_NO_TRUSTED_RESULTS.name(), startedAt);
         }
 
@@ -201,7 +227,7 @@ public class RagRetrievalService {
         try {
             TrustedPaperReadRepository paperRepository = paperRepositoryProvider.getIfAvailable();
             if (paperRepository == null) {
-                return failure(query.topK(), active.embeddingVersion(), RagRetrievalFailureType.RAG_TRUSTED_SOURCE_UNAVAILABLE, startedAt, candidates.size(), uniqueCandidates.size(), 0, 0);
+                return trustedFailure(query.topK(), active.embeddingVersion(), RagRetrievalFailureType.RAG_TRUSTED_SOURCE_UNAVAILABLE, startedAt, candidates.size(), uniqueCandidates.size(), 0, 0);
             }
             currentByPaper = paperRepository.findByPaperIds(uniqueCandidates.stream()
                     .map(hit -> hit.payload().paperId())
@@ -209,13 +235,16 @@ public class RagRetrievalService {
                     .stream()
                     .collect(Collectors.toMap(TrustedPaperRecord::paperId, value -> value, (left, right) -> left, HashMap::new));
         } catch (RuntimeException exception) {
-            return failure(query.topK(), active.embeddingVersion(), RagRetrievalFailureType.RAG_TRUSTED_SOURCE_UNAVAILABLE, startedAt, candidates.size(), uniqueCandidates.size(), 0, 0);
+            return trustedFailure(query.topK(), active.embeddingVersion(), RagRetrievalFailureType.RAG_TRUSTED_SOURCE_UNAVAILABLE, startedAt, candidates.size(), uniqueCandidates.size(), 0, 0);
         }
 
-        List<RagSearchHit> admitted = new ArrayList<>();
+        Set<RagSegmentType> effectiveSegmentTypes = effectiveSegmentTypes(query.filter(), forcedSegmentTypes);
+        RagSearchFilter admissionFilter = new RagSearchFilter(
+                query.filter().fromYear(), query.filter().toYear(), query.filter().paperIds(), effectiveSegmentTypes);
+        List<TrustedRagEvidence> admitted = new ArrayList<>();
         int filteredCount = 0;
         for (RagIndexSearchHit candidate : uniqueCandidates) {
-            Optional<RagSearchHit> result = reAdmit(candidate, currentByPaper.get(candidate.payload().paperId()), query.filter());
+            Optional<TrustedRagEvidence> result = reAdmit(candidate, currentByPaper.get(candidate.payload().paperId()), admissionFilter);
             if (result.isPresent() && admitted.size() < query.topK()) {
                 admitted.add(result.get());
             } else if (result.isEmpty()) {
@@ -223,7 +252,7 @@ public class RagRetrievalService {
             }
         }
         String failureCode = admitted.isEmpty() ? RagRetrievalFailureType.RAG_NO_TRUSTED_RESULTS.name() : null;
-        return success(query.topK(), active.embeddingVersion(), candidates.size(), uniqueCandidates.size(),
+        return trustedSuccess(query.topK(), active.embeddingVersion(), candidates.size(), uniqueCandidates.size(),
                 admitted.size(), filteredCount, List.copyOf(admitted), failureCode, startedAt);
     }
 
@@ -257,7 +286,7 @@ public class RagRetrievalService {
                         Set.copyOf(request.segmentTypes())));
     }
 
-    private Optional<RagSearchHit> reAdmit(
+    private Optional<TrustedRagEvidence> reAdmit(
             RagIndexSearchHit candidate,
             TrustedPaperRecord source,
             RagSearchFilter filter
@@ -288,18 +317,20 @@ public class RagRetrievalService {
             if (segment.isEmpty() || !segment.get().contentHash().equals(payload.contentHash())) {
                 return Optional.empty();
             }
-            return Optional.of(new RagSearchHit(
+            return Optional.of(new TrustedRagEvidence(
+                    payload.pointId(),
                     source.paperId(),
                     source.normalizedDoi(),
                     source.paper().title(),
+                    source.paper().authors().stream().map(PaperDTO.Author::displayName).toList(),
                     source.paper().publicationYear(),
                     source.paper().venue(),
                     candidate.score(),
                     payload.segmentType(),
                     payload.segmentIndex(),
-                    boundedExcerpt(payload.text()),
-                    payload.contentHash(),
-                    source.sourceUpdatedAt()));
+                    segment.get().contentHash(),
+                    source.sourceUpdatedAt(),
+                    segment.get().text()));
         } catch (RuntimeException exception) {
             return Optional.empty();
         }
@@ -323,6 +354,28 @@ public class RagRetrievalService {
         int codePoints = text.codePointCount(0, text.length());
         if (codePoints <= properties.getMaxExcerptChars()) return text;
         return text.substring(0, text.offsetByCodePoints(0, properties.getMaxExcerptChars())) + "…";
+    }
+
+    private RagSearchHit toDiagnosticHit(TrustedRagEvidence evidence) {
+        return new RagSearchHit(
+                evidence.paperId(),
+                evidence.normalizedDoi(),
+                evidence.title(),
+                evidence.publicationYear(),
+                evidence.venue(),
+                evidence.score(),
+                evidence.segmentType(),
+                evidence.segmentIndex(),
+                boundedExcerpt(evidence.reconstructedSegmentText()),
+                evidence.contentHash(),
+                evidence.sourceUpdatedAt());
+    }
+
+    private Set<RagSegmentType> effectiveSegmentTypes(
+            RagSearchFilter filter,
+            Set<RagSegmentType> forcedSegmentTypes
+    ) {
+        return forcedSegmentTypes == null ? filter.segmentTypes() : Set.copyOf(forcedSegmentTypes);
     }
 
     private String normalize(String value) {
@@ -368,19 +421,19 @@ public class RagRetrievalService {
         };
     }
 
-    private RagRetrievalResult success(
+    private TrustedRagRetrieval trustedSuccess(
             int requestedTopK,
             String activeVersion,
             int candidates,
             int uniqueCandidates,
             int admitted,
             int filtered,
-            List<RagSearchHit> results,
+            List<TrustedRagEvidence> results,
             String failureCode,
             long startedAt
     ) {
         String status = results.isEmpty() ? "NO_TRUSTED_RESULTS" : "SUCCESS";
-        return new RagRetrievalResult(
+        return new TrustedRagRetrieval(
                 status,
                 activeVersion,
                 requestedTopK,
@@ -390,10 +443,10 @@ public class RagRetrievalService {
                 filtered,
                 elapsedMs(startedAt),
                 results,
-                new RagRetrievalDiagnostics(failureCode));
+                failureCode);
     }
 
-    private RagRetrievalResult failure(
+    private TrustedRagRetrieval trustedFailure(
             int requestedTopK,
             String activeVersion,
             RagRetrievalFailureType failureType,
@@ -414,7 +467,7 @@ public class RagRetrievalService {
                 admitted,
                 filtered,
                 elapsed);
-        return new RagRetrievalResult(
+        return new TrustedRagRetrieval(
                 "FAILED",
                 activeVersion,
                 requestedTopK,
@@ -424,7 +477,7 @@ public class RagRetrievalService {
                 filtered,
                 elapsed,
                 List.of(),
-                new RagRetrievalDiagnostics(failureType.name()));
+                failureType.name());
     }
 
     private int requestedTopK(RagRetrievalRequest request) {
