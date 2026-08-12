@@ -1,0 +1,153 @@
+{
+  "auditKind": "AI_ASSISTED_REVIEW_SUGGESTIONS",
+  "sourceDataset": "rag-retrieval-v2-draft",
+  "generatedAtUtc": "2026-08-12T10:00:00Z",
+  "reviewer": "codex-ai",
+  "formalGroundTruth": true,
+  "status": "APPLIED_TO_CODEX_REVIEWED_DATASET",
+  "decisionPolicy": {
+    "primaryRelevantPaperIds": "Conservative labels for papers whose title or abstract directly addresses the query and filter.",
+    "borderlinePaperIds": "Papers that are topically adjacent but should not be promoted without reviewer confirmation.",
+    "noRelevantResult": "An empty primary set is valid only when the reviewer confirms that the query has no relevant paper in the candidate catalog and records provenance.",
+    "retrievalOutputWasNotUsedAsGroundTruth": true
+  },
+  "cases": [
+    {
+      "caseId": "rag-v2-0001",
+      "proposedRelevantPaperIds": [5, 6, 7, 8, 13],
+      "borderlinePaperIds": [],
+      "decision": "RELEVANT_SET_PROPOSED",
+      "rationale": "这些论文都把 Mamba 或状态空间模型用于遥感密集预测任务；7 直接覆盖 dense prediction，5、6、8、13 聚焦 change detection 这一密集预测子任务。",
+      "evidenceRefs": [
+        "https://doi.org/10.1109/TGRS.2025.3545012",
+        "https://doi.org/10.1109/TGRS.2024.3417253",
+        "https://doi.org/10.1109/TGRS.2024.3425540",
+        "https://doi.org/10.1109/LGRS.2025.3551754",
+        "https://doi.org/10.3390/rs16224186"
+      ]
+    },
+    {
+      "caseId": "rag-v2-0002",
+      "proposedRelevantPaperIds": [5, 6, 7, 8, 13],
+      "borderlinePaperIds": [],
+      "decision": "RELEVANT_SET_PROPOSED",
+      "rationale": "与 0001 同义的英文查询；候选集合直接覆盖 selective-state-space/Mamba 遥感密集预测及其 change-detection 子任务。",
+      "evidenceRefs": [
+        "https://doi.org/10.1109/TGRS.2025.3545012",
+        "https://doi.org/10.1109/TGRS.2024.3417253",
+        "https://doi.org/10.1109/TGRS.2024.3425540",
+        "https://doi.org/10.1109/LGRS.2025.3551754",
+        "https://doi.org/10.3390/rs16224186"
+      ]
+    },
+    {
+      "caseId": "rag-v2-0003",
+      "proposedRelevantPaperIds": [7],
+      "borderlinePaperIds": [],
+      "decision": "RELEVANT_SET_PROPOSED",
+      "rationale": "RS-Mamba 的论文摘要直接讨论大幅遥感图像的 dense prediction，并明确包含 semantic segmentation；其他候选主要是 change detection，不直接满足语义分割限定。",
+      "evidenceRefs": ["https://doi.org/10.1109/TGRS.2024.3425540"]
+    },
+    {
+      "caseId": "rag-v2-0004",
+      "proposedRelevantPaperIds": [7],
+      "borderlinePaperIds": [],
+      "decision": "RELEVANT_SET_PROPOSED",
+      "rationale": "RS-Mamba 直接针对遥感大图的长程上下文建模、线性复杂度和 semantic segmentation；其余候选没有同时满足 segmentation 与 long-context 的明确证据。",
+      "evidenceRefs": ["https://doi.org/10.1109/TGRS.2024.3425540"]
+    },
+    {
+      "caseId": "rag-v2-0005",
+      "proposedRelevantPaperIds": [7],
+      "borderlinePaperIds": [6, 13],
+      "decision": "RELEVANT_SET_WITH_BORDERLINE",
+      "rationale": "在 2023 年以后且明确包含 semantic segmentation 的候选中，7 是直接匹配；6 和 13 是 2024 年的状态空间 change detection 论文，属于语义变化检测/密集预测邻近任务，是否纳入需人工确认。",
+      "evidenceRefs": [
+        "https://doi.org/10.1109/TGRS.2024.3425540",
+        "https://doi.org/10.1109/TGRS.2024.3417253",
+        "https://doi.org/10.3390/rs16224186"
+      ]
+    },
+    {
+      "caseId": "rag-v2-0006",
+      "proposedRelevantPaperIds": [5, 6, 7, 8, 13],
+      "borderlinePaperIds": [],
+      "decision": "RELEVANT_SET_PROPOSED",
+      "rationale": "这些论文均将 Mamba/状态空间序列建模用于遥感 change detection；7 的任务集合也明确包含 change detection。",
+      "evidenceRefs": [
+        "https://doi.org/10.1109/TGRS.2025.3545012",
+        "https://doi.org/10.1109/TGRS.2024.3417253",
+        "https://doi.org/10.1109/TGRS.2024.3425540",
+        "https://doi.org/10.1109/LGRS.2025.3551754",
+        "https://doi.org/10.3390/rs16224186"
+      ]
+    },
+    {
+      "caseId": "rag-v2-0007",
+      "proposedRelevantPaperIds": [],
+      "borderlinePaperIds": [],
+      "decision": "NO_RELEVANT_RESULT_PROPOSED",
+      "rationale": "查询同时要求量子、遥感、邮件和分类；当前候选目录没有与该组合意图匹配的论文。正式空集标签仍需审核人确认。",
+      "evidenceRefs": ["candidate-paper-catalog-v0.1.json"]
+    },
+    {
+      "caseId": "rag-v2-0008",
+      "proposedRelevantPaperIds": [1, 6],
+      "borderlinePaperIds": [],
+      "decision": "RELEVANT_SET_PROPOSED",
+      "rationale": "1 直接包含 spatial-temporal change detection；6 明确使用 spatiotemporal state-space modeling 处理遥感 change detection。它们最适合支撑空间变化检测与时间序列/时空建模的比较，其余论文缺少该比较所需的时空建模重点。",
+      "evidenceRefs": [
+        "https://doi.org/10.3390/rs12101662",
+        "https://doi.org/10.1109/TGRS.2024.3417253"
+      ]
+    },
+    {
+      "caseId": "rag-v2-0009",
+      "proposedRelevantPaperIds": [5, 6, 7, 8, 13],
+      "borderlinePaperIds": [],
+      "decision": "RELEVANT_SET_PROPOSED",
+      "rationale": "中文问题要求检索英文论文；候选中这 5 篇直接覆盖 Mamba/状态空间模型与遥感密集预测或 change detection。",
+      "evidenceRefs": [
+        "https://doi.org/10.1109/TGRS.2025.3545012",
+        "https://doi.org/10.1109/TGRS.2024.3417253",
+        "https://doi.org/10.1109/TGRS.2024.3425540",
+        "https://doi.org/10.1109/LGRS.2025.3551754",
+        "https://doi.org/10.3390/rs16224186"
+      ]
+    },
+    {
+      "caseId": "rag-v2-0010",
+      "proposedRelevantPaperIds": [5, 6, 7, 8, 13],
+      "borderlinePaperIds": [],
+      "decision": "RELEVANT_SET_PROPOSED",
+      "rationale": "与 0009 对应的英文 fixed acceptance 查询；5、6、7、8、13 均直接涉及遥感 Mamba/状态空间模型和密集预测相关任务。",
+      "evidenceRefs": [
+        "https://doi.org/10.1109/TGRS.2025.3545012",
+        "https://doi.org/10.1109/TGRS.2024.3417253",
+        "https://doi.org/10.1109/TGRS.2024.3425540",
+        "https://doi.org/10.1109/LGRS.2025.3551754",
+        "https://doi.org/10.3390/rs16224186"
+      ]
+    },
+    {
+      "caseId": "rag-v2-0011",
+      "proposedRelevantPaperIds": [6, 7, 13],
+      "borderlinePaperIds": [],
+      "decision": "RELEVANT_SET_PROPOSED",
+      "rationale": "在 2023 至 2024 年窗口内，6、7、13 分别直接覆盖 state-space/Mamba 遥感 change detection、dense prediction 以及 Mamba change detection；2025 年论文 5、8 被年份过滤排除。",
+      "evidenceRefs": [
+        "https://doi.org/10.1109/TGRS.2024.3417253",
+        "https://doi.org/10.1109/TGRS.2024.3425540",
+        "https://doi.org/10.3390/rs16224186"
+      ]
+    },
+    {
+      "caseId": "rag-v2-0012",
+      "proposedRelevantPaperIds": [],
+      "borderlinePaperIds": [],
+      "decision": "NO_RELEVANT_RESULT_PROPOSED",
+      "rationale": "2099 至 2100 年窗口内没有候选论文；该 case 的预期行为是 NO_TRUSTED_RESULTS/INSUFFICIENT_EVIDENCE，不应产生模型回答。",
+      "evidenceRefs": ["retrieval-observation-v0.1.jsonl caseId=rag-v2-0012"]
+    }
+  ]
+}

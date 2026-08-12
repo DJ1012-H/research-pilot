@@ -1,0 +1,27 @@
+{
+  "datasetId": "rag-retrieval-v2-draft",
+  "datasetKind": "CANDIDATE_ONLY_HUMAN_REVIEW_SET",
+  "casesPath": "cases.jsonl",
+  "casesLfSha256": "76e2e9eae1f0cd329f29af9f6afb51ab71bb32251b2c0abd3fad98b14f707ebb",
+  "caseCount": 12,
+  "tuningCaseCount": 8,
+  "fixedAcceptanceCaseCount": 4,
+  "reviewStatus": "REVIEWED",
+  "groundTruthStatus": "CODEX_REVIEWED",
+  "formalMetrics": {
+    "Recall@1": 0.1633333333,
+    "Recall@3": 0.5666666667,
+    "Recall@5": 0.72,
+    "Hit@5": 1.0,
+    "MRR": 0.7583333333
+  },
+  "provenanceRule": "Codex review was explicitly authorized on 2026-08-12; retrieval output was kept separate and did not create Ground Truth.",
+  "frozenSource": "eval/rag-retrieval-v1 remains unchanged"
+  ,"retrievalObservationPath": "retrieval-observation-v0.1.jsonl"
+  ,"costObservationPath": "cost-observation-v0.1.json"
+  ,"candidateCatalogPath": "candidate-paper-catalog-v0.1.json"
+  ,"aiReviewSuggestionsPath": "ai-review-suggestions-v0.1.json"
+  ,"reviewedMetricsPath": "reviewed-metrics-v0.1.json"
+  ,"reviewQueuePath": "review-queue-v0.2.jsonl"
+  ,"metricsScriptPath": "scripts/compute-rag-reviewed-metrics.ps1"
+}

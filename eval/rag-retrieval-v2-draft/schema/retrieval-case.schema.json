@@ -1,0 +1,32 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Trusted RAG retrieval v2 draft case",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["caseId", "split", "queryLanguage", "queryText", "caseIntent", "filter", "relevantPaperIds", "relevanceJudgmentProvenance", "reviewer", "reviewStatus", "frozenHash", "retrievalOutput"],
+  "properties": {
+    "caseId": {"type": "string", "pattern": "^rag-v2-[0-9]{4}$"},
+    "split": {"enum": ["TUNING", "FIXED_ACCEPTANCE"]},
+    "queryLanguage": {"enum": ["zh", "en"]},
+    "queryText": {"type": "string", "minLength": 1, "maxLength": 500},
+    "caseIntent": {"enum": ["cross_language", "synonym_recall", "long_context", "year_filter", "adjacent_topic", "no_relevant_result", "fixed_answer", "fixed_year_filter", "fixed_insufficient_evidence"]},
+    "filter": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["fromYear", "toYear"],
+      "properties": {
+        "fromYear": {"type": ["integer", "null"], "minimum": 1900, "maximum": 2100},
+        "toYear": {"type": ["integer", "null"], "minimum": 1900, "maximum": 2100}
+      }
+    },
+    "relevantPaperIds": {"type": "array", "items": {"type": "integer", "minimum": 1}, "uniqueItems": true},
+    "relevanceJudgmentProvenance": {"type": "string", "minLength": 1},
+    "reviewer": {"type": ["string", "null"]},
+    "reviewStatus": {"enum": ["NEEDS_REVIEW", "REVIEWED"]},
+    "frozenHash": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "retrievalOutput": {"type": ["object", "null"]}
+  },
+  "allOf": [
+    {"if": {"properties": {"reviewStatus": {"const": "NEEDS_REVIEW"}}}, "then": {"properties": {"relevantPaperIds": {"maxItems": 0}, "reviewer": {"const": null}}}}
+  ]
+}
