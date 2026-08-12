@@ -14,6 +14,7 @@ The public API is deliberately conservative. A successful HTTP request can legit
 - Optional Flyway V1/V2 and MyBatis persistence. Once enabled, persistence failures fail closed rather than reporting a false success.
 - Optional Redis cache-aside decorators for OpenAlex and Crossref. Redis failures fail open to the providers; cache hits still go through verification.
 - Disabled-by-default trusted RAG answer at `POST /api/research/ask`; it reads only the active MySQL/Qdrant index, admits only current `VERIFIED` ABSTRACT evidence, and publishes Java-assembled citations.
+- Reproducible `RagDemo` startup, fixed offline RAG replay, read-only real-service verifier, frozen retrieval runner, and staged Collection recovery rehearsal for the Day 6 candidate closeout.
 - Stable errors, request correlation (`X-Request-Id`), low-cardinality Micrometer observations, Swagger UI, and deterministic offline regression tests.
 
 It is **not** a PDF/full-text RAG system, a multi-Agent workflow, an asynchronous queue, or a frontend application. Day 5 answers are bounded to trusted abstract Segments.
@@ -34,6 +35,7 @@ It is **not** a PDF/full-text RAG system, a multi-Agent workflow, an asynchronou
 | `OfflineBuild` | None | Runs `clean verify`; no LLM, OpenAlex, Crossref, MySQL, or Redis access. |
 | `TrustedSearch` | LLM, OpenAlex, Crossref | Starts the live trusted-search path. Persistence is disabled; Redis is optional. |
 | `FullDemo` | LLM, OpenAlex, Crossref, MySQL; Redis only with `-EnableCache` | Starts the live path with Flyway migration and durable task evidence. |
+| `RagDemo` | LLM, MySQL, Flyway, Ollama embedding, Qdrant; no OpenAlex/Crossref; Redis only with `-EnableCache` | Starts trusted RAG over existing MySQL papers; rebuild is opt-in. |
 
 ### 1. Deterministic offline build
 
@@ -70,9 +72,27 @@ powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\scripts\start-local.ps
 
 `FullDemo` sets `FLYWAY_ENABLED=true` and `LITERATURE_PERSISTENCE_ENABLED=true`. Supply only a schema you are authorized to migrate. The script never runs `flyway clean`, drops data, creates database users, or performs destructive database operations. Add `-EnableCache -RedisHost localhost` only if Redis is also part of the authorized demo.
 
-The script sets all feature switches explicitly for its selected mode:
+### 4. RAG demo
 
-`LLM_ENABLED`, `OPENALEX_ENABLED`, `CROSSREF_ENABLED`, `FLYWAY_ENABLED`, `LITERATURE_PERSISTENCE_ENABLED`, and `LITERATURE_CACHE_ENABLED`.
+```powershell
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\scripts\start-local.ps1 `
+  -Mode RagDemo -MysqlHost localhost -MysqlDatabase research_pilot `
+  -MysqlUsername research_pilot -LlmBaseUrl "https://your-llm-provider.example/v1" `
+  -LlmModelName "your-model"
+```
+
+`RagDemo` enables MySQL/Flyway, Ollama, Qdrant, retrieval, and answer while
+disabling OpenAlex, Crossref, Redis cache, and startup rebuild. Add
+`-RebuildRagIndex` only for a controlled rebuild. See [the Day 6 RAG demo
+guide](docs/demo/trusted-rag-demo.md) and [candidate acceptance](docs/demo/v1.1.0-rag-demo-acceptance.md).
+
+The script sets all feature switches and RAG integration switches explicitly
+for its selected mode:
+
+`LLM_ENABLED`, `OPENALEX_ENABLED`, `CROSSREF_ENABLED`, `FLYWAY_ENABLED`,
+`LITERATURE_PERSISTENCE_ENABLED`, `LITERATURE_CACHE_ENABLED`,
+`OLLAMA_EMBEDDING_ENABLED`, `QDRANT_ENABLED`, `RAG_INDEXING_ENABLED`,
+`RAG_REBUILD_ON_STARTUP`, `RAG_RETRIEVAL_ENABLED`, and `RAG_ANSWER_ENABLED`.
 
 ## Run and demonstrate the API
 
@@ -127,6 +147,12 @@ redacted summaries only:
 powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\scripts\replay-trusted-demo.ps1
 ```
 
+Replay the fixed Day 6 RAG orchestration paths:
+
+```powershell
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\scripts\replay-rag-demo.ps1
+```
+
 For the complete regression and packaged JAR:
 
 ```powershell
@@ -179,6 +205,16 @@ Real-service acceptance is intentionally not part of ordinary `clean verify`.
 It changes an authorized test schema and derived index, and may temporarily stop
 local services. Keep it behind an explicit operator action, preserve a recovery
 baseline, and restore changed paper values and trust state before completion.
+
+Day 6 adds a read-only verifier:
+
+```powershell
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\scripts\verify-rag-demo.ps1
+```
+
+It fails closed when readiness, dimensions, year-filter behavior, answer
+fields, citation ownership, or zero model calls cannot be confirmed. Redis may
+be `DOWN` or `DISABLED`; Qdrant payload text is never printed.
 
 ## Troubleshooting and security
 

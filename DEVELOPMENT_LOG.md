@@ -2008,3 +2008,26 @@ Spring Boot 的条件装配回退，使它成为 MVC 使用的全局 Mapper；�
   items were available, so the five-item truncation boundary was not exercised.
   Provider-side retries and external cost were not reported and remain
   `UNMEASURED`. Redis was down but is not on the Day 5 answer dependency path.
+## 2026-08-12 - RAG Day 6 candidate closeout
+
+- Added reproducible `RagDemo` startup. It resets RAG switches, enables the
+  existing MySQL/Flyway/Ollama/Qdrant/retrieval/answer path, keeps
+  OpenAlex/Crossref/Redis disabled by default, and only enables startup rebuild
+  with explicit `-RebuildRagIndex`. Secrets remain prompt scoped.
+- Added fixed offline replay for a Chinese question over English abstract
+  fixtures, production year filtering and MySQL re-admission, and zero-ABSTRACT
+  `INSUFFICIENT_EVIDENCE`. It labels output as fixture orchestration evidence.
+- Added `/api/research/ask` MockMvc characterization for public success,
+  insufficient evidence, failed generation, invalid JSON, request correlation,
+  and current unknown-field behavior without global Jackson changes.
+- Added read-only real-service verification, frozen-hash retrieval evaluation,
+  and staged recovery rehearsal. Collection deletion is gated and was not run.
+- Focused Day 6 verification passed 40 tests; the complete `clean verify`
+  baseline passed 526 tests with 0 failures, 0 errors, and 4 skips. The offline
+  replay emitted exactly three redacted scenario summaries.
+- Candidate remains `CANDIDATE / NOT READY`: the eval checkout has 7
+  `NEEDS_REVIEW` cases, no human relevant-paper labels, Recall/MRR are
+  `UNMEASURED`, the four-evidence real observation did not exercise the
+  `maxEvidence=5` boundary, and real Day 6 service acceptance was not run.
+- No eval mutation, migration, dependency, OpenAlex/Crossref call, paid model
+  call, Collection deletion, push, or release tag was performed.

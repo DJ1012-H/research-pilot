@@ -33,6 +33,26 @@ Content-Type: application/json
   "paperIds": []
 }
 
+### Day 6 trusted RAG retrieval probe (requires RagDemo)
+POST {{baseUrl}}/api/research/retrieve
+Content-Type: application/json
+
+{
+  "query": "Which papers study selective state space models for dense prediction?",
+  "topK": 5
+}
+
+### Day 6 trusted RAG answer with year filter (requires RagDemo)
+POST {{baseUrl}}/api/research/ask
+Content-Type: application/json
+
+{
+  "question": "Which papers study selective state space models for dense prediction?",
+  "fromYear": 2023,
+  "toYear": 2024,
+  "topK": 5
+}
+
 ### Valid contract boundary: minimum allowed result limit
 POST {{baseUrl}}/api/literature/search
 Content-Type: application/json
