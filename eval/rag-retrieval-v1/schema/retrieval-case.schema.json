@@ -1,0 +1,19 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Trusted RAG retrieval evaluation case",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["caseId", "queryLanguage", "queryText", "relevantPaperIds", "relevanceJudgmentProvenance", "reviewer", "reviewStatus", "frozenHash", "retrievalOutput"],
+  "properties": {
+    "caseId": {"type": "string", "pattern": "^rag-v1-[0-9]{4}$"},
+    "queryLanguage": {"enum": ["zh", "en"]},
+    "queryText": {"type": "string", "minLength": 1, "maxLength": 500},
+    "relevantPaperIds": {"type": "array", "items": {"type": "integer", "minimum": 1}, "uniqueItems": true},
+    "relevanceJudgmentProvenance": {"type": "string", "minLength": 1},
+    "reviewer": {"type": ["string", "null"]},
+    "reviewStatus": {"enum": ["NEEDS_REVIEW", "REVIEWED"]},
+    "frozenHash": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "retrievalOutput": {"type": ["object", "null"]}
+  },
+  "allOf": [{"if": {"properties": {"reviewStatus": {"const": "NEEDS_REVIEW"}}}, "then": {"properties": {"relevantPaperIds": {"maxItems": 0}, "reviewer": {"const": null}}}}]
+}

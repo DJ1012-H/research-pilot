@@ -1,0 +1,8 @@
+{
+  "datasetId": "rag-retrieval-v1",
+  "casesPath": "cases.jsonl",
+  "casesLfSha256": "ff9de4db7954c2a2eeb39f863356350417cf44de7b79449e03029251afcbee40",
+  "reviewStatus": "NEEDS_REVIEW",
+  "formalMetrics": "UNMEASURED",
+  "provenanceRule": "Human review is required before relevantPaperIds may be populated."
+}

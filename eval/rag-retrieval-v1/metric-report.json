@@ -1,0 +1,16 @@
+{
+  "datasetId": "rag-retrieval-v1",
+  "datasetKind": "LOCAL_SMALL_ACCEPTANCE_SET",
+  "groundTruthStatus": "UNMEASURED",
+  "caseCount": 7,
+  "reviewedCaseCount": 0,
+  "metrics": {
+    "Recall@1": "UNMEASURED",
+    "Recall@3": "UNMEASURED",
+    "Recall@5": "UNMEASURED",
+    "MRR": "UNMEASURED",
+    "trustedResultRetentionRate": "UNMEASURED",
+    "mysqlReadmissionRejectionCount": "UNMEASURED"
+  },
+  "reason": "No human-reviewed relevant paperId judgments exist; retrieval output must not create Ground Truth."
+}
