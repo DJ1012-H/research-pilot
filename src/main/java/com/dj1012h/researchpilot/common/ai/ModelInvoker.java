@@ -14,6 +14,9 @@ import dev.langchain4j.exception.RateLimitException;
 import dev.langchain4j.exception.TimeoutException;
 import dev.langchain4j.exception.UnresolvedModelServerException;
 import dev.langchain4j.model.chat.ChatModel;
+import dev.langchain4j.model.chat.response.ChatResponse;
+import dev.langchain4j.data.message.UserMessage;
+import dev.langchain4j.model.output.TokenUsage;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.ObjectProvider;
@@ -56,6 +59,31 @@ public class ModelInvoker {
 
     public String invoke(String operation, String input) {
         return invoke(operation, input, ChatModel::chat);
+    }
+
+    /**
+     * Invokes the standard chat path while retaining provider-reported token
+     * usage for bounded, non-content cost observations.
+     */
+    public ModelInvocationResult invokeWithUsage(String operation, String input) {
+        ChatResponse response = invoke(operation, input,
+                (chatModel, prompt) -> chatModel.chat(UserMessage.from(prompt)));
+        if (response == null || response.aiMessage() == null || response.aiMessage().text() == null) {
+            throw new IllegalStateException("model response did not contain assistant text");
+        }
+        TokenUsage usage = response.tokenUsage();
+        Integer inputTokens = usage == null ? null : usage.inputTokenCount();
+        Integer outputTokens = usage == null ? null : usage.outputTokenCount();
+        Integer totalTokens = usage == null ? null : usage.totalTokenCount();
+        log.info(
+                "event=model_usage_observed operation={} model={} inputTokens={} outputTokens={} totalTokens={}",
+                valueForLog(operation),
+                modelNameForLog(),
+                safeTokenCount(inputTokens),
+                safeTokenCount(outputTokens),
+                safeTokenCount(totalTokens)
+        );
+        return new ModelInvocationResult(response.aiMessage().text(), inputTokens, outputTokens, totalTokens);
     }
 
     /**
@@ -147,6 +175,10 @@ public class ModelInvoker {
             return "unknown";
         }
         return value.replace('\r', '_').replace('\n', '_');
+    }
+
+    private String safeTokenCount(Integer value) {
+        return value == null ? "unknown" : Integer.toString(value);
     }
 
     private boolean hasCause(Throwable throwable, Class<? extends Throwable> causeType) {

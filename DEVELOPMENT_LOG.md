@@ -2031,3 +2031,34 @@ Spring Boot 的条件装配回退，使它成为 MVC 使用的全局 Mapper；�
   `maxEvidence=5` boundary, and real Day 6 service acceptance was not run.
 - No eval mutation, migration, dependency, OpenAlex/Crossref call, paid model
   call, Collection deletion, push, or release tag was performed.
+
+## 2026-08-12 - Authorized live RAG acceptance, recovery, and eval draft
+
+- Corrected the real verifier to use the public `/api/research/ask` field
+  `question` and to accept Qdrant 1.18 collection status in either the top
+  level response or `result.status`. The verifier then passed with 19 points,
+  4 ABSTRACT points, 15 METADATA points, 1,024 dimensions, successful normal
+  and year-filtered retrieval/answer paths, and zero model/repair calls for
+  insufficient evidence.
+- With explicit operator authorization, captured the baseline and deleted only
+  `research_pilot_paper_segments_v1`. The first MySQL-driven startup rebuild
+  failed closed during batched Qdrant upsert and left an empty Collection; no
+  MySQL row or Docker named volume was changed. A retry with
+  `QDRANT_BATCH_SIZE=1` completed from MySQL with 15 source papers and 19
+  points, and `VerifyRestored` passed all snapshot and fixed-retrieval checks.
+- The live answer path admitted 4 ABSTRACT evidence items even at `topK=10`;
+  `RAG_ANSWER_MAX_EVIDENCE=5` was active, but the five-item truncation boundary
+  remains unmeasured because the current source has only four ABSTRACT points.
+- Added provider token usage observation to the RAG answer model boundary.
+  One authorized live call observed 2,614 input tokens, 1,104 output tokens,
+  3,718 total tokens, 8,994 ms, and zero repairs. At the published
+  `deepseek-v4-flash` rates, cache-miss/cache-hit total estimates are
+  $0.00067508/$0.0003164392; this is not an account invoice.
+- Added independent eval-only `rag-retrieval-v2-draft` assets: 12 cases (8
+  tuning, 4 fixed acceptance), review queue, candidate-paper catalog,
+  retrieval observations, and cost observation. After explicit user
+  authorization, Codex reviewed all 12 cases, wrote provenance and labels,
+  recomputed case/manifest hashes, and added a reproducible metric script.
+  Captured top-5 metrics are Recall@1=0.1633, Recall@3=0.5667,
+  Recall@5=0.7200, Hit@5=1.0000, and MRR=0.7583; two reviewed empty-set
+  cases are reported separately. The frozen v1 seven-case set is unchanged.

@@ -7,7 +7,11 @@ import com.dj1012h.researchpilot.exception.ModelNotConfiguredException;
 import dev.langchain4j.exception.AuthenticationException;
 import dev.langchain4j.exception.InternalServerException;
 import dev.langchain4j.exception.TimeoutException;
+import dev.langchain4j.data.message.AiMessage;
+import dev.langchain4j.data.message.ChatMessage;
 import dev.langchain4j.model.chat.ChatModel;
+import dev.langchain4j.model.chat.response.ChatResponse;
+import dev.langchain4j.model.output.TokenUsage;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
@@ -21,6 +25,7 @@ import java.net.ConnectException;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.when;
+import static org.mockito.ArgumentMatchers.any;
 
 @ExtendWith({MockitoExtension.class, OutputCaptureExtension.class})
 class ModelInvokerTest {
@@ -48,6 +53,30 @@ class ModelInvokerTest {
                 .doesNotContain(API_KEY_MARKER)
                 .doesNotContain("prompt")
                 .doesNotContain("answer");
+    }
+
+    @Test
+    void shouldExposeProviderTokenUsageWithoutLoggingContent(CapturedOutput output) {
+        when(chatModelProvider.getIfAvailable()).thenReturn(chatModel);
+        when(chatModel.chat(any(ChatMessage[].class))).thenReturn(ChatResponse.builder()
+                .aiMessage(AiMessage.from("answer"))
+                .tokenUsage(new TokenUsage(11, 7, 18))
+                .build());
+
+        ModelInvocationResult result = invoker().invokeWithUsage("rag_answer", "prompt");
+
+        assertThat(result.content()).isEqualTo("answer");
+        assertThat(result.inputTokenCount()).isEqualTo(11);
+        assertThat(result.outputTokenCount()).isEqualTo(7);
+        assertThat(result.totalTokenCount()).isEqualTo(18);
+        assertThat(output)
+                .contains("event=model_usage_observed")
+                .contains("operation=rag_answer")
+                .contains("inputTokens=11")
+                .contains("outputTokens=7")
+                .contains("totalTokens=18")
+                .doesNotContain("input=prompt")
+                .doesNotContain("content=answer");
     }
 
     @Test

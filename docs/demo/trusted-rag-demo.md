@@ -78,29 +78,34 @@ powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\scripts\verify-rag-dem
 ```
 
 The verifier requires application, MySQL, Ollama Embedding, and Qdrant to be
-`UP`; Redis may be `DOWN` or `DISABLED`. It checks dimensions, counts Qdrant
-Points by type without printing payload text, proves a year-filter change,
-validates successful answer citations, and validates zero model/repair calls
-for insufficient evidence. It fails closed when any condition is unmeasured.
+`UP`; Redis may be `DOWN` or `DISABLED`. The authorized run passed dimensions,
+Qdrant point counts, year-filter change, successful citations, and zero
+model/repair calls for insufficient evidence. The live dataset supplied four
+ABSTRACT evidence items; `maxEvidence=5` therefore remains unexercised.
 Only `-ShowPublicAnswer` prints the public answer and Citation DTOs.
 
 ## Retrieval evaluation and recovery
 
 `run-rag-retrieval-eval.ps1` validates the cases LF-SHA256 and every frozen case
-hash before issuing read-only retrieval calls. The current eval checkout has 7
-`NEEDS_REVIEW` cases, not the planned 12 or more; no human `relevantPaperIds`
-or provenance exists, so Recall@1/3/5 and MRR are `UNMEASURED`. Retrieval
-output must never create Ground Truth. The current real acceptance has four
-evidence items and has not exercised the `maxEvidence=5` boundary. External
-model cost is `UNMEASURED`.
+hash before issuing read-only retrieval calls. The frozen v1 eval checkout has
+7 `NEEDS_REVIEW` cases. A separate `rag-retrieval-v2-draft` now has 12
+reviewed cases (8 tuning and 4 fixed acceptance), explicitly marked as
+Codex-reviewed under user authorization. Recall@1/3/5, Hit@5, and MRR on the
+captured top-5 observations are 0.1633/0.5667/0.7200/1.0000/0.7583.
+Retrieval output must never create Ground Truth. One live answer observed 2,614 input, 1,104
+output, and 3,718 total provider tokens, with zero repair calls. At the
+published deepseek-v4-flash price, the cache-miss/cache-hit total estimate is
+$0.00067508/$0.0003164392; exact billing depends on provider cache state.
 
 `verify-rag-rebuild-recovery.ps1` has `CaptureBaseline`, `DeleteCollection`,
 and `VerifyRestored` stages. Delete is disabled unless the operator supplies
 the exact Collection name, confirmation phrase, baseline state, destructive
 switch, and separate authorization. It deletes only that Collection, never a
-Docker named volume. This Day 6 closeout does not execute deletion. After
-`RagDemo -RebuildRagIndex`, `VerifyRestored` compares version, Point/Segment
-counts, active MySQL evidence, and fixed retrieval IDs.
+Docker named volume. The authorized rehearsal deleted the Collection, then
+the first batched rebuild failed closed during Qdrant transport; a controlled
+batch-size-1 retry rebuilt 15 MySQL source papers into 19 points and
+`VerifyRestored` passed version, counts, active evidence, and fixed retrieval
+IDs.
 
 ## Release boundary
 

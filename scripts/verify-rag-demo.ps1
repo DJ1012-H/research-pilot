@@ -113,11 +113,18 @@ function Get-QdrantPointSummary {
         [Parameter(Mandatory = $true)][string]$Collection
     )
     $encodedCollection = [uri]::EscapeDataString($Collection)
-    $collection = Invoke-JsonGet "$QdrantUrl/collections/$encodedCollection" "Qdrant collection inspection"
-    if ((Require-Property $collection "status" "Qdrant collection inspection") -ne "ok") {
+    $collectionResponse = Invoke-JsonGet "$QdrantUrl/collections/$encodedCollection" "Qdrant collection inspection"
+    $collectionStatus = [string]$collectionResponse.status
+    if ([string]::IsNullOrWhiteSpace($collectionStatus)) {
+        $collectionStatus = [string]$collectionResponse.result.status
+    }
+    if ([string]::IsNullOrWhiteSpace($collectionStatus)) {
+        throw "Qdrant collection inspection is missing required field 'status'."
+    }
+    if ($collectionStatus -notin @("ok", "green")) {
         throw "Qdrant collection inspection returned an unknown status."
     }
-    $collectionResult = Require-Property $collection "result" "Qdrant collection inspection"
+    $collectionResult = Require-Property $collectionResponse "result" "Qdrant collection inspection"
     $config = Require-Property $collectionResult "config" "Qdrant collection inspection"
     $params = Require-Property $config "params" "Qdrant collection inspection"
     $vectors = Require-Property $params "vectors" "Qdrant collection inspection"
@@ -217,7 +224,7 @@ if ($baseSignature -eq $yearSignature) {
     throw "Year-filter demonstration is not evidenced by the current data; no candidate/admission change was observed."
 }
 
-$answerBody = [ordered]@{ query = $Question; topK = $TopK }
+$answerBody = [ordered]@{ question = $Question; topK = $TopK }
 $answerResult = Invoke-JsonPost "$baseUrl/api/research/ask" $answerBody "RAG answer"
 $answer = $answerResult.Json
 if ((Require-Property $answer "status" "RAG answer") -ne "SUCCESS") { throw "RAG answer did not return SUCCESS." }
@@ -244,7 +251,7 @@ foreach ($citation in $citations) {
 }
 
 $insufficientBody = [ordered]@{
-    query = $Question
+    question = $Question
     topK = $TopK
     paperIds = @($EvidenceInsufficientPaperId)
 }
