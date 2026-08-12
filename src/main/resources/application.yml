@@ -52,6 +52,17 @@ app:
         expected-dimensions: ${RAG_EMBEDDING_DIMENSIONS:1024}
         connect-timeout: ${OLLAMA_EMBEDDING_CONNECT_TIMEOUT:3s}
         read-timeout: ${OLLAMA_EMBEDDING_READ_TIMEOUT:60s}
+    retrieval:
+      enabled: ${RAG_RETRIEVAL_ENABLED:false}
+      default-top-k: ${RAG_RETRIEVAL_DEFAULT_TOP_K:5}
+      max-top-k: ${RAG_RETRIEVAL_MAX_TOP_K:20}
+      candidate-multiplier: ${RAG_RETRIEVAL_CANDIDATE_MULTIPLIER:3}
+      max-candidate-points: ${RAG_RETRIEVAL_MAX_CANDIDATE_POINTS:60}
+      max-query-length: ${RAG_RETRIEVAL_MAX_QUERY_LENGTH:1000}
+      max-paper-ids: ${RAG_RETRIEVAL_MAX_PAPER_IDS:50}
+      max-excerpt-chars: ${RAG_RETRIEVAL_MAX_EXCERPT_CHARS:500}
+      earliest-supported-year: ${RAG_RETRIEVAL_EARLIEST_YEAR:1900}
+      latest-supported-year: ${RAG_RETRIEVAL_LATEST_YEAR:2100}
   ai:
     enabled: ${LLM_ENABLED:false}
     base-url: ${LLM_BASE_URL:}

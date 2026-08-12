@@ -1934,3 +1934,37 @@ Spring Boot 的条件装配回退，使它成为 MVC 使用的全局 Mapper；�
 - No Collection, Docker volume, or MySQL row was deleted outside the controlled
   verification-downgrade behavior. No paid model call, Windows restart, system
   configuration change, tag, commit, or push occurred during acceptance.
+
+## 2026-08-11 - RAG Day 4 trusted vector retrieval implementation
+
+- Added the provider-neutral retrieval contracts for bounded queries, controlled
+  filters, index candidates, MySQL paper re-admission, stable failure codes, and
+  response diagnostics. The only exposed route is the diagnostics-only
+  `POST /api/research/retrieve`; `RAG_RETRIEVAL_ENABLED=false` remains the
+  default and the route returns `RAG_RETRIEVAL_DISABLED` without calling any
+  RAG dependency.
+- Extended the Qdrant adapter with a read-only nearest-neighbour query. Every
+  request is server-built with the active `embeddingVersion` and
+  `verificationStatus=VERIFIED` filters, bounded candidate count, optional year,
+  paper-ID, and Segment filters, `with_vector=false`, and finite-score
+  validation. Provider DTOs remain inside `integration/qdrant`.
+- Added a batch MyBatis paper read for all Qdrant candidate IDs. Retrieval
+  re-admits only current MySQL `VERIFIED` records whose DOI, verification
+  version, source timestamp, and deterministic current segment `contentHash`
+  agree with the candidate. Returned title, DOI, year, venue, and source time
+  are assembled from MySQL; a stale, downgraded, missing, malformed, or
+  mismatched candidate is removed and cannot be used to fill `topK`.
+- Added offline coverage for default-off behavior, query and dimension bounds,
+  deterministic multi-Segment deduplication, forged Qdrant display fields,
+  downgrade/stale rejection, forced Qdrant filter JSON, and H2 batch reads.
+  The focused command ran 13 tests with 0 failures, 0 errors, and 0 skips:
+  4 service tests, 6 Qdrant adapter tests, and 3 H2 persistence tests. No real
+  Ollama, Qdrant, MySQL, paid model, OpenAlex, or Crossref service was contacted.
+- Recall@1/3/5, MRR, trusted-result retention, and MySQL re-admission rejection
+  metrics remain `UNMEASURED`: the separate evaluation branch still needs
+  human-reviewed relevant `paperId` judgments and must not derive Ground Truth
+  from current retrieval output. Real Ollama/Qdrant retrieval acceptance also
+  remains unmeasured and requires explicit operator authorization.
+- No existing trusted-search route, release tag, commit, push, database row,
+  Collection, Point, volume, or external service state was changed by this
+  implementation run.

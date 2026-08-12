@@ -9,6 +9,8 @@ import com.dj1012h.researchpilot.literature.rag.index.RagIndexException;
 import com.dj1012h.researchpilot.literature.rag.index.RagIndexFailureType;
 import com.dj1012h.researchpilot.literature.rag.index.RagIndexPort;
 import com.dj1012h.researchpilot.literature.rag.index.RagIndexProbe;
+import com.dj1012h.researchpilot.literature.rag.index.RagIndexSearchHit;
+import com.dj1012h.researchpilot.literature.rag.index.RagIndexSearchRequest;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
@@ -22,6 +24,7 @@ import org.springframework.web.client.RestClientResponseException;
 import java.time.Instant;
 import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -235,6 +238,48 @@ public class QdrantIndexAdapter implements RagIndexPort {
     }
 
     @Override
+    public List<RagIndexSearchHit> search(
+            RagIndexDefinition definition,
+            RagIndexSearchRequest request
+    ) {
+        requireEnabled();
+        Objects.requireNonNull(definition, "definition must not be null");
+        Objects.requireNonNull(request, "request must not be null");
+        if (request.queryVector().size() != definition.vectorDimensions()) {
+            throw new RagIndexException(
+                    RagIndexFailureType.POINT_MISMATCH,
+                    "query vector does not match the active collection dimension");
+        }
+        QueryResponse response = execute(() -> restClient.post()
+                .uri("/collections/{collection}/points/query", definition.collectionName())
+                .contentType(MediaType.APPLICATION_JSON)
+                .body(new QueryRequest(
+                        request.queryVector(),
+                        searchFilter(definition, request),
+                        request.limit(),
+                        true,
+                        false))
+                .retrieve()
+                .body(QueryResponse.class));
+        requireOk(response == null ? null : response.status(), response == null ? null : response.result());
+        if (response.result().points() == null) {
+            throw invalid("Qdrant query response is missing points");
+        }
+        List<RagIndexSearchHit> hits = new ArrayList<>(response.result().points().size());
+        for (ScrolledPoint point : response.result().points()) {
+            if (point == null || point.score() == null || !Double.isFinite(point.score())) {
+                throw invalid("Qdrant query returned a missing or non-finite score");
+            }
+            hits.add(new RagIndexSearchHit(toPayload(point, definition), point.score()));
+        }
+        return hits.stream()
+                .sorted(Comparator.comparingDouble(RagIndexSearchHit::score).reversed()
+                        .thenComparing(hit -> hit.payload().paperId())
+                        .thenComparing(hit -> hit.payload().pointId()))
+                .toList();
+    }
+
+    @Override
     public RagIndexProbe probe() {
         if (!enabled) return new RagIndexProbe(false, "Qdrant indexing is disabled");
         try {
@@ -394,6 +439,33 @@ public class QdrantIndexAdapter implements RagIndexPort {
                 new MatchValue(embeddingVersion))));
     }
 
+    private Filter searchFilter(RagIndexDefinition definition, RagIndexSearchRequest request) {
+        List<FieldCondition> conditions = new ArrayList<>();
+        conditions.add(new FieldCondition(
+                "embeddingVersion",
+                new MatchValue(definition.embeddingVersion())));
+        conditions.add(new FieldCondition("verificationStatus", new MatchValue("VERIFIED")));
+        if (request.fromYear() != null || request.toYear() != null) {
+            conditions.add(new FieldCondition(
+                    "publicationYear",
+                    null,
+                    new Range(request.fromYear(), request.toYear())));
+        }
+        if (!request.paperIds().isEmpty()) {
+            conditions.add(new FieldCondition(
+                    "paperId",
+                    new MatchValue(null, request.paperIds().stream().sorted().toList()),
+                    null));
+        }
+        if (!request.segmentTypes().isEmpty()) {
+            conditions.add(new FieldCondition(
+                    "segmentType",
+                    new MatchValue(null, request.segmentTypes().stream().map(Enum::name).sorted().toList()),
+                    null));
+        }
+        return new Filter(List.copyOf(conditions));
+    }
+
     private <T> List<T> immutable(List<T> values, String field) {
         Objects.requireNonNull(values, field + " must not be null");
         try {
@@ -488,8 +560,23 @@ public class QdrantIndexAdapter implements RagIndexPort {
             Object offset
     ) { }
     private record Filter(List<FieldCondition> must) { }
-    private record FieldCondition(String key, MatchValue match) { }
-    private record MatchValue(Object value) { }
+    @JsonInclude(JsonInclude.Include.NON_NULL)
+    private record FieldCondition(
+            String key,
+            MatchValue match,
+            Range range
+    ) {
+        private FieldCondition(String key, MatchValue match) {
+            this(key, match, null);
+        }
+    }
+    @JsonInclude(JsonInclude.Include.NON_NULL)
+    private record MatchValue(Object value, List<?> any) {
+        private MatchValue(Object value) {
+            this(value, null);
+        }
+    }
+    private record Range(Integer gte, Integer lte) { }
     @JsonIgnoreProperties(ignoreUnknown = true)
     private record ScrollResponse(String status, ScrollResult result) { }
     @JsonIgnoreProperties(ignoreUnknown = true)
@@ -500,7 +587,12 @@ public class QdrantIndexAdapter implements RagIndexPort {
             @JsonProperty("next_page_offset") Object nextPageOffset
     ) { }
     @JsonIgnoreProperties(ignoreUnknown = true)
-    private record ScrolledPoint(String id, PointPayload payload, List<Double> vector) { }
+    private record ScrolledPoint(
+            String id,
+            PointPayload payload,
+            List<Double> vector,
+            Double score
+    ) { }
     private record QueryRequest(
             Object query,
             Filter filter,

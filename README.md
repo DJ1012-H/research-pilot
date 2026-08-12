@@ -15,7 +15,7 @@ The public API is deliberately conservative. A successful HTTP request can legit
 - Optional Redis cache-aside decorators for OpenAlex and Crossref. Redis failures fail open to the providers; cache hits still go through verification.
 - Stable errors, request correlation (`X-Request-Id`), low-cardinality Micrometer observations, Swagger UI, and deterministic offline regression tests.
 
-It is **not** a PDF/full-text RAG system, a vector database, a multi-Agent workflow, an asynchronous queue, or a frontend application.
+It is **not** a PDF/full-text RAG answer-generation system, a multi-Agent workflow, an asynchronous queue, or a frontend application.
 
 ## Prerequisites
 
@@ -147,11 +147,15 @@ docker compose -f .\infra\docker-compose.rag.yml up -d
 powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\scripts\verify-rag-environment.ps1 -RestartQdrant
 ```
 
-The script validates Docker Compose, measures and reports the real embedding dimension and latency without logging vectors or input text, checks Qdrant HTTP readiness and collection listing, and optionally verifies stop/start recovery without deleting the named volume. See [ADR-001](docs/decisions/ADR-001-vector-store-qdrant.md) and the [trusted RAG index contract](docs/design/trusted-rag-index-contract.md).
+The script validates Docker Compose, measures and reports the real embedding dimension and latency without logging vectors or input text, checks Qdrant HTTP readiness and collection listing, and optionally verifies stop/start recovery without deleting the named volume. See [ADR-001](docs/decisions/ADR-001-vector-store-qdrant.md), the [trusted RAG index contract](docs/design/trusted-rag-index-contract.md), and the [trusted RAG retrieval contract](docs/design/trusted-rag-retrieval-contract.md).
 
 The opt-in Java embedding adapter is disabled by default. When explicitly enabled, it calls the loopback Ollama `/api/embed` endpoint with the configured model and fails closed unless the response contains exactly one finite, non-empty, 1024-dimensional vector per controlled input for the initial embedding version. Default unit tests use a fake embedding port or mocked HTTP and do not require Ollama or Qdrant.
 
 The Day 3 rebuild path is also disabled by default. It requires all of the following switches to be enabled deliberately: `FLYWAY_ENABLED`, `LITERATURE_PERSISTENCE_ENABLED`, `OLLAMA_EMBEDDING_ENABLED`, `QDRANT_ENABLED`, and `RAG_INDEXING_ENABLED`. Set `RAG_REBUILD_ON_STARTUP=true` only for a controlled rebuild run. The rebuild creates or validates the frozen Collection and its required Payload Indexes, skips Embedding when Point IDs and exact content hashes are unchanged, updates metadata-only payload changes without re-embedding, removes points for papers that are no longer currently `VERIFIED`, verifies the final point count, and runs one Point-ID self-query with forced `VERIFIED`, paper-ID, and embedding-version filters before activating the version in MySQL. An empty index cannot pass this activation gate.
+
+Day 4 adds a diagnostics-only trusted-vector retrieval path at `POST /api/research/retrieve`. It is controlled by `RAG_RETRIEVAL_ENABLED=false` and returns a stable `RAG_RETRIEVAL_DISABLED` result until explicitly enabled. The server selects the MySQL `active=1`/`SUCCEEDED` index version, embeds the normalized query with that version's configured profile, sends a bounded Top-K request to Qdrant with forced `embeddingVersion` and `VERIFIED` filters, then batch-reads every candidate from MySQL. Only current `VERIFIED` papers with a normalized, matching DOI, verification version, source timestamp, and deterministic current `contentHash` are returned. Qdrant payload business fields and scores never raise trust status; result fields such as title, DOI, year, and venue come from MySQL. Invalid, unavailable, stale, malformed, or dimension-mismatched dependencies fail closed without changing `POST /api/literature/search`.
+
+The endpoint accepts a bounded query, optional `topK` (default 5, maximum 20), publication-year range, `paperIds`, and `segmentTypes`. It returns candidate/admission counts, elapsed time, bounded excerpts, and a stable failure code; it never returns vectors or logs the complete query. Ordinary tests use fakes, Mockito, and H2. The local Day 4 evaluation assets belong to the separate `eval/rag-retrieval-v1/` evaluation branch and remain `NEEDS_REVIEW` until a human supplies relevance judgments, so Recall@K and MRR are not measured by the implementation tests.
 
 `GET /api/system/status` reports Ollama Embedding and Qdrant separately from application liveness. When the Ollama adapter is enabled, this status call performs one controlled live embedding probe; a failed RAG dependency reports `DOWN` without changing the application field from `UP` or disabling `POST /api/literature/search`.
 

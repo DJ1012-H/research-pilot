@@ -17,6 +17,21 @@ public interface RagPersistenceMapper {
     @Select("SELECT paper_id, normalized_doi, openalex_id, title, authors_canonical, publication_year, venue, publication_type, language, abstract_text, cited_by_count, source, current_verification_status, verification_rule_version, updated_at AS source_updated_at FROM literature_paper WHERE current_verification_status='VERIFIED' ORDER BY paper_id")
     List<RagPaperSourceRow> findCurrentlyVerifiedPapers();
 
+    @Select("""
+            <script>
+            SELECT paper_id, normalized_doi, openalex_id, title, authors_canonical, publication_year,
+                   venue, publication_type, language, abstract_text, cited_by_count, source,
+                   current_verification_status, verification_rule_version, updated_at AS source_updated_at
+            FROM literature_paper
+            WHERE paper_id IN
+            <foreach collection="paperIds" item="paperId" open="(" separator="," close=")">
+                #{paperId}
+            </foreach>
+            ORDER BY paper_id
+            </script>
+            """)
+    List<RagPaperSourceRow> findPapersByIds(@Param("paperIds") java.util.Collection<Long> paperIds);
+
     @Select("SELECT embedding_version, collection_name, vector_dimensions, last_build_status, active, source_paper_count, point_count, last_failure_code, build_started_at, build_completed_at, activated_at FROM literature_rag_index_version WHERE embedding_version=#{embeddingVersion}")
     RagIndexVersionEntity findVersion(@Param("embeddingVersion") String embeddingVersion);
 

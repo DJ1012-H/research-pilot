@@ -23,5 +23,8 @@ public interface RagIndexPort {
 
     void validateForActivation(RagIndexDefinition definition, RagPointPayload sample);
 
+    /** Queries the derived index with a server-built, bounded request. */
+    List<RagIndexSearchHit> search(RagIndexDefinition definition, RagIndexSearchRequest request);
+
     RagIndexProbe probe();
 }

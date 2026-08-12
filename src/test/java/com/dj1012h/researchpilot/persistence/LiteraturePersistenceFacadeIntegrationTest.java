@@ -21,6 +21,7 @@ import com.dj1012h.researchpilot.literature.persistence.LiteraturePersistenceFac
 import com.dj1012h.researchpilot.literature.rag.index.RagIndexDefinition;
 import com.dj1012h.researchpilot.literature.rag.index.RagIndexStateStore;
 import com.dj1012h.researchpilot.literature.rag.index.VerifiedPaperSourceRepository;
+import com.dj1012h.researchpilot.literature.rag.retrieval.TrustedPaperReadRepository;
 import com.dj1012h.researchpilot.literature.review.ReviewOutcome;
 import com.dj1012h.researchpilot.literature.review.ReviewOutcomeStatus;
 import org.junit.jupiter.api.Test;
@@ -53,6 +54,7 @@ class LiteraturePersistenceFacadeIntegrationTest {
     @Autowired private LiteraturePersistenceFacade persistence;
     @Autowired private JdbcTemplate jdbcTemplate;
     @Autowired private VerifiedPaperSourceRepository verifiedPaperSourceRepository;
+    @Autowired private TrustedPaperReadRepository trustedPaperReadRepository;
     @Autowired private RagIndexStateStore ragIndexStateStore;
 
     @Test
@@ -124,6 +126,15 @@ class LiteraturePersistenceFacadeIntegrationTest {
         assertThat(count("literature_verification_evidence", taskId)).isEqualTo(1);
         assertThat(jdbcTemplate.queryForObject("SELECT COUNT(*) FROM literature_verification_field_evidence", Integer.class))
                 .isGreaterThanOrEqualTo(1);
+        long persistedPaperId = verifiedPaperSourceRepository.findCurrentlyVerified()
+                .stream().findFirst().orElseThrow().paperId();
+        assertThat(trustedPaperReadRepository.findByPaperIds(List.of(persistedPaperId)))
+                .singleElement()
+                .satisfies(record -> {
+                    assertThat(record.paperId()).isEqualTo(persistedPaperId);
+                    assertThat(record.currentVerificationStatus())
+                            .isEqualTo(VerificationResult.VerificationStatus.VERIFIED);
+                });
         assertThat(verifiedPaperSourceRepository.findCurrentlyVerified())
                 .singleElement()
                 .satisfies(source -> {
@@ -158,6 +169,10 @@ class LiteraturePersistenceFacadeIntegrationTest {
                 "SELECT current_verification_status FROM literature_paper WHERE normalized_doi = '10.1000/persisted'",
                 String.class)).isEqualTo("PARTIALLY_VERIFIED");
         assertThat(verifiedPaperSourceRepository.findCurrentlyVerified()).isEmpty();
+        assertThat(trustedPaperReadRepository.findByPaperIds(List.of(persistedPaperId)))
+                .singleElement()
+                .satisfies(record -> assertThat(record.currentVerificationStatus())
+                        .isEqualTo(VerificationResult.VerificationStatus.PARTIALLY_VERIFIED));
 
         UUID failedTask = UUID.randomUUID();
         persistence.createRunningTask(failedTask, request, 1, at);

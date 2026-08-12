@@ -7,6 +7,8 @@ import com.dj1012h.researchpilot.literature.rag.VerifiedPaperProjection;
 import com.dj1012h.researchpilot.literature.rag.index.RagIndexDefinition;
 import com.dj1012h.researchpilot.literature.rag.index.RagIndexException;
 import com.dj1012h.researchpilot.literature.rag.index.RagIndexFailureType;
+import com.dj1012h.researchpilot.literature.rag.index.RagIndexSearchHit;
+import com.dj1012h.researchpilot.literature.rag.index.RagIndexSearchRequest;
 import org.junit.jupiter.api.Test;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
@@ -17,6 +19,7 @@ import org.springframework.web.client.RestClient;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
+import java.util.Set;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -155,6 +158,35 @@ class QdrantIndexAdapterTest {
         fixture.server.verify();
     }
 
+    @Test
+    void shouldForceTrustedVersionAndControlledFiltersForSearch() {
+        Fixture fixture = fixture(32);
+        RagPointPayload payload = projection(
+                7L,
+                UUID.fromString("00000000-0000-0000-0000-000000000007")).payload();
+        fixture.server.expect(requestTo(BASE_URL + "/collections/test_collection/points/query"))
+                .andExpect(method(HttpMethod.POST))
+                .andExpect(content().json("""
+                        {"query":[0.25,0.75],"filter":{"must":[
+                          {"key":"embeddingVersion","match":{"value":"test-v1"}},
+                          {"key":"verificationStatus","match":{"value":"VERIFIED"}},
+                          {"key":"publicationYear","range":{"gte":2020,"lte":2026}},
+                          {"key":"paperId","match":{"any":[7]}},
+                          {"key":"segmentType","match":{"any":["ABSTRACT","METADATA"]}}
+                        ]},"limit":5,"with_payload":true,"with_vector":false}
+                        """))
+                .andRespond(withSuccess(queryResponseWithScore(payload), MediaType.APPLICATION_JSON));
+
+        List<RagIndexSearchHit> hits = fixture.adapter.search(
+                DEFINITION,
+                new RagIndexSearchRequest(
+                        List.of(0.25, 0.75), 5, 2020, 2026, Set.of(7L),
+                        Set.of(RagSegmentType.METADATA, RagSegmentType.ABSTRACT)));
+
+        assertThat(hits).singleElement().satisfies(hit -> assertThat(hit.score()).isEqualTo(0.75));
+        fixture.server.verify();
+    }
+
     private Fixture fixture(int batchSize) {
         RestClient.Builder builder = RestClient.builder().baseUrl(BASE_URL);
         MockRestServiceServer server = MockRestServiceServer.bindTo(builder).ignoreExpectOrder(true).build();
@@ -228,6 +260,11 @@ class QdrantIndexAdapterTest {
     private String queryResponse(RagPointPayload payload) {
         String scroll = scrollResponse(payload);
         return scroll.replace("\"next_page_offset\":null", "\"sample\":true");
+    }
+
+    private String queryResponseWithScore(RagPointPayload payload) {
+        return scrollResponse(payload)
+                .replace("\"}}],\"next_page_offset\":null", "\"},\"score\":0.75}],\"next_page_offset\":null");
     }
 
     private String pointResponse(RagPointPayload payload, String vectorJson) {

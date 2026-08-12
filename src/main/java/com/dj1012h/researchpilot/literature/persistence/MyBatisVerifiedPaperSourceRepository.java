@@ -6,6 +6,8 @@ import com.dj1012h.researchpilot.literature.persistence.entity.RagPaperSourceRow
 import com.dj1012h.researchpilot.literature.persistence.mapper.RagPersistenceMapper;
 import com.dj1012h.researchpilot.literature.rag.VerifiedPaperSource;
 import com.dj1012h.researchpilot.literature.rag.index.VerifiedPaperSourceRepository;
+import com.dj1012h.researchpilot.literature.rag.retrieval.TrustedPaperReadRepository;
+import com.dj1012h.researchpilot.literature.rag.retrieval.TrustedPaperRecord;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Component;
 
@@ -15,7 +17,8 @@ import java.util.Objects;
 
 @Component
 @ConditionalOnProperty(name = "app.literature.persistence.enabled", havingValue = "true")
-public class MyBatisVerifiedPaperSourceRepository implements VerifiedPaperSourceRepository {
+public class MyBatisVerifiedPaperSourceRepository
+        implements VerifiedPaperSourceRepository, TrustedPaperReadRepository {
 
     private final RagPersistenceMapper mapper;
 
@@ -28,19 +31,58 @@ public class MyBatisVerifiedPaperSourceRepository implements VerifiedPaperSource
         return mapper.findCurrentlyVerifiedPapers().stream().map(this::toSource).toList();
     }
 
+    @Override
+    public List<TrustedPaperRecord> findByPaperIds(java.util.Collection<Long> paperIds) {
+        Objects.requireNonNull(paperIds, "paperIds must not be null");
+        if (paperIds.isEmpty()) return List.of();
+        return mapper.findPapersByIds(List.copyOf(paperIds)).stream()
+                .map(this::toTrustedRecord)
+                .toList();
+    }
+
+    private TrustedPaperRecord toTrustedRecord(RagPaperSourceRow row) {
+        return new TrustedPaperRecord(
+                row.paperId(),
+                toPaper(row),
+                parseStatus(row.currentVerificationStatus()),
+                row.normalizedDoi(),
+                row.verificationRuleVersion(),
+                row.sourceUpdatedAt());
+    }
+
     private VerifiedPaperSource toSource(RagPaperSourceRow row) {
-        VerificationResult.VerificationStatus status;
-        try {
-            status = VerificationResult.VerificationStatus.valueOf(row.currentVerificationStatus());
-        } catch (IllegalArgumentException | NullPointerException exception) {
-            throw new LiteraturePersistenceException("stored paper has an invalid current verification status", exception);
-        }
+        VerificationResult.VerificationStatus status = parseStatus(row.currentVerificationStatus());
         if (status != VerificationResult.VerificationStatus.VERIFIED) {
             throw new LiteraturePersistenceException("trusted-paper query returned a non-VERIFIED row");
         }
-        PaperDTO paper;
+        PaperDTO paper = toPaper(row);
+        VerificationResult verification = new VerificationResult(
+                status,
+                1.0,
+                VerificationResult.VerificationSource.CROSSREF,
+                row.normalizedDoi(),
+                List.of(),
+                List.of("CURRENT_MYSQL_TRUST_STATE"));
+        return new VerifiedPaperSource(
+                row.paperId(),
+                paper,
+                verification,
+                row.normalizedDoi(),
+                row.verificationRuleVersion(),
+                row.sourceUpdatedAt());
+    }
+
+    private VerificationResult.VerificationStatus parseStatus(String value) {
         try {
-            paper = new PaperDTO(
+            return VerificationResult.VerificationStatus.valueOf(value);
+        } catch (IllegalArgumentException | NullPointerException exception) {
+            throw new LiteraturePersistenceException("stored paper has an invalid current verification status", exception);
+        }
+    }
+
+    private PaperDTO toPaper(RagPaperSourceRow row) {
+        try {
+            return new PaperDTO(
                     row.openalexId(),
                     row.normalizedDoi(),
                     row.title(),
@@ -58,20 +100,6 @@ public class MyBatisVerifiedPaperSourceRepository implements VerifiedPaperSource
         } catch (IllegalArgumentException | NullPointerException exception) {
             throw new LiteraturePersistenceException("stored paper cannot form a controlled RAG source", exception);
         }
-        VerificationResult verification = new VerificationResult(
-                status,
-                1.0,
-                VerificationResult.VerificationSource.CROSSREF,
-                row.normalizedDoi(),
-                List.of(),
-                List.of("CURRENT_MYSQL_TRUST_STATE"));
-        return new VerifiedPaperSource(
-                row.paperId(),
-                paper,
-                verification,
-                row.normalizedDoi(),
-                row.verificationRuleVersion(),
-                row.sourceUpdatedAt());
     }
 
     private List<PaperDTO.Author> authors(String canonical) {

@@ -269,6 +269,13 @@ class RagIndexRebuildServiceTest {
         @Override public void validateForActivation(RagIndexDefinition definition, RagPointPayload sample) {
             assertThat(payloads).containsEntry(sample.pointId(), sample);
         }
+        @Override
+        public List<com.dj1012h.researchpilot.literature.rag.index.RagIndexSearchHit> search(
+                RagIndexDefinition definition,
+                com.dj1012h.researchpilot.literature.rag.index.RagIndexSearchRequest request
+        ) {
+            return List.of();
+        }
         @Override public RagIndexProbe probe() { return new RagIndexProbe(true, "test"); }
     }
 
