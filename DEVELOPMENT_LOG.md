@@ -2062,3 +2062,29 @@ Spring Boot 的条件装配回退，使它成为 MVC 使用的全局 Mapper；�
   Captured top-5 metrics are Recall@1=0.1633, Recall@3=0.5667,
   Recall@5=0.7200, Hit@5=1.0000, and MRR=0.7583; two reviewed empty-set
   cases are reported separately. The frozen v1 seven-case set is unchanged.
+
+## 2026-08-13 - Interview-readiness Day 2 evidence relevance admission
+
+- Added a single, tool-free `rag_evidence_relevance` call between MySQL-
+  re-admitted ABSTRACT retrieval and `rag_answer`. Its prompt treats the user
+  question and candidate abstracts as untrusted data and requires exact JSON.
+- Java validates JSON syntax, a closed JSON Schema, strict DTO mapping,
+  relevant/empty-state consistency, unique IDs, and current-request evidence
+  ownership. Invalid output or provider failure fails closed without calling
+  the answer generator; no relevance repair or second Judge call is allowed.
+- A valid empty admission returns `INSUFFICIENT_EVIDENCE`. Diagnostics now
+  separate total model calls, one relevance-Judge call, answer-model calls,
+  admitted evidence, generation evidence, repair count, and citations.
+- Added focused coverage for positive admission, semantic-negative refusal,
+  invalid JSON, unknown fields, inconsistent state, evidence-ID escape, Judge
+  exception, zero answer calls on refusal, at-most-one Judge call, and the
+  existing at-most-one answer repair. Full `clean verify` passed 540 tests with
+  zero failures, zero errors, and seven explicitly skipped tests.
+- After the updated application was restarted, the authorized verifier passed
+  against live MySQL, Redis, Ollama, Qdrant, and DeepSeek. The related request
+  re-admitted five ABSTRACT items, relevance-admitted three, generated from
+  three, and reported Judge=1, Answer=1, repair=0. The semantic-negative request
+  reported `INSUFFICIENT_EVIDENCE`, Judge=1, Answer=0, admitted=0, generation=0.
+  The redacted functional evidence is retained in
+  `docs/demo/rag-evidence-admission-day2-observation.md`; dataset-wide refusal
+  quality remains `UNMEASURED` until the frozen evaluation protocol is run.

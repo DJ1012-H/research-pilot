@@ -24,6 +24,8 @@ import com.dj1012h.researchpilot.literature.rag.answer.RagAnswerResponseAssemble
 import com.dj1012h.researchpilot.literature.rag.answer.RagAnswerService;
 import com.dj1012h.researchpilot.literature.rag.answer.RagAnswerStatus;
 import com.dj1012h.researchpilot.literature.rag.answer.RagAnswerValidationPipeline;
+import com.dj1012h.researchpilot.literature.rag.answer.RagEvidenceAdmissionOrchestrator;
+import com.dj1012h.researchpilot.literature.rag.answer.RagEvidenceAdmissionResult;
 import com.dj1012h.researchpilot.literature.rag.answer.ResearchAnswerResponse;
 import com.dj1012h.researchpilot.literature.rag.answer.ResearchQuestionRequest;
 import com.dj1012h.researchpilot.literature.rag.answer.UntrustedRagAnswerDraft;
@@ -62,6 +64,7 @@ import java.util.Set;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
@@ -164,12 +167,18 @@ class RagDemoReplayTest {
                     new RagAnswerBusinessValidator(),
                     new RagAnswerCitationGuard(),
                     answerProperties);
+            RagEvidenceAdmissionOrchestrator admission = mock(RagEvidenceAdmissionOrchestrator.class);
+            when(admission.admit(any())).thenAnswer(invocation -> {
+                RagAnswerInput input = invocation.getArgument(0);
+                return new RagEvidenceAdmissionResult(input.evidence(), 1);
+            });
             answer = new RagAnswerService(
                     answerProperties,
                     retrievalProperties,
                     retrieval,
                     prompt.delegate(),
                     new RagAnswerRepairPromptBuilder(prompt.delegate(), answerProperties),
+                    admission,
                     generator,
                     pipeline,
                     new RagAnswerResponseAssembler(),

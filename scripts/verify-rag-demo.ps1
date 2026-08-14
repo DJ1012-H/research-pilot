@@ -5,6 +5,7 @@ param(
     [ValidatePattern("^[A-Za-z0-9_-]{1,255}$")]
     [string]$CollectionName = "research_pilot_paper_segments_v1",
     [string]$Question = "Which papers study selective state space models for dense prediction?",
+    [string]$SemanticNegativeQuestion = "Which state-space models predict protein folding structures?",
     [ValidateRange(1900, 2100)]
     [int]$FromYear = 2023,
     [ValidateRange(1900, 2100)]
@@ -13,6 +14,9 @@ param(
     [long]$EvidenceInsufficientPaperId = [long]::MaxValue,
     [ValidateRange(1, 20)]
     [int]$TopK = 5,
+    [ValidateRange(1, 5)]
+    [int]$ExpectedMaxEvidence = 5,
+    [switch]$RequireMaxEvidenceBoundary,
     [switch]$ShowPublicAnswer
 )
 
@@ -66,8 +70,9 @@ function Invoke-JsonPost {
         [Parameter(Mandatory = $true)][string]$Context
     )
     try {
+        $jsonBody = $Body | ConvertTo-Json -Depth 10 -Compress
         $response = Invoke-WebRequest -UseBasicParsing -Method Post -Uri $Uri `
-            -ContentType "application/json" -Body ($Body | ConvertTo-Json -Depth 10 -Compress)
+            -ContentType "application/json; charset=utf-8" -Body ([Text.Encoding]::UTF8.GetBytes($jsonBody))
     } catch {
         throw "$Context failed: external HTTP request was not successful."
     }
@@ -157,12 +162,14 @@ function Get-QdrantPointSummary {
     $verified = @($points | Where-Object { $_.payload.verificationStatus -eq "VERIFIED" })
     $abstract = @($points | Where-Object { $_.payload.segmentType -eq "ABSTRACT" })
     $metadata = @($points | Where-Object { $_.payload.segmentType -eq "METADATA" })
+    $abstractPaperIds = @($abstract | ForEach-Object { [long]$_.payload.paperId } | Sort-Object -Unique)
     return [pscustomobject]@{
         collectionName = $Collection
         vectorDimensions = $dimension
         pointCount = [long]$reportedPointCount
         verifiedPointCount = [long]$verified.Count
         abstractPointCount = [long]$abstract.Count
+        abstractPaperCount = [long]$abstractPaperIds.Count
         metadataPointCount = [long]$metadata.Count
     }
 }
@@ -185,6 +192,9 @@ function Get-RetrievalSignature {
 $baseUrl = Normalize-BaseUrl $BaseUrl "BaseUrl"
 $qdrantUrl = Normalize-BaseUrl $QdrantBaseUrl "QdrantBaseUrl"
 if ($FromYear -gt $ToYear) { throw "FromYear must not exceed ToYear." }
+if ($RequireMaxEvidenceBoundary -and $TopK -le $ExpectedMaxEvidence) {
+    throw "TopK must exceed ExpectedMaxEvidence for a real truncation test."
+}
 
 $status = Invoke-JsonGet "$baseUrl/api/system/status" "system status"
 foreach ($dependency in @("application", "mysql", "ollamaEmbedding", "qdrant")) {
@@ -234,8 +244,45 @@ if ($citations.Count -lt 1) { throw "RAG answer returned no citations." }
 if ((Require-Property $answer "insufficientEvidence" "RAG answer") -ne $false) { throw "Successful RAG answer must not be marked insufficient." }
 $diagnostics = Require-Property $answer "diagnostics" "RAG answer"
 if ($null -ne $diagnostics.failureCode) { throw "Successful RAG answer exposed failureCode=$($diagnostics.failureCode)." }
+$modelCallCount = Require-NonNegativeInt (Require-Property $diagnostics "modelCallCount" "RAG answer.diagnostics") "modelCallCount"
+if ($modelCallCount -lt 2) { throw "Successful RAG answer must report one relevance-judge call and at least one answer-model call." }
+$relevanceJudgeCallCount = Require-NonNegativeInt `
+    (Require-Property $diagnostics "relevanceJudgeCallCount" "RAG answer.diagnostics") `
+    "relevanceJudgeCallCount"
+$answerModelCallCount = Require-NonNegativeInt `
+    (Require-Property $diagnostics "answerModelCallCount" "RAG answer.diagnostics") `
+    "answerModelCallCount"
+$admittedEvidenceCount = Require-NonNegativeInt `
+    (Require-Property $diagnostics "admittedEvidenceCount" "RAG answer.diagnostics") `
+    "admittedEvidenceCount"
+if ($relevanceJudgeCallCount -ne 1) { throw "Successful RAG answer must report exactly one relevance-judge call." }
+if ($answerModelCallCount -lt 1 -or $answerModelCallCount -gt 2) { throw "Successful RAG answer must report one answer call and at most one repair." }
+if ($modelCallCount -ne ($relevanceJudgeCallCount + $answerModelCallCount)) { throw "Total model calls do not equal judge plus answer calls." }
+$generationEvidenceCount = Require-NonNegativeInt `
+    (Require-Property $diagnostics "generationEvidenceCount" "RAG answer.diagnostics") `
+    "generationEvidenceCount"
 $summary = Require-Property $answer "retrievalSummary" "RAG answer"
 $evidenceCount = Require-NonNegativeInt (Require-Property $summary "evidenceCount" "RAG answer.retrievalSummary") "evidenceCount"
+if ($generationEvidenceCount -gt $evidenceCount) {
+    throw "generationEvidenceCount exceeds the MySQL re-admitted evidence count."
+}
+if ($admittedEvidenceCount -lt 1 -or $generationEvidenceCount -gt $admittedEvidenceCount) {
+    throw "Generation evidence is inconsistent with relevance-admitted evidence."
+}
+if ($generationEvidenceCount -gt $ExpectedMaxEvidence) {
+    throw "generationEvidenceCount exceeds ExpectedMaxEvidence=$ExpectedMaxEvidence."
+}
+if ($RequireMaxEvidenceBoundary) {
+    if ($pointSummary.abstractPaperCount -le $ExpectedMaxEvidence) {
+        throw "Qdrant has only $($pointSummary.abstractPaperCount) distinct ABSTRACT papers; the boundary is not reachable."
+    }
+    if ($evidenceCount -le $ExpectedMaxEvidence) {
+        throw "The live answer admitted only $evidenceCount evidence items; no real truncation occurred."
+    }
+    if ($generationEvidenceCount -ne $ExpectedMaxEvidence) {
+        throw "Expected generationEvidenceCount=$ExpectedMaxEvidence after truncation, observed $generationEvidenceCount."
+    }
+}
 foreach ($citation in $citations) {
     $paperId = Require-NonNegativeInt (Require-Property $citation "paperId" "RAG citation") "citation paperId"
     if ($paperId -lt 1) { throw "RAG citation paperId must be positive." }
@@ -245,8 +292,8 @@ foreach ($citation in $citations) {
     $hash = Require-NonBlank (Require-Property $citation "contentHash" "RAG citation") "citation contentHash"
     if ($hash -notmatch "^[0-9a-f]{64}$") { throw "RAG citation contentHash is not lowercase SHA-256." }
     $position = Require-NonNegativeInt (Require-Property $citation "evidencePosition" "RAG citation") "citation evidencePosition"
-    if ($position -lt 1 -or $position -gt $evidenceCount) {
-        throw "RAG citation evidencePosition is outside the current evidence range."
+    if ($position -lt 1 -or $position -gt $generationEvidenceCount) {
+        throw "RAG citation evidencePosition is outside the generation evidence range."
     }
 }
 
@@ -265,12 +312,38 @@ $insufficientDiagnostics = Require-Property $insufficient "diagnostics" "insuffi
 if ((Require-Property $insufficientDiagnostics "modelCallCount" "insufficient diagnostics") -ne 0) {
     throw "Could not confirm zero model calls for insufficient evidence."
 }
+if ((Require-Property $insufficientDiagnostics "relevanceJudgeCallCount" "insufficient diagnostics") -ne 0 `
+        -or (Require-Property $insufficientDiagnostics "answerModelCallCount" "insufficient diagnostics") -ne 0) {
+    throw "No-candidate insufficient evidence must not call either model operation."
+}
 if ((Require-Property $insufficientDiagnostics "repairCount" "insufficient diagnostics") -ne 0) {
     throw "Could not confirm zero repair calls for insufficient evidence."
 }
 
-Write-Output "[RAG_DEMO] status=PASS collection=$CollectionName pointCount=$($pointSummary.pointCount) verifiedPointCount=$($pointSummary.verifiedPointCount) abstractPointCount=$($pointSummary.abstractPointCount) metadataPointCount=$($pointSummary.metadataPointCount) activeEmbeddingVersion=$activeVersion embeddingDimensions=$($pointSummary.vectorDimensions)"
-Write-Output "[RAG_DEMO] retrieveStatus=$($probeJson.status) yearFilteredStatus=$($yearFiltered.status) answerStatus=$($answer.status) insufficientStatus=$($insufficient.status) requestId=$($answer.requestId) elapsedMs=$($answer.elapsedMs)"
+$semanticNegativeBody = [ordered]@{ question = $SemanticNegativeQuestion; topK = $TopK }
+$semanticNegative = (Invoke-JsonPost "$baseUrl/api/research/ask" $semanticNegativeBody "semantic-negative answer").Json
+if ((Require-Property $semanticNegative "status" "semantic-negative answer") -ne "INSUFFICIENT_EVIDENCE") {
+    throw "Semantic-negative request did not return INSUFFICIENT_EVIDENCE."
+}
+if ((Require-Property $semanticNegative "answer" "semantic-negative answer") -ne "") { throw "Semantic-negative answer must be empty." }
+if (@(Require-Property $semanticNegative "citations" "semantic-negative answer").Count -ne 0) { throw "Semantic-negative answer must have no citations." }
+$semanticDiagnostics = Require-Property $semanticNegative "diagnostics" "semantic-negative answer"
+if ((Require-Property $semanticDiagnostics "relevanceJudgeCallCount" "semantic-negative diagnostics") -ne 1) {
+    throw "Semantic-negative request must report exactly one relevance-judge call."
+}
+if ((Require-Property $semanticDiagnostics "answerModelCallCount" "semantic-negative diagnostics") -ne 0) {
+    throw "Semantic-negative request called the answer model."
+}
+if ((Require-Property $semanticDiagnostics "modelCallCount" "semantic-negative diagnostics") -ne 1) {
+    throw "Semantic-negative total model-call count must be exactly one."
+}
+if ((Require-Property $semanticDiagnostics "admittedEvidenceCount" "semantic-negative diagnostics") -ne 0 `
+        -or (Require-Property $semanticDiagnostics "generationEvidenceCount" "semantic-negative diagnostics") -ne 0) {
+    throw "Semantic-negative request admitted or generated from evidence."
+}
+
+Write-Output "[RAG_DEMO] status=PASS collection=$CollectionName pointCount=$($pointSummary.pointCount) verifiedPointCount=$($pointSummary.verifiedPointCount) abstractPointCount=$($pointSummary.abstractPointCount) abstractPaperCount=$($pointSummary.abstractPaperCount) metadataPointCount=$($pointSummary.metadataPointCount) activeEmbeddingVersion=$activeVersion embeddingDimensions=$($pointSummary.vectorDimensions)"
+Write-Output "[RAG_DEMO] retrieveStatus=$($probeJson.status) yearFilteredStatus=$($yearFiltered.status) answerStatus=$($answer.status) insufficientStatus=$($insufficient.status) semanticNegativeStatus=$($semanticNegative.status) evidenceCount=$evidenceCount admittedEvidenceCount=$admittedEvidenceCount generationEvidenceCount=$generationEvidenceCount relevanceJudgeCallCount=$relevanceJudgeCallCount answerModelCallCount=$answerModelCallCount modelCallCount=$modelCallCount requestId=$($answer.requestId) elapsedMs=$($answer.elapsedMs)"
 
 if ($ShowPublicAnswer) {
     Write-Output "[RAG_DEMO_PUBLIC_ANSWER]"

@@ -58,6 +58,11 @@ class RagAnswerControllerHttpContractTest {
                 .andExpect(jsonPath("$.answer").value("A bounded answer.\n"))
                 .andExpect(jsonPath("$.citations[0].paperId").value(101))
                 .andExpect(jsonPath("$.citations[0].normalizedDoi").value("10.1000/answer"))
+                .andExpect(jsonPath("$.diagnostics.modelCallCount").value(2))
+                .andExpect(jsonPath("$.diagnostics.relevanceJudgeCallCount").value(1))
+                .andExpect(jsonPath("$.diagnostics.answerModelCallCount").value(1))
+                .andExpect(jsonPath("$.diagnostics.admittedEvidenceCount").value(1))
+                .andExpect(jsonPath("$.diagnostics.generationEvidenceCount").value(1))
                 .andReturn()
                 ;
 
@@ -86,6 +91,10 @@ class RagAnswerControllerHttpContractTest {
                 .andExpect(jsonPath("$.citations").isEmpty())
                 .andExpect(jsonPath("$.insufficientEvidence").value(true))
                 .andExpect(jsonPath("$.diagnostics.modelCallCount").value(0))
+                .andExpect(jsonPath("$.diagnostics.relevanceJudgeCallCount").value(0))
+                .andExpect(jsonPath("$.diagnostics.answerModelCallCount").value(0))
+                .andExpect(jsonPath("$.diagnostics.admittedEvidenceCount").value(0))
+                .andExpect(jsonPath("$.diagnostics.generationEvidenceCount").value(0))
                 .andExpect(jsonPath("$.diagnostics.repairCount").value(0));
     }
 
@@ -137,7 +146,7 @@ class RagAnswerControllerHttpContractTest {
                 false,
                 "Citation mapping only.",
                 12,
-                new RagAnswerDiagnostics(null, 1, 0, 1));
+                new RagAnswerDiagnostics(null, 2, 1, 1, 1, 1, 0, 1));
     }
 
     private ResearchAnswerResponse insufficient(UUID requestId) {
@@ -150,7 +159,7 @@ class RagAnswerControllerHttpContractTest {
                 true,
                 "No re-admitted ABSTRACT evidence.",
                 3,
-                new RagAnswerDiagnostics("RAG_INSUFFICIENT_EVIDENCE", 0, 0, 0));
+                new RagAnswerDiagnostics("RAG_INSUFFICIENT_EVIDENCE", 0, 0, 0, 0, 0, 0, 0));
     }
 
     private ResearchAnswerResponse failed(UUID requestId) {
@@ -163,6 +172,6 @@ class RagAnswerControllerHttpContractTest {
                 false,
                 "Generation unavailable.",
                 4,
-                new RagAnswerDiagnostics("RAG_GENERATION_UNAVAILABLE", 1, 0, 0));
+                new RagAnswerDiagnostics("RAG_GENERATION_UNAVAILABLE", 2, 1, 1, 1, 1, 0, 0));
     }
 }

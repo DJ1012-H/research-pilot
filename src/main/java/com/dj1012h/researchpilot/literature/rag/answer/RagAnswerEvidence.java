@@ -74,6 +74,24 @@ public record RagAnswerEvidence(
                 score);
     }
 
+    public RagAnswerEvidence withPosition(int position) {
+        return new RagAnswerEvidence(
+                "P" + position,
+                position,
+                paperId,
+                normalizedDoi,
+                title,
+                authors,
+                publicationYear,
+                venue,
+                score,
+                segmentType,
+                segmentIndex,
+                contentHash,
+                sourceUpdatedAt,
+                segmentText);
+    }
+
     private static String requireText(String value, String field) {
         Objects.requireNonNull(value, field + " must not be null");
         if (value.isBlank()) throw new IllegalArgumentException(field + " must not be blank");

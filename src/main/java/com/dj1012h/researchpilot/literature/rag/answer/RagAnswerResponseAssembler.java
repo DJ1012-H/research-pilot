@@ -1,6 +1,5 @@
 package com.dj1012h.researchpilot.literature.rag.answer;
 
-import com.dj1012h.researchpilot.literature.rag.retrieval.TrustedRagRetrieval;
 import org.springframework.stereotype.Component;
 
 import java.util.LinkedHashSet;
@@ -20,7 +19,8 @@ public class RagAnswerResponseAssembler {
             RagAnswerInput input,
             RagAnswerRetrievalSummary summary,
             long elapsedMs,
-            int modelCallCount,
+            int relevanceJudgeCallCount,
+            int answerModelCallCount,
             int repairCount
     ) {
         Map<String, RagAnswerEvidence> evidenceById = input.evidence().stream()
@@ -45,7 +45,15 @@ public class RagAnswerResponseAssembler {
                 false,
                 "回答仅基于本次请求准入的 ABSTRACT 证据；CitationGuard 仅验证引用格式、存在性和本次证据归属，不证明全文事实或语义蕴含。",
                 elapsedMs,
-                new RagAnswerDiagnostics(null, modelCallCount, repairCount, citations.size()));
+                new RagAnswerDiagnostics(
+                        null,
+                        relevanceJudgeCallCount + answerModelCallCount,
+                        relevanceJudgeCallCount,
+                        answerModelCallCount,
+                        input.evidence().size(),
+                        input.evidence().size(),
+                        repairCount,
+                        citations.size()));
     }
 
     public ResearchAnswerResponse insufficient(
@@ -62,7 +70,31 @@ public class RagAnswerResponseAssembler {
                 true,
                 "没有经过 MySQL 再准入的 ABSTRACT 证据，未调用生成模型。",
                 elapsedMs,
-                new RagAnswerDiagnostics(RagAnswerFailureType.RAG_INSUFFICIENT_EVIDENCE.name(), 0, 0, 0));
+                new RagAnswerDiagnostics(
+                        RagAnswerFailureType.RAG_INSUFFICIENT_EVIDENCE.name(),
+                        0, 0, 0, 0, 0, 0, 0));
+    }
+
+    public ResearchAnswerResponse insufficientAfterAdmission(
+            UUID requestId,
+            RagAnswerRetrievalSummary summary,
+            long elapsedMs,
+            int relevanceJudgeCallCount
+    ) {
+        return new ResearchAnswerResponse(
+                requestId,
+                RagAnswerStatus.INSUFFICIENT_EVIDENCE,
+                "",
+                List.of(),
+                summary,
+                true,
+                "候选 ABSTRACT 未通过问题相关性准入，未调用答案生成模型。",
+                elapsedMs,
+                new RagAnswerDiagnostics(
+                        RagAnswerFailureType.RAG_INSUFFICIENT_EVIDENCE.name(),
+                        relevanceJudgeCallCount,
+                        relevanceJudgeCallCount,
+                        0, 0, 0, 0, 0));
     }
 
     public ResearchAnswerResponse failed(
@@ -70,7 +102,10 @@ public class RagAnswerResponseAssembler {
             RagAnswerFailureType failureType,
             RagAnswerRetrievalSummary summary,
             long elapsedMs,
-            int modelCallCount,
+            int relevanceJudgeCallCount,
+            int answerModelCallCount,
+            int admittedEvidenceCount,
+            int generationEvidenceCount,
             int repairCount
     ) {
         return new ResearchAnswerResponse(
@@ -82,7 +117,15 @@ public class RagAnswerResponseAssembler {
                 false,
                 message(failureType),
                 elapsedMs,
-                new RagAnswerDiagnostics(failureType.name(), modelCallCount, repairCount, 0));
+                new RagAnswerDiagnostics(
+                        failureType.name(),
+                        relevanceJudgeCallCount + answerModelCallCount,
+                        relevanceJudgeCallCount,
+                        answerModelCallCount,
+                        admittedEvidenceCount,
+                        generationEvidenceCount,
+                        repairCount,
+                        0));
     }
 
     private String message(RagAnswerFailureType failureType) {
@@ -90,6 +133,8 @@ public class RagAnswerResponseAssembler {
             case RAG_ANSWER_DISABLED -> "可信 RAG 问答当前未启用。";
             case RAG_QUESTION_INVALID -> "问题或筛选条件不符合服务端边界。";
             case RAG_RETRIEVAL_FAILED -> "可信检索依赖当前不可用，未生成回答。";
+            case RAG_RELEVANCE_JUDGE_UNAVAILABLE -> "证据相关性判定模型当前不可用，未调用答案生成模型。";
+            case RAG_EVIDENCE_ADMISSION_INVALID -> "证据相关性判定输出未通过 Java 准入校验，未调用答案生成模型。";
             case RAG_GENERATION_UNAVAILABLE -> "生成模型当前不可用，未发布回答。";
             case RAG_ANSWER_OUTPUT_INVALID -> "生成输出无法安全解析，未发布回答。";
             case RAG_ANSWER_VALIDATION_FAILED -> "生成输出未通过安全验证，未发布回答。";

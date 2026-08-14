@@ -32,6 +32,7 @@ public class RagAnswerService {
     private final RagRetrievalService retrievalService;
     private final RagAnswerPromptBuilder promptBuilder;
     private final RagAnswerRepairPromptBuilder repairPromptBuilder;
+    private final RagEvidenceAdmissionOrchestrator evidenceAdmissionOrchestrator;
     private final LlmRagAnswerGenerator generator;
     private final RagAnswerValidationPipeline validationPipeline;
     private final RagAnswerResponseAssembler responseAssembler;
@@ -43,6 +44,7 @@ public class RagAnswerService {
             RagRetrievalService retrievalService,
             RagAnswerPromptBuilder promptBuilder,
             RagAnswerRepairPromptBuilder repairPromptBuilder,
+            RagEvidenceAdmissionOrchestrator evidenceAdmissionOrchestrator,
             LlmRagAnswerGenerator generator,
             RagAnswerValidationPipeline validationPipeline,
             RagAnswerResponseAssembler responseAssembler,
@@ -53,6 +55,8 @@ public class RagAnswerService {
         this.retrievalService = Objects.requireNonNull(retrievalService, "retrievalService must not be null");
         this.promptBuilder = Objects.requireNonNull(promptBuilder, "promptBuilder must not be null");
         this.repairPromptBuilder = Objects.requireNonNull(repairPromptBuilder, "repairPromptBuilder must not be null");
+        this.evidenceAdmissionOrchestrator = Objects.requireNonNull(
+                evidenceAdmissionOrchestrator, "evidenceAdmissionOrchestrator must not be null");
         this.generator = Objects.requireNonNull(generator, "generator must not be null");
         this.validationPipeline = Objects.requireNonNull(validationPipeline, "validationPipeline must not be null");
         this.responseAssembler = Objects.requireNonNull(responseAssembler, "responseAssembler must not be null");
@@ -104,63 +108,131 @@ public class RagAnswerService {
         }
 
         int evidenceLimit = Math.min(properties.getMaxEvidence(), retrieval.evidence().size());
-        List<RagAnswerEvidence> answerEvidence = IntStream.range(0, evidenceLimit)
+        List<RagAnswerEvidence> candidateEvidence = IntStream.range(0, evidenceLimit)
                 .mapToObj(index -> RagAnswerEvidence.from(index + 1, retrieval.evidence().get(index)))
+                .toList();
+        RagAnswerInput candidateInput = new RagAnswerInput(normalized.question(), candidateEvidence);
+        RagEvidenceAdmissionResult admission;
+        try {
+            admission = evidenceAdmissionOrchestrator.admit(candidateInput);
+        } catch (RagEvidenceAdmissionException exception) {
+            return failed(
+                    requestId,
+                    exception.failureType(),
+                    summary,
+                    startedNanos,
+                    exception.relevanceJudgeCallCount(),
+                    0, 0, 0, 0);
+        } catch (RuntimeException exception) {
+            return failed(
+                    requestId,
+                    RagAnswerFailureType.RAG_EVIDENCE_ADMISSION_INVALID,
+                    summary,
+                    startedNanos,
+                    0, 0, 0, 0, 0);
+        }
+        int relevanceJudgeCalls = admission.relevanceJudgeCallCount();
+        if (admission.admittedEvidence().isEmpty()) {
+            return responseAssembler.insufficientAfterAdmission(
+                    requestId, summary, elapsedMs(startedNanos), relevanceJudgeCalls);
+        }
+        int admittedEvidenceCount = admission.admittedEvidence().size();
+        if (deadlineReached(deadline)) {
+            return failed(
+                    requestId,
+                    RagAnswerFailureType.RAG_ANSWER_DEADLINE_EXCEEDED,
+                    summary,
+                    startedNanos,
+                    relevanceJudgeCalls,
+                    0,
+                    admittedEvidenceCount,
+                    0,
+                    0);
+        }
+
+        List<RagAnswerEvidence> answerEvidence = IntStream.range(0, admittedEvidenceCount)
+                .mapToObj(index -> admission.admittedEvidence().get(index).withPosition(index + 1))
                 .toList();
         RagAnswerInput input = new RagAnswerInput(normalized.question(), answerEvidence);
         String initialPrompt;
         try {
             initialPrompt = promptBuilder.build(input);
         } catch (RagAnswerPromptBudgetException exception) {
-            return failed(requestId, RagAnswerFailureType.RAG_ANSWER_OUTPUT_INVALID, summary, startedNanos, 0, 0);
+            return failed(
+                    requestId, RagAnswerFailureType.RAG_ANSWER_OUTPUT_INVALID, summary, startedNanos,
+                    relevanceJudgeCalls, 0, admittedEvidenceCount, 0, 0);
         }
         if (deadlineReached(deadline)) {
-            return failed(requestId, RagAnswerFailureType.RAG_ANSWER_DEADLINE_EXCEEDED, summary, startedNanos, 0, 0);
+            return failed(
+                    requestId, RagAnswerFailureType.RAG_ANSWER_DEADLINE_EXCEEDED, summary, startedNanos,
+                    relevanceJudgeCalls, 0, admittedEvidenceCount, 0, 0);
         }
 
-        int modelCalls = 1;
+        int answerModelCalls = 1;
         UntrustedRagAnswerDraft firstDraft;
         try {
             firstDraft = generator.generate(initialPrompt);
         } catch (ModelInvocationException | ModelNotConfiguredException exception) {
-            return failed(requestId, RagAnswerFailureType.RAG_GENERATION_UNAVAILABLE, summary, startedNanos, modelCalls, 0);
+            return failed(
+                    requestId, RagAnswerFailureType.RAG_GENERATION_UNAVAILABLE, summary, startedNanos,
+                    relevanceJudgeCalls, answerModelCalls, admittedEvidenceCount, admittedEvidenceCount, 0);
         } catch (RuntimeException exception) {
-            return failed(requestId, RagAnswerFailureType.RAG_GENERATION_UNAVAILABLE, summary, startedNanos, modelCalls, 0);
+            return failed(
+                    requestId, RagAnswerFailureType.RAG_GENERATION_UNAVAILABLE, summary, startedNanos,
+                    relevanceJudgeCalls, answerModelCalls, admittedEvidenceCount, admittedEvidenceCount, 0);
         }
 
         try {
             ValidatedRagAnswer validated = validationPipeline.validate(firstDraft, input);
-            return responseAssembler.success(requestId, validated, input, summary, elapsedMs(startedNanos), modelCalls, 0);
+            return responseAssembler.success(
+                    requestId, validated, input, summary, elapsedMs(startedNanos),
+                    relevanceJudgeCalls, answerModelCalls, 0);
         } catch (RagAnswerValidationException firstFailure) {
             if (!firstFailure.isRetryable()) {
-                return failed(requestId, RagAnswerFailureType.RAG_ANSWER_OUTPUT_INVALID, summary, startedNanos, modelCalls, 0);
+                return failed(
+                        requestId, RagAnswerFailureType.RAG_ANSWER_OUTPUT_INVALID, summary, startedNanos,
+                        relevanceJudgeCalls, answerModelCalls, admittedEvidenceCount, admittedEvidenceCount, 0);
             }
             if (deadlineReached(deadline)) {
-                return failed(requestId, RagAnswerFailureType.RAG_ANSWER_DEADLINE_EXCEEDED, summary, startedNanos, modelCalls, 0);
+                return failed(
+                        requestId, RagAnswerFailureType.RAG_ANSWER_DEADLINE_EXCEEDED, summary, startedNanos,
+                        relevanceJudgeCalls, answerModelCalls, admittedEvidenceCount, admittedEvidenceCount, 0);
             }
             String repairPrompt;
             try {
                 repairPrompt = repairPromptBuilder.build(input, firstDraft, firstFailure.safeCodes());
             } catch (RuntimeException exception) {
-                return failed(requestId, RagAnswerFailureType.RAG_ANSWER_VALIDATION_FAILED, summary, startedNanos, modelCalls, 0);
+                return failed(
+                        requestId, RagAnswerFailureType.RAG_ANSWER_VALIDATION_FAILED, summary, startedNanos,
+                        relevanceJudgeCalls, answerModelCalls, admittedEvidenceCount, admittedEvidenceCount, 0);
             }
             if (deadlineReached(deadline)) {
-                return failed(requestId, RagAnswerFailureType.RAG_ANSWER_DEADLINE_EXCEEDED, summary, startedNanos, modelCalls, 0);
+                return failed(
+                        requestId, RagAnswerFailureType.RAG_ANSWER_DEADLINE_EXCEEDED, summary, startedNanos,
+                        relevanceJudgeCalls, answerModelCalls, admittedEvidenceCount, admittedEvidenceCount, 0);
             }
-            modelCalls = 2;
+            answerModelCalls = 2;
             UntrustedRagAnswerDraft repairedDraft;
             try {
                 repairedDraft = generator.generate(repairPrompt);
             } catch (ModelInvocationException | ModelNotConfiguredException exception) {
-                return failed(requestId, RagAnswerFailureType.RAG_GENERATION_UNAVAILABLE, summary, startedNanos, modelCalls, 1);
+                return failed(
+                        requestId, RagAnswerFailureType.RAG_GENERATION_UNAVAILABLE, summary, startedNanos,
+                        relevanceJudgeCalls, answerModelCalls, admittedEvidenceCount, admittedEvidenceCount, 1);
             } catch (RuntimeException exception) {
-                return failed(requestId, RagAnswerFailureType.RAG_GENERATION_UNAVAILABLE, summary, startedNanos, modelCalls, 1);
+                return failed(
+                        requestId, RagAnswerFailureType.RAG_GENERATION_UNAVAILABLE, summary, startedNanos,
+                        relevanceJudgeCalls, answerModelCalls, admittedEvidenceCount, admittedEvidenceCount, 1);
             }
             try {
                 ValidatedRagAnswer validated = validationPipeline.validate(repairedDraft, input);
-                return responseAssembler.success(requestId, validated, input, summary, elapsedMs(startedNanos), modelCalls, 1);
+                return responseAssembler.success(
+                        requestId, validated, input, summary, elapsedMs(startedNanos),
+                        relevanceJudgeCalls, answerModelCalls, 1);
             } catch (RagAnswerValidationException secondFailure) {
-                return failed(requestId, RagAnswerFailureType.RAG_ANSWER_VALIDATION_FAILED, summary, startedNanos, modelCalls, 1);
+                return failed(
+                        requestId, RagAnswerFailureType.RAG_ANSWER_VALIDATION_FAILED, summary, startedNanos,
+                        relevanceJudgeCalls, answerModelCalls, admittedEvidenceCount, admittedEvidenceCount, 1);
             }
         }
     }
@@ -235,7 +307,32 @@ public class RagAnswerService {
             int modelCalls,
             int repairs
     ) {
-        return responseAssembler.failed(requestId, failureType, summary, elapsedMs(startedNanos), modelCalls, repairs);
+        return failed(
+                requestId, failureType, summary, startedNanos,
+                0, modelCalls, 0, 0, repairs);
+    }
+
+    private ResearchAnswerResponse failed(
+            UUID requestId,
+            RagAnswerFailureType failureType,
+            RagAnswerRetrievalSummary summary,
+            long startedNanos,
+            int relevanceJudgeCalls,
+            int answerModelCalls,
+            int admittedEvidenceCount,
+            int generationEvidenceCount,
+            int repairs
+    ) {
+        return responseAssembler.failed(
+                requestId,
+                failureType,
+                summary,
+                elapsedMs(startedNanos),
+                relevanceJudgeCalls,
+                answerModelCalls,
+                admittedEvidenceCount,
+                generationEvidenceCount,
+                repairs);
     }
 
     private boolean deadlineReached(Instant deadline) {
