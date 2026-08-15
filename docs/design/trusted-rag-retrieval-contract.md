@@ -82,9 +82,10 @@ paper-ID labels.
 
 ## Evaluation boundary
 
-The small local acceptance set belongs on the separate `eval` branch under
-`eval/rag-retrieval-v1/`. Cases without human-reviewed relevant `paperId`
-judgments remain `NEEDS_REVIEW`; Recall@1/3/5, MRR, trusted-result retention,
-and MySQL re-admission rejection metrics must be reported `UNMEASURED` until
-those judgments exist. Retrieval output must never be used to manufacture the
-labels.
+Evaluation assets belong on the separate `eval` branch. The current
+`rag-retrieval-v3-lite` corpus uses stable DOI labels, a frozen candidate
+catalog, and separate tuning and fixed-holdout splits. Retrieval output must
+never be used to manufacture or revise those labels. The first fixed holdout
+measured Recall@5, Hit@5, and MRR at 1.0, but the complete RAG acceptance still
+failed because two positive answer paths stopped fail-closed. See
+`docs/evaluation.md` for the current result and its limitations.

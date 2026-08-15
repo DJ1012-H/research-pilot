@@ -29,6 +29,15 @@ Thumbs.db
 
 # Local AI assistant settings
 .claude/
+.workbuddy/
+
+# Local project notes, interview materials, and diagnostics
+*.docx
+/DEVELOPMENT_LOG.md
+/ResearchPilot-08-10至08-15-RAG扩展计划.md
+/docs/design/rag-day2-implementation-prompt.md
+/interview/
+/src/test/java/com/dj1012h/researchpilot/integration/qdrant/QdrantLiveBatchDiagnosticTest.java
 
 # Temporary API response
 response.json

@@ -15,7 +15,22 @@
     <artifactId>research-pilot</artifactId>
     <version>0.0.1-SNAPSHOT</version>
     <name>ResearchPilot</name>
-    <description>Academic literature retrieval agent powered by LangChain4j and RAG</description>
+    <description>Controlled literature research agent with verified retrieval and trusted RAG</description>
+    <url>https://github.com/DJ1012-H/research-pilot</url>
+
+    <licenses>
+        <license>
+            <name>MIT License</name>
+            <url>https://opensource.org/license/mit</url>
+            <distribution>repo</distribution>
+        </license>
+    </licenses>
+
+    <scm>
+        <connection>scm:git:https://github.com/DJ1012-H/research-pilot.git</connection>
+        <developerConnection>scm:git:https://github.com/DJ1012-H/research-pilot.git</developerConnection>
+        <url>https://github.com/DJ1012-H/research-pilot</url>
+    </scm>
 
     <properties>
         <java.version>21</java.version>
