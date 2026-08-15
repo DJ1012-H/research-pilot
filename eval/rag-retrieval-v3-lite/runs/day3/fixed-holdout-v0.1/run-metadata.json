@@ -1,0 +1,18 @@
+{
+    "schemaVersion":  "rag-v3-lite-run-metadata-v0.1",
+    "runId":  "rag-v3l-fixed_holdout-20260814T060034335Z-a081c40f",
+    "startedAtUtc":  "2026-08-14T06:00:34.3427833Z",
+    "completedAtUtc":  "2026-08-14T06:01:36.9549348Z",
+    "baseUrl":  "http://127.0.0.1:8080",
+    "split":  "FIXED_HOLDOUT",
+    "topK":  5,
+    "datasetManifestSha256":  "70fff7771baf6c4335bef3159fc953cc95240fd0075ab31b605c635ec4136bae",
+    "caseFileSha256":  "14b4c35d1e7f7a0b02f8b64edbe7e739411e715681505cc01feac9f69cf063d0",
+    "validatorSha256":  "3677d930c5913f37a202c81f51663742a4779c02f8e328c91db741b52ab85448",
+    "runnerSha256":  "1d9fc13b1cf4b7ac94493132a887762a88bcb29a2482a57b49b4da1fc309f52f",
+    "parameterDecisionSha256":  "185bb4b9c5348fce37fb7507c3edaa5f80d4f8f26f5eb27a14c30fe625528ccc",
+    "caseObservationsSha256":  "f8bbea33161c0ffa0bd3b643a0fefdeb1a0275d5817975dfb16e65ddd68b46e4",
+    "evaluationReportSha256":  "0e44b3847cf32740f18986fffab8f7c95065d542fc1db36b147beb710e5be30e",
+    "mainCommit":  "c64bc594f5b898c051e0e9b85a7c8b3916695e3b",
+    "mainTrackedWorktreeState":  "CLEAN"
+}

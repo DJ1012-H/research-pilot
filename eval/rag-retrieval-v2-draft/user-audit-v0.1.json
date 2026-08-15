@@ -1,0 +1,31 @@
+{
+  "schemaVersion": "rag-user-audit-v0.1",
+  "datasetId": "rag-retrieval-v2-draft",
+  "decisionAtUtc": "2026-08-12T16:38:59.1626427Z",
+  "decisionDateAsiaShanghai": "2026-08-13",
+  "auditor": "user",
+  "decision": "ACCEPT_ALL",
+  "sourceStatement": "RAG v2 审核：全部 ACCEPT",
+  "reviewPacketPath": "human-review-packet-v0.1.md",
+  "acceptedCaseIds": [
+    "rag-v2-0001",
+    "rag-v2-0002",
+    "rag-v2-0003",
+    "rag-v2-0004",
+    "rag-v2-0005",
+    "rag-v2-0006",
+    "rag-v2-0007",
+    "rag-v2-0008",
+    "rag-v2-0009",
+    "rag-v2-0010",
+    "rag-v2-0011",
+    "rag-v2-0012"
+  ],
+  "acceptedCaseCount": 12,
+  "labelsChanged": false,
+  "caseHashesChanged": false,
+  "casesLfSha256": "76e2e9eae1f0cd329f29af9f6afb51ab71bb32251b2c0abd3fad98b14f707ebb",
+  "resultingGroundTruthStatus": "USER_AUDITED_CODEX_REVIEWED",
+  "independentHumanInterRaterStatus": "NOT_PERFORMED",
+  "provenanceRule": "The user accepted the complete Codex-reviewed packet. Retrieval output remained separate and did not create or revise labels."
+}

@@ -1,0 +1,23 @@
+{
+  "datasetId": "rag-retrieval-v2-draft",
+  "datasetKind": "CANDIDATE_ONLY_REVIEWED_SET",
+  "casesPath": "cases.jsonl",
+  "casesLfSha256": "76e2e9eae1f0cd329f29af9f6afb51ab71bb32251b2c0abd3fad98b14f707ebb",
+  "caseCount": 12,
+  "tuningCaseCount": 8,
+  "fixedAcceptanceCaseCount": 4,
+  "review": {
+    "caseLifecycleStatus": "REVIEWED",
+    "reviewer": "codex",
+    "authority": "EXPLICIT_USER_AUTHORIZATION_2026-08-12",
+    "groundTruthStatus": "USER_AUDITED_CODEX_REVIEWED",
+    "userAuditStatus": "COMPLETED_ACCEPT_ALL",
+    "userAuditDecisionAtUtc": "2026-08-12T16:38:59.1626427Z",
+    "userAuditPath": "user-audit-v0.1.json",
+    "independentHumanInterRaterStatus": "NOT_PERFORMED",
+    "currentQueuePath": "review-queue-v0.2.jsonl",
+    "reviewPacketPath": "human-review-packet-v0.1.md"
+  },
+  "candidateCatalogPath": "candidate-paper-catalog-v0.1.json",
+  "purpose": "Immutable reviewed input contract for reproducible live retrieval capture and metric computation; current outputs are referenced only by manifest.json."
+}

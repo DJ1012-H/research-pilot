@@ -1,0 +1,36 @@
+{
+    "schemaVersion":  "rag-v3-lite-evaluation-report-v0.1",
+    "status":  "MEASURED_TUNING_NOT_ACCEPTANCE",
+    "datasetId":  "rag-retrieval-v3-lite",
+    "split":  "TUNING",
+    "runId":  "rag-v3l-tuning-20260814T055622515Z-c73e650f",
+    "caseCount":  12,
+    "positiveCaseCount":  6,
+    "negativeCaseCount":  6,
+    "semanticNegativeCaseCount":  5,
+    "deterministicEmptyCaseCount":  1,
+    "topK":  5,
+    "metrics":  {
+                    "caseOutcomeAccuracy":  0.9166666667,
+                    "positiveAnswerSuccessRate":  0.8333333333,
+                    "positiveEvidenceHitRate":  0.8333333333,
+                    "positiveCitationPrecision":  1,
+                    "positiveRetrievalRecallAt1":  0.5,
+                    "positiveRetrievalRecallAt3":  0.7916666667,
+                    "positiveRetrievalRecallAt5":  0.9583333333,
+                    "positiveRetrievalHitAt5":  1,
+                    "positiveRetrievalMrr":  0.9166666667,
+                    "negativeRefusalRate":  1,
+                    "semanticNegativeRefusalRate":  1,
+                    "deterministicEmptyRefusalRate":  1,
+                    "unexpectedFailureCount":  1,
+                    "totalModelCallCount":  16,
+                    "totalRepairCount":  0
+                },
+    "acceptance":  null,
+    "limitations":  [
+                        "Labels are USER_AUDITED_CODEX_REVIEWED, not independent Ground Truth.",
+                        "This 12-case split is interview-readiness evidence, not a production benchmark or SLA.",
+                        "Answer text is not retained; only its UTF-8 SHA-256 and length are recorded."
+                    ]
+}

@@ -1,0 +1,16 @@
+{
+  "auditId": "rag-retrieval-v3-lite-user-audit-v0.1",
+  "datasetId": "rag-retrieval-v3-lite",
+  "decisionAtUtc": "2026-08-13T09:17:59.3184438Z",
+  "decisionAtTimezone": "Asia/Shanghai",
+  "decisionSource": "User replied 确认 after receiving the completed Day 1 dataset and the explicit request to confirm all 24 labels.",
+  "decision": "ACCEPT_ALL_SUPPLIED_LABELS",
+  "acceptedCaseCount": 24,
+  "acceptedCaseRange": "rag-v3l-0001..rag-v3l-0024",
+  "resultingStatus": "USER_AUDITED_CODEX_REVIEWED",
+  "independentBlindRelabelingPerformed": false,
+  "interRaterAgreementMeasured": false,
+  "retrievalOutputUsedToCreateLabels": false,
+  "groundTruthClaimAllowed": false,
+  "note": "This records owner acceptance of the supplied label packet. It does not convert the dataset into independent expert Ground Truth."
+}

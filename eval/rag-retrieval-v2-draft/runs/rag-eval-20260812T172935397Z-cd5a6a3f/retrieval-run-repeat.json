@@ -1,0 +1,31 @@
+{
+    "schemaVersion":  "rag-retrieval-eval-run-v0.2",
+    "runId":  "rag-eval-20260812T172942515Z-6e0b2863",
+    "startedAtUtc":  "2026-08-12T17:29:42.5232385Z",
+    "completedAtUtc":  "2026-08-12T17:29:44.3849518Z",
+    "datasetId":  "rag-retrieval-v2-draft",
+    "caseCount":  12,
+    "topK":  5,
+    "baseUrl":  "http://127.0.0.1:8080",
+    "qdrantBaseUrl":  "http://127.0.0.1:6333",
+    "collectionName":  "research_pilot_paper_segments_v1",
+    "collectionStatus":  "green",
+    "collectionPointCount":  19,
+    "vectorDimensions":  1024,
+    "activeEmbeddingVersion":  "qe06b-d1024-t1-c350-o30-n1",
+    "mainCommit":  "f9b1a841950529fa08311d1a1345c67fb64e8818",
+    "trackedWorktreeState":  "DIRTY",
+    "casesLfSha256":  "76e2e9eae1f0cd329f29af9f6afb51ab71bb32251b2c0abd3fad98b14f707ebb",
+    "manifestSha256":  "14057ef3a364c8830bb6ed8d273114d52c0b906645a4f8813db77816625f1a72",
+    "candidateCatalogPath":  "candidate-paper-catalog-v0.1.json",
+    "candidateCatalogSha256":  "a097ab5dd3ab2f495869fb644f9d2a1ff02a329d69cbd541c3c31b8971bcda94",
+    "runnerSha256":  "0620cf7aafbb291aaa5e84ed14171c473e12cf1681f80f221abecd1c6e604e28",
+    "observationLfSha256":  "02cf22ccb302afd51b4e256ba28cb938b315208626ec7cd3f2cae4b052c9032e",
+    "statusCounts":  {
+                         "success":  11,
+                         "noTrustedResults":  1,
+                         "failed":  0
+                     },
+    "averageClientElapsedMs":  146.75,
+    "outputPath":  "retrieval-observation-repeat.jsonl"
+}

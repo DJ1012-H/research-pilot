@@ -1,0 +1,54 @@
+{
+  "schemaVersion": "rag-admission-v2-targeted-observation-v0.1",
+  "capturedAt": "2026-08-15T05:49:23.901Z",
+  "status": "SUCCESS",
+  "acceptanceAuthority": "NONE_BURNED_CASE",
+  "historicalThreeCaseRegressionStatus": "FAIL_UNCHANGED",
+  "historicalHoldoutStatus": "FAIL_UNCHANGED",
+  "caseId": "rag-v3l-0018",
+  "originalSplit": "FIXED_HOLDOUT",
+  "usage": "BURNED_DEVELOPMENT_REGRESSION_ONLY",
+  "questionUtf8Sha256": "6fda0227477e1c473b8c636e1ef3a25aae34c6f8fed29d07898b6c4bb8858675",
+  "judgeMaxOutputTokens": 2000,
+  "failureCode": null,
+  "failureDetailCode": null,
+  "modelCallCount": 2,
+  "relevanceJudgeCallCount": 1,
+  "answerModelCallCount": 1,
+  "repairCount": 0,
+  "admittedEvidenceCount": 2,
+  "generationEvidenceCount": 2,
+  "answerLength": 564,
+  "answerUtf8Sha256": null,
+  "answerHashStatus": "NOT_RETAINED_BEFORE_OBSERVATION_CAPTURE",
+  "citations": [
+    {
+      "normalizedDoi": "10.1109/tgrs.2021.3093977"
+    },
+    {
+      "normalizedDoi": "10.1016/j.isprsjprs.2021.09.005"
+    }
+  ],
+  "providerUsage": {
+    "relevanceJudge": {
+      "inputTokens": 2442,
+      "outputTokens": 320,
+      "totalTokens": 2762
+    },
+    "answer": {
+      "inputTokens": 1646,
+      "outputTokens": 799,
+      "totalTokens": 2445
+    },
+    "totalTokens": 5207
+  },
+  "elapsedMs": 13634,
+  "retention": {
+    "questionTextRetained": false,
+    "answerTextRetained": false,
+    "promptRetained": false,
+    "providerRawResponseRetained": false
+  },
+  "evidenceSource": "AUTHORIZED_LIVE_HTTP_RESPONSE_AND_REDACTED_PROVIDER_USAGE_LOGS",
+  "pass": true
+}

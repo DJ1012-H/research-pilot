@@ -1,0 +1,74 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/DJ1012-H/research-pilot/eval/rag-retrieval-v3-lite/schema/retrieval-case.schema.json",
+  "title": "ResearchPilot RAG retrieval v3-lite reviewed case",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "caseId",
+    "split",
+    "queryLanguage",
+    "queryText",
+    "caseIntent",
+    "filter",
+    "expectedOutcome",
+    "relevantDois",
+    "relevanceReason",
+    "labelScope",
+    "labelProvenance",
+    "reviewer",
+    "reviewStatus",
+    "frozenHash"
+  ],
+  "properties": {
+    "caseId": {"type": "string", "pattern": "^rag-v3l-[0-9]{4}$"},
+    "split": {"enum": ["TUNING", "FIXED_HOLDOUT"]},
+    "queryLanguage": {"enum": ["zh", "en"]},
+    "queryText": {"type": "string", "minLength": 1, "maxLength": 500},
+    "caseIntent": {
+      "enum": [
+        "cross_language_positive",
+        "synonym_positive",
+        "long_context_positive",
+        "precise_topic_positive",
+        "year_filter_positive",
+        "survey_positive",
+        "semantic_negative_ood",
+        "semantic_negative_in_domain",
+        "semantic_negative_underspecified",
+        "deterministic_empty_year"
+      ]
+    },
+    "filter": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["fromYear", "toYear"],
+      "properties": {
+        "fromYear": {"type": ["integer", "null"], "minimum": 1900, "maximum": 2100},
+        "toYear": {"type": ["integer", "null"], "minimum": 1900, "maximum": 2100}
+      }
+    },
+    "expectedOutcome": {"enum": ["ANSWER", "INSUFFICIENT_EVIDENCE"]},
+    "relevantDois": {
+      "type": "array",
+      "items": {"type": "string", "pattern": "^10\\.[0-9]{4,9}/[-._;()/:a-z0-9]+$"},
+      "uniqueItems": true
+    },
+    "relevanceReason": {"type": "string", "minLength": 20},
+    "labelScope": {"const": "FROZEN_CATALOG_ABSTRACT_SEGMENTS"},
+    "labelProvenance": {"type": "string", "minLength": 1},
+    "reviewer": {"const": "codex"},
+    "reviewStatus": {"const": "USER_AUDITED_CODEX_REVIEWED"},
+    "frozenHash": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+  },
+  "allOf": [
+    {
+      "if": {"properties": {"expectedOutcome": {"const": "ANSWER"}}},
+      "then": {"properties": {"relevantDois": {"minItems": 1}}}
+    },
+    {
+      "if": {"properties": {"expectedOutcome": {"const": "INSUFFICIENT_EVIDENCE"}}},
+      "then": {"properties": {"relevantDois": {"maxItems": 0}}}
+    }
+  ]
+}

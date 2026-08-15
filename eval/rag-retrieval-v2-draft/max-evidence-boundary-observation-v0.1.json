@@ -1,0 +1,82 @@
+{
+  "schemaVersion": "rag-max-evidence-boundary-observation-v0.1",
+  "capturedAtUtc": "2026-08-13T02:46:42.1652224Z",
+  "overallStatus": "PASS",
+  "scope": "LIVE_MYSQL_OLLAMA_QDRANT_LLM",
+  "query": "Mamba models for remote sensing image change detection and dense prediction",
+  "request": {
+    "topK": 10,
+    "expectedMaxEvidence": 5,
+    "requireMaxEvidenceBoundary": true
+  },
+  "runtime": {
+    "application": "UP",
+    "mysql": "UP",
+    "redis": "DOWN_NON_BLOCKING_FOR_THIS_RAG_PATH",
+    "ollamaEmbedding": "UP_1024_DIMENSIONS",
+    "qdrant": "UP",
+    "llmConfigured": true,
+    "collection": "research_pilot_paper_segments_v1",
+    "activeEmbeddingVersion": "qe06b-d1024-t1-c350-o30-n1"
+  },
+  "qdrant": {
+    "pointCount": 21,
+    "verifiedPointCount": 21,
+    "metadataPointCount": 15,
+    "abstractPointCount": 6,
+    "abstractPaperCount": 6,
+    "abstractPaperIds": [5, 6, 7, 10, 14, 15]
+  },
+  "answerObservation": {
+    "status": "SUCCESS",
+    "requestId": "f62101e0-409f-4386-8544-65112143d8bd",
+    "elapsedMs": 14174,
+    "retrievalEvidenceCount": 6,
+    "generationEvidenceCount": 5,
+    "modelCallCount": 1,
+    "citationPositionsWithinGenerationEvidenceRange": true,
+    "truncation": "6_TO_5"
+  },
+  "insufficientEvidenceControl": {
+    "status": "INSUFFICIENT_EVIDENCE",
+    "modelCallCount": 0,
+    "generationEvidenceCount": 0
+  },
+  "acceptanceChecks": {
+    "sixDistinctAbstractPapersAvailable": "PASS",
+    "moreThanFiveEvidenceItemsReAdmittedFromMysql": "PASS",
+    "exactlyFiveEvidenceItemsSentToGeneration": "PASS",
+    "citationsBoundedToGenerationEvidence": "PASS",
+    "insufficientEvidenceMakesZeroModelCalls": "PASS"
+  },
+  "codeProvenance": {
+    "mainHead": "f9b1a841950529fa08311d1a1345c67fb64e8818",
+    "worktreeState": "DIRTY_UNCOMMITTED_ACCEPTANCE_CHANGE",
+    "verifyScriptSha256": "b6f38816663fbd7f3fbff4e4627514da5ff34f8b41fa5892d8c56381bb244bff",
+    "ragAnswerDiagnosticsSha256": "1b231a396db6321904789d6bb7574152006454cde17e463561eeddd2c9ccfb1b",
+    "ragAnswerResponseAssemblerSha256": "1648ddbce4072cd435da45ceec0e46d633c3833cf57e3d43460e7c4f3aec94b5",
+    "ragAnswerServiceSha256": "4254304acb3b73df40175a8a2d02087b44b4ba40c02e4bcdfbfe73c3857a9c17"
+  },
+  "verification": {
+    "command": "powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\\scripts\\verify-rag-demo.ps1 -TopK 10 -ExpectedMaxEvidence 5 -RequireMaxEvidenceBoundary -Question <controlled-query>",
+    "focusedTests": {
+      "run": 11,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    "fullTests": {
+      "run": 531,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 7
+    },
+    "powershellSyntax": "PASS",
+    "gitDiffCheck": "PASS"
+  },
+  "limitations": [
+    "This is one live boundary observation, not a latency distribution.",
+    "The observation is bound to file hashes because the acceptance change was not committed when measured.",
+    "Redis was unavailable but is not used by this synchronous trusted RAG answer path."
+  ]
+}

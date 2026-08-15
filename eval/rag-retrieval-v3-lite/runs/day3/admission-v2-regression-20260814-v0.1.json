@@ -1,0 +1,89 @@
+{
+    "schemaVersion":  "rag-admission-v2-regression-v0.1",
+    "capturedAt":  "2026-08-14T09:10:47.7989150Z",
+    "status":  "FAIL",
+    "acceptanceAuthority":  "NONE_BURNED_CASES",
+    "historicalHoldoutStatus":  "FAIL_UNCHANGED",
+    "caseCount":  3,
+    "cases":  [
+                  {
+                      "caseId":  "rag-v3l-0003",
+                      "originalSplit":  "TUNING",
+                      "usage":  "BURNED_DEVELOPMENT_REGRESSION_ONLY",
+                      "questionUtf8Sha256":  "236a5b9c944904e22086602151b8878a50195c552704c2255943fb6481237002",
+                      "status":  "SUCCESS",
+                      "failureCode":  "",
+                      "failureDetailCode":  "",
+                      "modelCallCount":  2,
+                      "relevanceJudgeCallCount":  1,
+                      "answerModelCallCount":  1,
+                      "repairCount":  0,
+                      "admittedEvidenceCount":  3,
+                      "generationEvidenceCount":  3,
+                      "answerLength":  770,
+                      "answerUtf8Sha256":  "0cbfc9931540530772faca632c7fa5485b4ed5b7151d8001e27dc7775f2b12d8",
+                      "citations":  [
+                                        {
+                                            "normalizedDoi":  "10.1109/tgrs.2024.3425540"
+                                        },
+                                        {
+                                            "normalizedDoi":  "10.1109/tgrs.2021.3093977"
+                                        },
+                                        {
+                                            "normalizedDoi":  "10.1016/j.heliyon.2024.e38495"
+                                        }
+                                    ],
+                      "elapsedMs":  24222,
+                      "pass":  true
+                  },
+                  {
+                      "caseId":  "rag-v3l-0013",
+                      "originalSplit":  "FIXED_HOLDOUT",
+                      "usage":  "BURNED_DEVELOPMENT_REGRESSION_ONLY",
+                      "questionUtf8Sha256":  "53e04baaacaf24d9d994be445609b786d81867a1be066bde916ff8e9ad1614eb",
+                      "status":  "SUCCESS",
+                      "failureCode":  "",
+                      "failureDetailCode":  "",
+                      "modelCallCount":  2,
+                      "relevanceJudgeCallCount":  1,
+                      "answerModelCallCount":  1,
+                      "repairCount":  0,
+                      "admittedEvidenceCount":  2,
+                      "generationEvidenceCount":  2,
+                      "answerLength":  1407,
+                      "answerUtf8Sha256":  "0578d2a09002f982b7c06172c881483b97d138e8f8f3bf8b79870ecf5359a3d5",
+                      "citations":  [
+                                        {
+                                            "normalizedDoi":  "10.1016/j.heliyon.2024.e38495"
+                                        },
+                                        {
+                                            "normalizedDoi":  "10.1109/tgrs.2024.3425540"
+                                        }
+                                    ],
+                      "elapsedMs":  26933,
+                      "pass":  true
+                  },
+                  {
+                      "caseId":  "rag-v3l-0018",
+                      "originalSplit":  "FIXED_HOLDOUT",
+                      "usage":  "BURNED_DEVELOPMENT_REGRESSION_ONLY",
+                      "questionUtf8Sha256":  "6fda0227477e1c473b8c636e1ef3a25aae34c6f8fed29d07898b6c4bb8858675",
+                      "status":  "FAILED",
+                      "failureCode":  "RAG_ANSWER_VALIDATION_FAILED",
+                      "failureDetailCode":  "",
+                      "modelCallCount":  3,
+                      "relevanceJudgeCallCount":  1,
+                      "answerModelCallCount":  2,
+                      "repairCount":  1,
+                      "admittedEvidenceCount":  2,
+                      "generationEvidenceCount":  2,
+                      "answerLength":  0,
+                      "answerUtf8Sha256":  null,
+                      "citations":  [
+
+                                    ],
+                      "elapsedMs":  18746,
+                      "pass":  false
+                  }
+              ]
+}

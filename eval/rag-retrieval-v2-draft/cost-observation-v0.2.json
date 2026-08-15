@@ -1,0 +1,42 @@
+{
+  "schemaVersion": "rag-cost-observation-v0.2",
+  "observedAtUtc": "2026-08-12T08:36:47.216Z",
+  "operation": "rag_answer",
+  "provider": "deepseek-compatible-llm",
+  "model": "deepseek-v4-flash",
+  "requestCount": 1,
+  "repairCount": 0,
+  "inputCharacters": 11233,
+  "providerInputTokens": 2614,
+  "providerOutputTokens": 1104,
+  "providerTotalTokens": 3718,
+  "modelCallDurationMs": 8994,
+  "httpRequestElapsedMs": 9325,
+  "pricingSnapshot": {
+    "currency": "USD",
+    "inputPricePerMillionTokensCacheMiss": 0.14,
+    "inputPricePerMillionTokensCacheHit": 0.0028,
+    "outputPricePerMillionTokens": 0.28
+  },
+  "estimatedCostUsd": {
+    "inputCacheMiss": 0.00036596,
+    "inputCacheHit": 0.0000073192,
+    "output": 0.00030912,
+    "totalAssumingCacheMiss": 0.00067508,
+    "totalAssumingCacheHit": 0.0003164392
+  },
+  "cacheStatus": "UNKNOWN",
+  "billingStatus": "ESTIMATE_NOT_PROVIDER_INVOICE",
+  "sourceEvidence": [
+    "main worktree logs/research-pilot.log event=model_usage_observed at 2026-08-12T16:36:47.216+08:00",
+    "main branch docs/demo/v1.1.0-rag-demo-acceptance.md",
+    "main branch DEVELOPMENT_LOG.md"
+  ],
+  "supersedes": "cost-observation-v0.1.json",
+  "historyPolicy": "cost-observation-v0.1.json is retained unchanged as the earlier character-estimate-only observation.",
+  "limitations": [
+    "The provider cache-hit state was not returned, so both cache-miss and cache-hit totals are reported.",
+    "The values are arithmetic estimates from the captured token usage and pricing snapshot, not an account invoice.",
+    "The local runtime log is operational evidence and is not itself a frozen eval artifact."
+  ]
+}

@@ -1,0 +1,50 @@
+{
+    "schemaVersion":  "rag-retrieval-reproducibility-check-v0.1",
+    "checkedAtUtc":  "2026-08-12T17:29:44.6433169Z",
+    "status":  "PASS",
+    "comparedCaseCount":  12,
+    "deterministicFieldDifferenceCount":  0,
+    "differences":  [
+
+                    ],
+    "primaryRunId":  "rag-eval-20260812T172936535Z-893c2695",
+    "repeatRunId":  "rag-eval-20260812T172942515Z-6e0b2863",
+    "comparedFields":  [
+                           "schemaVersion",
+                           "caseId",
+                           "split",
+                           "caseIntent",
+                           "request",
+                           "status",
+                           "activeEmbeddingVersion",
+                           "requestedTopK",
+                           "candidate/admission counts",
+                           "rankedPaperIds",
+                           "scores",
+                           "rankedResults",
+                           "failureCode"
+                       ],
+    "excludedVolatileFields":  [
+                                   "runId",
+                                   "observedAtUtc",
+                                   "serviceElapsedMs",
+                                   "clientElapsedMs"
+                               ],
+    "inputEvidence":  {
+                          "casesSha256":  "76e2e9eae1f0cd329f29af9f6afb51ab71bb32251b2c0abd3fad98b14f707ebb",
+                          "manifestSha256":  "14057ef3a364c8830bb6ed8d273114d52c0b906645a4f8813db77816625f1a72",
+                          "candidateCatalogSha256":  "a097ab5dd3ab2f495869fb644f9d2a1ff02a329d69cbd541c3c31b8971bcda94",
+                          "runnerSha256":  "0620cf7aafbb291aaa5e84ed14171c473e12cf1681f80f221abecd1c6e604e28",
+                          "metricScriptSha256":  "3655e401bf55ba25550fc59a9506f745913c2c8c16b28f925482c87e781d2998",
+                          "orchestrationScriptSha256":  "161c6d18bfa7d550d98d3ea8f73e72bd8dbba88b12ccec256eb74061e8d089a3",
+                          "primaryObservationSha256":  "05c53bb781ac828cf32b5596116650464475f33862262687a856f3d5f3a4b4a9",
+                          "repeatObservationSha256":  "02cf22ccb302afd51b4e256ba28cb938b315208626ec7cd3f2cae4b052c9032e",
+                          "reviewedMetricsSha256":  "65336147eca3e413f6dbb0f96d160f57bb87da95a1b953c149093048f0ce1491"
+                      },
+    "repositories":  {
+                         "mainCommit":  "f9b1a841950529fa08311d1a1345c67fb64e8818",
+                         "mainTrackedWorktreeState":  "DIRTY",
+                         "evalCommit":  "abeeccc621310684d218c4511d157994536f6e44",
+                         "evalTrackedWorktreeState":  "DIRTY"
+                     }
+}

@@ -1,0 +1,256 @@
+[
+    {
+        "caseId":  "rag-v3l-0013",
+        "split":  "FIXED_HOLDOUT",
+        "queryLanguage":  "zh",
+        "queryText":  "Mamba 如何缓解超高分辨率遥感图像分割中的长序列和全局上下文问题？",
+        "caseIntent":  "cross_language_positive",
+        "filter":  {
+                       "fromYear":  null,
+                       "toYear":  null
+                   },
+        "expectedOutcome":  "ANSWER",
+        "relevantDois":  [
+                             "10.1109/tgrs.2024.3425540",
+                             "10.1016/j.heliyon.2024.e38495"
+                         ],
+        "relevanceReason":  "RS-Mamba uses linear-complexity global context modeling for large VHR images, while Samba uses state-space blocks to handle long high-resolution segmentation sequences.",
+        "labelScope":  "FROZEN_CATALOG_ABSTRACT_SEGMENTS",
+        "labelProvenance":  "CODEX_REVIEW_2026-08-13_FROM_FROZEN_TITLE_AND_ABSTRACT",
+        "reviewer":  "codex",
+        "reviewStatus":  "USER_AUDITED_CODEX_REVIEWED",
+        "frozenHash":  "09f52146ec9c1a8b3a41210196a44acfe734d639de1a78cb3edea1a24b614a69"
+    },
+    {
+        "caseId":  "rag-v3l-0014",
+        "split":  "FIXED_HOLDOUT",
+        "queryLanguage":  "en",
+        "queryText":  "Which 2024 paper models spatiotemporal context with a state-space model for remote-sensing change detection?",
+        "caseIntent":  "precise_topic_positive",
+        "filter":  {
+                       "fromYear":  2024,
+                       "toYear":  2024
+                   },
+        "expectedOutcome":  "ANSWER",
+        "relevantDois":  [
+                             "10.1109/tgrs.2024.3417253"
+                         ],
+        "relevanceReason":  "ChangeMamba is the 2024 abstract-bearing paper explicitly centered on a spatiotemporal state-space model for remote-sensing change detection.",
+        "labelScope":  "FROZEN_CATALOG_ABSTRACT_SEGMENTS",
+        "labelProvenance":  "CODEX_REVIEW_2026-08-13_FROM_FROZEN_TITLE_AND_ABSTRACT",
+        "reviewer":  "codex",
+        "reviewStatus":  "USER_AUDITED_CODEX_REVIEWED",
+        "frozenHash":  "0871b84872cbf1d83c63960e2321c0a1df86874de7eb3f0fe93a875e6dbb2d05"
+    },
+    {
+        "caseId":  "rag-v3l-0015",
+        "split":  "FIXED_HOLDOUT",
+        "queryLanguage":  "zh",
+        "queryText":  "哪篇论文提出轻量级双分支上下文网络用于精细分辨率遥感语义分割？",
+        "caseIntent":  "cross_language_positive",
+        "filter":  {
+                       "fromYear":  null,
+                       "toYear":  null
+                   },
+        "expectedOutcome":  "ANSWER",
+        "relevantDois":  [
+                             "10.1016/j.isprsjprs.2021.09.005"
+                         ],
+        "relevanceReason":  "ABCNet proposes a lightweight attentive bilateral contextual network with spatial and contextual paths for fine-resolution remote-sensing segmentation.",
+        "labelScope":  "FROZEN_CATALOG_ABSTRACT_SEGMENTS",
+        "labelProvenance":  "CODEX_REVIEW_2026-08-13_FROM_FROZEN_TITLE_AND_ABSTRACT",
+        "reviewer":  "codex",
+        "reviewStatus":  "USER_AUDITED_CODEX_REVIEWED",
+        "frozenHash":  "9ff5c60d961dde0974fb3ad7ff23466e67a24b7c0e8b5abad4d62e6eb43034df"
+    },
+    {
+        "caseId":  "rag-v3l-0016",
+        "split":  "FIXED_HOLDOUT",
+        "queryLanguage":  "en",
+        "queryText":  "Which 2021 paper applies a transformer to remote-sensing image change detection?",
+        "caseIntent":  "year_filter_positive",
+        "filter":  {
+                       "fromYear":  2021,
+                       "toYear":  2021
+                   },
+        "expectedOutcome":  "ANSWER",
+        "relevantDois":  [
+                             "10.1109/tgrs.2021.3095166"
+                         ],
+        "relevanceReason":  "The BIT paper is the abstract-bearing 2021 catalog item that applies a transformer encoder-decoder to remote-sensing image change detection.",
+        "labelScope":  "FROZEN_CATALOG_ABSTRACT_SEGMENTS",
+        "labelProvenance":  "CODEX_REVIEW_2026-08-13_FROM_FROZEN_TITLE_AND_ABSTRACT",
+        "reviewer":  "codex",
+        "reviewStatus":  "USER_AUDITED_CODEX_REVIEWED",
+        "frozenHash":  "079905c8b4dc5fa5d9ee99197e2be57240e5284addf52328fbc9d55dce25670e"
+    },
+    {
+        "caseId":  "rag-v3l-0017",
+        "split":  "FIXED_HOLDOUT",
+        "queryLanguage":  "zh",
+        "queryText":  "2025 年哪项研究将局部线索融入 Mamba 进行遥感二值变化检测？",
+        "caseIntent":  "year_filter_positive",
+        "filter":  {
+                       "fromYear":  2025,
+                       "toYear":  2025
+                   },
+        "expectedOutcome":  "ANSWER",
+        "relevantDois":  [
+                             "10.1109/tgrs.2025.3545012"
+                         ],
+        "relevanceReason":  "CDMamba is the 2025 abstract-bearing paper whose title and abstract identify local clues, Mamba, and binary remote-sensing change detection.",
+        "labelScope":  "FROZEN_CATALOG_ABSTRACT_SEGMENTS",
+        "labelProvenance":  "CODEX_REVIEW_2026-08-13_FROM_FROZEN_TITLE_AND_ABSTRACT",
+        "reviewer":  "codex",
+        "reviewStatus":  "USER_AUDITED_CODEX_REVIEWED",
+        "frozenHash":  "1dc264492f93b7d2c0f99d378ede821b114f3d1638559d39cda4c76488c31468"
+    },
+    {
+        "caseId":  "rag-v3l-0018",
+        "split":  "FIXED_HOLDOUT",
+        "queryLanguage":  "en",
+        "queryText":  "Which 2021 papers use attention mechanisms for semantic segmentation of fine-resolution remote-sensing imagery?",
+        "caseIntent":  "synonym_positive",
+        "filter":  {
+                       "fromYear":  2021,
+                       "toYear":  2021
+                   },
+        "expectedOutcome":  "ANSWER",
+        "relevantDois":  [
+                             "10.1109/tgrs.2021.3093977",
+                             "10.1016/j.isprsjprs.2021.09.005"
+                         ],
+        "relevanceReason":  "The Multiattention Network and ABCNet papers both use attention-related mechanisms for 2021 fine-resolution remote-sensing semantic segmentation.",
+        "labelScope":  "FROZEN_CATALOG_ABSTRACT_SEGMENTS",
+        "labelProvenance":  "CODEX_REVIEW_2026-08-13_FROM_FROZEN_TITLE_AND_ABSTRACT",
+        "reviewer":  "codex",
+        "reviewStatus":  "USER_AUDITED_CODEX_REVIEWED",
+        "frozenHash":  "1c1d20e9da6aff1b053648f1e15d9de8ad0c97c8dc6f1c45c8c68627e179432a"
+    },
+    {
+        "caseId":  "rag-v3l-0019",
+        "split":  "FIXED_HOLDOUT",
+        "queryLanguage":  "zh",
+        "queryText":  "如何使用智能体自动整理企业邮件并创建日程？",
+        "caseIntent":  "semantic_negative_ood",
+        "filter":  {
+                       "fromYear":  null,
+                       "toYear":  null
+                   },
+        "expectedOutcome":  "INSUFFICIENT_EVIDENCE",
+        "relevantDois":  [
+
+                         ],
+        "relevanceReason":  "No frozen catalog paper concerns enterprise email agents, workflow automation, or calendar creation.",
+        "labelScope":  "FROZEN_CATALOG_ABSTRACT_SEGMENTS",
+        "labelProvenance":  "CODEX_REVIEW_2026-08-13_FROM_COMPLETE_FROZEN_CATALOG",
+        "reviewer":  "codex",
+        "reviewStatus":  "USER_AUDITED_CODEX_REVIEWED",
+        "frozenHash":  "5f48e24b6c4a5510c2f1af910fdbf8090fb5cf169cd1b1f98cbfd715bd6e37f9"
+    },
+    {
+        "caseId":  "rag-v3l-0020",
+        "split":  "FIXED_HOLDOUT",
+        "queryLanguage":  "en",
+        "queryText":  "Which state-space models predict protein folding structures?",
+        "caseIntent":  "semantic_negative_ood",
+        "filter":  {
+                       "fromYear":  null,
+                       "toYear":  null
+                   },
+        "expectedOutcome":  "INSUFFICIENT_EVIDENCE",
+        "relevantDois":  [
+
+                         ],
+        "relevanceReason":  "The state-space-model papers in the frozen catalog concern remote-sensing vision, not protein structure prediction.",
+        "labelScope":  "FROZEN_CATALOG_ABSTRACT_SEGMENTS",
+        "labelProvenance":  "CODEX_REVIEW_2026-08-13_FROM_COMPLETE_FROZEN_CATALOG",
+        "reviewer":  "codex",
+        "reviewStatus":  "USER_AUDITED_CODEX_REVIEWED",
+        "frozenHash":  "acbbda8956839f8309abe2f1a444ef6ce5c177c266f8c6bcae1f460995049f52"
+    },
+    {
+        "caseId":  "rag-v3l-0021",
+        "split":  "FIXED_HOLDOUT",
+        "queryLanguage":  "zh",
+        "queryText":  "哪些论文使用 SAR 数据进行洪水淹没范围制图？",
+        "caseIntent":  "semantic_negative_in_domain",
+        "filter":  {
+                       "fromYear":  null,
+                       "toYear":  null
+                   },
+        "expectedOutcome":  "INSUFFICIENT_EVIDENCE",
+        "relevantDois":  [
+
+                         ],
+        "relevanceReason":  "The query is in the remote-sensing domain, but no frozen catalog paper addresses SAR flood-inundation mapping.",
+        "labelScope":  "FROZEN_CATALOG_ABSTRACT_SEGMENTS",
+        "labelProvenance":  "CODEX_REVIEW_2026-08-13_FROM_COMPLETE_FROZEN_CATALOG",
+        "reviewer":  "codex",
+        "reviewStatus":  "USER_AUDITED_CODEX_REVIEWED",
+        "frozenHash":  "52e996d859a14f748ccdc51791e549ba6541e61a6ae19bfe8779434fe3fd1891"
+    },
+    {
+        "caseId":  "rag-v3l-0022",
+        "split":  "FIXED_HOLDOUT",
+        "queryLanguage":  "en",
+        "queryText":  "Which papers detect small aircraft objects in satellite imagery?",
+        "caseIntent":  "semantic_negative_in_domain",
+        "filter":  {
+                       "fromYear":  null,
+                       "toYear":  null
+                   },
+        "expectedOutcome":  "INSUFFICIENT_EVIDENCE",
+        "relevantDois":  [
+
+                         ],
+        "relevanceReason":  "The frozen catalog contains segmentation, classification, object-based analysis, and change-detection work, but no small-aircraft object-detection paper.",
+        "labelScope":  "FROZEN_CATALOG_ABSTRACT_SEGMENTS",
+        "labelProvenance":  "CODEX_REVIEW_2026-08-13_FROM_COMPLETE_FROZEN_CATALOG",
+        "reviewer":  "codex",
+        "reviewStatus":  "USER_AUDITED_CODEX_REVIEWED",
+        "frozenHash":  "515736dba735f49a13b51910ee8cabc1f60fa33495cd9ee86333cc0ab01f7880"
+    },
+    {
+        "caseId":  "rag-v3l-0023",
+        "split":  "FIXED_HOLDOUT",
+        "queryLanguage":  "zh",
+        "queryText":  "请给出当前所有方法中精度最高且部署成本最低的模型。",
+        "caseIntent":  "semantic_negative_underspecified",
+        "filter":  {
+                       "fromYear":  null,
+                       "toYear":  null
+                   },
+        "expectedOutcome":  "INSUFFICIENT_EVIDENCE",
+        "relevantDois":  [
+
+                         ],
+        "relevanceReason":  "The query provides no task or benchmark, and the frozen abstracts do not establish a universal accuracy-and-deployment-cost optimum.",
+        "labelScope":  "FROZEN_CATALOG_ABSTRACT_SEGMENTS",
+        "labelProvenance":  "CODEX_REVIEW_2026-08-13_FROM_COMPLETE_FROZEN_CATALOG",
+        "reviewer":  "codex",
+        "reviewStatus":  "USER_AUDITED_CODEX_REVIEWED",
+        "frozenHash":  "b6049a5e165b9b4aae49aacfbc6c3f2cf8616fbdb4f7fb17cb28b8ca07885265"
+    },
+    {
+        "caseId":  "rag-v3l-0024",
+        "split":  "FIXED_HOLDOUT",
+        "queryLanguage":  "en",
+        "queryText":  "Which trusted papers address remote-sensing dense prediction between 2099 and 2100?",
+        "caseIntent":  "deterministic_empty_year",
+        "filter":  {
+                       "fromYear":  2099,
+                       "toYear":  2100
+                   },
+        "expectedOutcome":  "INSUFFICIENT_EVIDENCE",
+        "relevantDois":  [
+
+                         ],
+        "relevanceReason":  "The frozen catalog has no publication in the requested future-year window, so the eligible evidence set is deterministically empty.",
+        "labelScope":  "FROZEN_CATALOG_ABSTRACT_SEGMENTS",
+        "labelProvenance":  "CODEX_REVIEW_2026-08-13_FROM_COMPLETE_FROZEN_CATALOG",
+        "reviewer":  "codex",
+        "reviewStatus":  "USER_AUDITED_CODEX_REVIEWED",
+        "frozenHash":  "0272d01772a2fbcfaaed13455539e454502f44bf56d4a3688afc36d8719a6d66"
+    }
+]

@@ -1,0 +1,24 @@
+{
+  "catalogKind": "REVIEW_CANDIDATES_ONLY",
+  "source": "current MySQL-rebuilt Qdrant metadata payload",
+  "capturedAtUtc": "2026-08-12T08:20:00Z",
+  "groundTruthStatus": "NOT_GROUND_TRUTH",
+  "selectionRule": "One metadata record per current VERIFIED paper; no relevance decision was inferred.",
+  "papers": [
+    {"paperId":1,"normalizedDoi":"10.3390/rs12101662","title":"A Spatial-Temporal Attention-Based Method and a New Dataset for Remote Sensing Image Change Detection","publicationYear":2020},
+    {"paperId":2,"normalizedDoi":"10.1109/lgrs.2021.3056416","title":"SNUNet-CD: A Densely Connected Siamese Network for Change Detection of VHR Images","publicationYear":2021},
+    {"paperId":3,"normalizedDoi":"10.1016/j.isprsjprs.2009.06.004","title":"Object based image analysis for remote sensing","publicationYear":2009},
+    {"paperId":4,"normalizedDoi":"10.1109/tnnls.2021.3084827","title":"A Survey of Convolutional Neural Networks: Analysis, Applications, and Prospects","publicationYear":2021},
+    {"paperId":5,"normalizedDoi":"10.1109/tgrs.2025.3545012","title":"CDMamba: Incorporating Local Clues Into Mamba for Remote Sensing Image Binary Change Detection","publicationYear":2025},
+    {"paperId":6,"normalizedDoi":"10.1109/tgrs.2024.3417253","title":"ChangeMamba: Remote Sensing Change Detection With Spatiotemporal State Space Model","publicationYear":2024},
+    {"paperId":7,"normalizedDoi":"10.1109/tgrs.2024.3425540","title":"RS-Mamba for Large Remote Sensing Image Dense Prediction","publicationYear":2024},
+    {"paperId":8,"normalizedDoi":"10.1109/lgrs.2025.3551754","title":"Frequency-Enhanced Mamba for Remote Sensing Change Detection","publicationYear":2025},
+    {"paperId":9,"normalizedDoi":"10.1109/tgrs.2021.3085870","title":"A Deeply Supervised Attention Metric-Based Network and an Open Aerial Image Dataset for Remote Sensing Change Detection","publicationYear":2021},
+    {"paperId":10,"normalizedDoi":"10.1109/tgrs.2021.3095166","title":"Remote Sensing Image Change Detection With Transformers","publicationYear":2021},
+    {"paperId":11,"normalizedDoi":"10.1109/tgrs.2023.3241436","title":"Lightweight Remote Sensing Change Detection With Progressive Feature Aggregation and Supervised Attention","publicationYear":2023},
+    {"paperId":12,"normalizedDoi":"10.1016/j.isprsjprs.2024.01.004","title":"ChangeCLIP: Remote sensing change detection with multimodal vision-language representation learning","publicationYear":2024},
+    {"paperId":13,"normalizedDoi":"10.3390/rs16224186","title":"DC-Mamba: A Novel Network for Enhanced Remote Sensing Change Detection in Difficult Cases","publicationYear":2024},
+    {"paperId":14,"normalizedDoi":"10.3390/rs13030516","title":"Vision Transformers for Remote Sensing Image Classification","publicationYear":2021},
+    {"paperId":15,"normalizedDoi":"10.3390/rs14040871","title":"Deep Learning-Based Change Detection in Remote Sensing Images: A Review","publicationYear":2022}
+  ]
+}

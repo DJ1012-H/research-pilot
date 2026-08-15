@@ -1,0 +1,229 @@
+{
+  "catalogId": "rag-retrieval-v3-lite-candidates-20260813",
+  "catalogKind": "FROZEN_LIVE_DERIVED_CANDIDATE_SNAPSHOT",
+  "capturedAtUtc": "2026-08-13T08:55:10.713Z",
+  "source": "Live Qdrant payload snapshot immediately after a MySQL-authoritative RAG rebuild",
+  "trustBoundary": "MySQL remains the trust authority. Qdrant is derived state; paperId values are non-authoritative runtime snapshots and DOI is the stable evaluation key.",
+  "runtimeHealthAtCapture": {
+    "application": "UP",
+    "mysql": "UP",
+    "redis": "UP",
+    "ollamaEmbedding": "UP",
+    "qdrant": "UP",
+    "llmConfigured": true
+  },
+  "qdrantSnapshot": {
+    "collectionName": "research_pilot_paper_segments_v1",
+    "collectionStatus": "green",
+    "pointCount": 27,
+    "paperCount": 18,
+    "metadataSegmentCount": 18,
+    "abstractSegmentCount": 9,
+    "embeddingModel": "qwen3-embedding:0.6b",
+    "embeddingVersion": "qe06b-d1024-t1-c350-o30-n1",
+    "vectorDimensions": 1024
+  },
+  "selectionRule": "Exactly one catalog record per normalized DOI whose live derived payload reported VERIFIED; no relevance label was inferred from retrieval output.",
+  "evaluationTarget": "The v3-lite labels target ABSTRACT segments admitted by the current RAG answer path. Metadata-only papers remain catalogued but cannot be positive labels for answer evidence.",
+  "groundTruthStatus": "NOT_GROUND_TRUTH",
+  "papers": [
+    {
+      "paperIdSnapshot": 1,
+      "normalizedDoi": "10.3390/rs12101662",
+      "title": "A Spatial-Temporal Attention-Based Method and a New Dataset for Remote Sensing Image Change Detection",
+      "publicationYear": 2020,
+      "venue": "Remote Sensing",
+      "verificationStatus": "VERIFIED",
+      "metadataContentHash": "a2871b400214dc31ccabf2fa8590a10e73190b850c029ba877b47cd3caf08946",
+      "abstractContentHash": null,
+      "eligibleForAbstractRetrieval": false
+    },
+    {
+      "paperIdSnapshot": 2,
+      "normalizedDoi": "10.1109/lgrs.2021.3056416",
+      "title": "SNUNet-CD: A Densely Connected Siamese Network for Change Detection of VHR Images",
+      "publicationYear": 2021,
+      "venue": "IEEE Geoscience and Remote Sensing Letters",
+      "verificationStatus": "VERIFIED",
+      "metadataContentHash": "21904fe08d9a78313a504f61ec12e36a758f89e84f4a8946eeffc68048f0f6c6",
+      "abstractContentHash": null,
+      "eligibleForAbstractRetrieval": false
+    },
+    {
+      "paperIdSnapshot": 3,
+      "normalizedDoi": "10.1016/j.isprsjprs.2009.06.004",
+      "title": "Object based image analysis for remote sensing",
+      "publicationYear": 2009,
+      "venue": "ISPRS Journal of Photogrammetry and Remote Sensing",
+      "verificationStatus": "VERIFIED",
+      "metadataContentHash": "c14d6076a6a520c8aeb142731716490ead312149a066066be231f73b27f65ada",
+      "abstractContentHash": null,
+      "eligibleForAbstractRetrieval": false
+    },
+    {
+      "paperIdSnapshot": 4,
+      "normalizedDoi": "10.1109/tnnls.2021.3084827",
+      "title": "A Survey of Convolutional Neural Networks: Analysis, Applications, and Prospects",
+      "publicationYear": 2021,
+      "venue": "IEEE Transactions on Neural Networks and Learning Systems",
+      "verificationStatus": "VERIFIED",
+      "metadataContentHash": "e8d7aa3114ddd59a8746bbc6359cdc9473250f332443f16a9bd755175de4807d",
+      "abstractContentHash": null,
+      "eligibleForAbstractRetrieval": false
+    },
+    {
+      "paperIdSnapshot": 5,
+      "normalizedDoi": "10.1109/tgrs.2025.3545012",
+      "title": "CDMamba: Incorporating Local Clues Into Mamba for Remote Sensing Image Binary Change Detection",
+      "publicationYear": 2025,
+      "venue": "IEEE Transactions on Geoscience and Remote Sensing",
+      "verificationStatus": "VERIFIED",
+      "metadataContentHash": "d0fe36d1fe219273e5e7a02801b9debe01a4c08adf39b1e556b32575481f0b7f",
+      "abstractContentHash": "0b4a519433a7275661d6e03be79ec2b57e83bef54c0a7fb09d4b4dca9757880c",
+      "eligibleForAbstractRetrieval": true
+    },
+    {
+      "paperIdSnapshot": 6,
+      "normalizedDoi": "10.1109/tgrs.2024.3417253",
+      "title": "ChangeMamba: Remote Sensing Change Detection With Spatiotemporal State Space Model",
+      "publicationYear": 2024,
+      "venue": "IEEE Transactions on Geoscience and Remote Sensing",
+      "verificationStatus": "VERIFIED",
+      "metadataContentHash": "3d834352224f9ffb5093842d39ed11f3c34716c58a0f8663ace2a7d243b44964",
+      "abstractContentHash": "15e7ca46cae66ac086860eddd7cbc18af9c19b7ee6c668160f687b5bce4fa54e",
+      "eligibleForAbstractRetrieval": true
+    },
+    {
+      "paperIdSnapshot": 7,
+      "normalizedDoi": "10.1109/tgrs.2024.3425540",
+      "title": "RS-Mamba for Large Remote Sensing Image Dense Prediction",
+      "publicationYear": 2024,
+      "venue": "IEEE Transactions on Geoscience and Remote Sensing",
+      "verificationStatus": "VERIFIED",
+      "metadataContentHash": "8603f6847dc29913c8eae60b61b742ae276efc5b786ef0df8cd46a151f5c574b",
+      "abstractContentHash": "25328b4476a2473ebf4dd271bc7d37bedd1da0fd97e354f1017aa98618ce00fe",
+      "eligibleForAbstractRetrieval": true
+    },
+    {
+      "paperIdSnapshot": 8,
+      "normalizedDoi": "10.1109/lgrs.2025.3551754",
+      "title": "Frequency-Enhanced Mamba for Remote Sensing Change Detection",
+      "publicationYear": 2025,
+      "venue": "IEEE Geoscience and Remote Sensing Letters",
+      "verificationStatus": "VERIFIED",
+      "metadataContentHash": "5d22feb44ff0747dd3422760ce90754ed5bf94afa3dddc173643793fdea1e4c3",
+      "abstractContentHash": null,
+      "eligibleForAbstractRetrieval": false
+    },
+    {
+      "paperIdSnapshot": 9,
+      "normalizedDoi": "10.1109/tgrs.2021.3085870",
+      "title": "A Deeply Supervised Attention Metric-Based Network and an Open Aerial Image Dataset for Remote Sensing Change Detection",
+      "publicationYear": 2021,
+      "venue": "IEEE Transactions on Geoscience and Remote Sensing",
+      "verificationStatus": "VERIFIED",
+      "metadataContentHash": "436fdff374004b01593dcae4e9b8e50885fa4341eb0d9e73ee17fd55ff2edfc5",
+      "abstractContentHash": null,
+      "eligibleForAbstractRetrieval": false
+    },
+    {
+      "paperIdSnapshot": 10,
+      "normalizedDoi": "10.1109/tgrs.2021.3095166",
+      "title": "Remote Sensing Image Change Detection With Transformers",
+      "publicationYear": 2021,
+      "venue": "IEEE Transactions on Geoscience and Remote Sensing",
+      "verificationStatus": "VERIFIED",
+      "metadataContentHash": "0143d474ae58b334e821869214cf48ad20c0a2f0257057fb0f68633e9064bfd7",
+      "abstractContentHash": "4b22a6bb0c1c1e8392e7dcff9afd024fea898acaebe7e032e92b23bbd8f51bb4",
+      "eligibleForAbstractRetrieval": true
+    },
+    {
+      "paperIdSnapshot": 11,
+      "normalizedDoi": "10.1109/tgrs.2023.3241436",
+      "title": "Lightweight Remote Sensing Change Detection With Progressive Feature Aggregation and Supervised Attention",
+      "publicationYear": 2023,
+      "venue": "IEEE Transactions on Geoscience and Remote Sensing",
+      "verificationStatus": "VERIFIED",
+      "metadataContentHash": "055eeae9db401100622e2cbe6f385902d0070e2e06887c5f22847281539c3d9b",
+      "abstractContentHash": null,
+      "eligibleForAbstractRetrieval": false
+    },
+    {
+      "paperIdSnapshot": 12,
+      "normalizedDoi": "10.1016/j.isprsjprs.2024.01.004",
+      "title": "ChangeCLIP: Remote sensing change detection with multimodal vision-language representation learning",
+      "publicationYear": 2024,
+      "venue": "ISPRS Journal of Photogrammetry and Remote Sensing",
+      "verificationStatus": "VERIFIED",
+      "metadataContentHash": "c689781aad34e154224a40ecf2912924d129ecf5210b155a1de53b8325cf85ee",
+      "abstractContentHash": null,
+      "eligibleForAbstractRetrieval": false
+    },
+    {
+      "paperIdSnapshot": 13,
+      "normalizedDoi": "10.3390/rs16224186",
+      "title": "DC-Mamba: A Novel Network for Enhanced Remote Sensing Change Detection in Difficult Cases",
+      "publicationYear": 2024,
+      "venue": "Remote Sensing",
+      "verificationStatus": "VERIFIED",
+      "metadataContentHash": "deda91fcdcd2facc3cfa12474097674eab56e8991e3e007e8f7d7c05ecaa8a69",
+      "abstractContentHash": null,
+      "eligibleForAbstractRetrieval": false
+    },
+    {
+      "paperIdSnapshot": 14,
+      "normalizedDoi": "10.3390/rs13030516",
+      "title": "Vision Transformers for Remote Sensing Image Classification",
+      "publicationYear": 2021,
+      "venue": "Remote Sensing",
+      "verificationStatus": "VERIFIED",
+      "metadataContentHash": "ef89932a9f801c8f3e4ca557248208d4e46cb31fc0165d08c6c93b97f809ba92",
+      "abstractContentHash": "a057b4f89ef23bda71c3f165228c4fc55304eba28183647163cdc043009a7fe7",
+      "eligibleForAbstractRetrieval": true
+    },
+    {
+      "paperIdSnapshot": 15,
+      "normalizedDoi": "10.3390/rs14040871",
+      "title": "Deep Learning-Based Change Detection in Remote Sensing Images: A Review",
+      "publicationYear": 2022,
+      "venue": "Remote Sensing",
+      "verificationStatus": "VERIFIED",
+      "metadataContentHash": "2d664382a62c3d9cb1ea43ad621f66e28ba252f2eb4c74c5f71a22b484056e37",
+      "abstractContentHash": "b82f03c8ee1b7a2b77313d749dcd65d4ac19fa64694b5257e072a8299e406e30",
+      "eligibleForAbstractRetrieval": true
+    },
+    {
+      "paperIdSnapshot": 16,
+      "normalizedDoi": "10.1109/tgrs.2021.3093977",
+      "title": "Multiattention Network for Semantic Segmentation of Fine-Resolution Remote Sensing Images",
+      "publicationYear": 2021,
+      "venue": "IEEE Transactions on Geoscience and Remote Sensing",
+      "verificationStatus": "VERIFIED",
+      "metadataContentHash": "8d3431abf8a178d4f299965348d6d3be0132b562ec6874549f5b442aa46d12cb",
+      "abstractContentHash": "89e264b4824d20b00083f27f1f5494ee95d977320cfbfe503046e068710be519",
+      "eligibleForAbstractRetrieval": true
+    },
+    {
+      "paperIdSnapshot": 17,
+      "normalizedDoi": "10.1016/j.heliyon.2024.e38495",
+      "title": "Samba: Semantic segmentation of remotely sensed images with state space model",
+      "publicationYear": 2024,
+      "venue": "Heliyon",
+      "verificationStatus": "VERIFIED",
+      "metadataContentHash": "9dd7334966eae5d5abac9a180a2a2c1d6d16c5b3e183a84b08e5ec589755d7cd",
+      "abstractContentHash": "3f168d3c223e98f6049747f8eab35fb95474831555a8f6169811510f6e79f0cb",
+      "eligibleForAbstractRetrieval": true
+    },
+    {
+      "paperIdSnapshot": 18,
+      "normalizedDoi": "10.1016/j.isprsjprs.2021.09.005",
+      "title": "ABCNet: Attentive bilateral contextual network for efficient semantic segmentation of Fine-Resolution remotely sensed imagery",
+      "publicationYear": 2021,
+      "venue": "ISPRS Journal of Photogrammetry and Remote Sensing",
+      "verificationStatus": "VERIFIED",
+      "metadataContentHash": "933c90d7f8d8640020e4325bb5841597d832651281f73cfbafaf72ff2da3e547",
+      "abstractContentHash": "3b8d4a70770ff5dfe34a4b4549b56f3c81b15e330d661c43197c1f3db4b3982c",
+      "eligibleForAbstractRetrieval": true
+    }
+  ]
+}

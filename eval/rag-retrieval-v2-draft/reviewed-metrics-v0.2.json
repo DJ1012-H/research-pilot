@@ -1,0 +1,55 @@
+{
+  "datasetId": "rag-retrieval-v2-draft",
+  "metricKind": "USER_AUDITED_CODEX_REVIEWED_RETRIEVAL_OBSERVATION",
+  "computedAtUtc": "2026-08-12T10:10:00Z",
+  "userAuditAcceptedAtUtc": "2026-08-12T16:38:59.1626427Z",
+  "reviewer": "codex",
+  "userAuditDecision": "ACCEPT_ALL",
+  "reviewedCaseCount": 12,
+  "nonEmptyRelevantSetCaseCount": 10,
+  "emptyRelevantSetCaseCount": 2,
+  "topK": 5,
+  "metricDefinitions": {
+    "Recall@K": "For the 10 cases with non-empty reviewed relevantPaperIds, intersection(relevantPaperIds, rankedPaperIds[1..K]) divided by relevantPaperIds count; empty-set cases excluded from recall denominator.",
+    "Hit@5": "For the 10 cases with non-empty reviewed relevantPaperIds, whether at least one relevant paper appears in rankedPaperIds[1..5].",
+    "MRR": "For the 10 cases with non-empty reviewed relevantPaperIds, reciprocal rank of the first relevant paper; zero if none appears in the observed top-5.",
+    "emptySetCases": "Reported separately and not scored as recall zero."
+  },
+  "formalMetrics": {
+    "Recall@1": 0.1633333333,
+    "Recall@3": 0.5666666667,
+    "Recall@5": 0.72,
+    "Hit@5": 1.0,
+    "MRR": 0.7583333333
+  },
+  "emptySetCaseResults": [
+    {
+      "caseId": "rag-v2-0007",
+      "expected": "NO_RELEVANT_RESULT",
+      "observedTopKStatus": "SUCCESS",
+      "observedRankedPaperIds": [9, 13, 7, 5, 2],
+      "reviewNote": "The service returns nearest candidates; the user accepted the empty relevant set, so answer-layer policy must not treat retrieval presence as relevance."
+    },
+    {
+      "caseId": "rag-v2-0012",
+      "expected": "NO_TRUSTED_RESULTS",
+      "observedTopKStatus": "NO_TRUSTED_RESULTS",
+      "observedRankedPaperIds": [],
+      "reviewNote": "The user accepted the empty 2099-2100 trusted window; the observed retrieval correctly failed closed."
+    }
+  ],
+  "sourceFiles": [
+    "cases.jsonl",
+    "retrieval-observation-v0.1.jsonl",
+    "candidate-paper-catalog-v0.1.json",
+    "ai-review-suggestions-v0.1.json",
+    "user-audit-v0.1.json"
+  ],
+  "supersedes": "reviewed-metrics-v0.1.json",
+  "historyPolicy": "reviewed-metrics-v0.1.json is retained unchanged as the Codex-only reviewed metric record.",
+  "limitations": [
+    "Metrics are based on one captured retrieval observation per case.",
+    "The 0007 empty-set case demonstrates that nearest-neighbor retrieval can return candidates for an irrelevant query; it is not a false pass.",
+    "The user accepted the supplied review packet; this was not a blind independent inter-rater relabeling."
+  ]
+}

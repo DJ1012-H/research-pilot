@@ -1,0 +1,114 @@
+{
+  "datasetId": "rag-retrieval-v3-lite",
+  "datasetVersion": "v3-lite-day1-20260813",
+  "datasetKind": "SMALL_FROZEN_INTERVIEW_READINESS_EVALUATION",
+  "createdAtUtc": "2026-08-13T08:55:10.713Z",
+  "evaluationTarget": "ABSTRACT_ONLY_TRUSTED_RAG_RETRIEVAL_AND_REFUSAL",
+  "candidateCatalogPath": "candidate-catalog.json",
+  "tuningCasesPath": "tuning-cases.json",
+  "fixedHoldoutCasesPath": "fixed-holdout-cases.json",
+  "schemaPath": "schema/retrieval-case.schema.json",
+  "reviewNotesPath": "review-notes.md",
+  "userAuditPath": "user-audit-v0.1.json",
+  "validatorPath": "scripts/validate-rag-retrieval-v3-lite.ps1",
+  "caseCount": 24,
+  "tuningCaseCount": 12,
+  "fixedHoldoutCaseCount": 12,
+  "positiveCaseCount": 12,
+  "negativeCaseCount": 12,
+  "chineseCaseCount": 12,
+  "englishCaseCount": 12,
+  "semanticNegativeCaseCount": 10,
+  "deterministicEmptyYearCaseCount": 2,
+  "candidatePaperCount": 18,
+  "abstractEligiblePaperCount": 9,
+  "stableLabelKey": "normalized DOI",
+  "paperIdPolicy": "paperIdSnapshot is diagnostic only and must be resolved against the current trust authority for a live run",
+  "review": {
+    "caseLifecycleStatus": "REVIEWED_BY_CODEX",
+    "reviewer": "codex",
+    "authority": "USER_REQUESTED_DAY1_COMPLETION_2026-08-13",
+    "groundTruthStatus": "USER_AUDITED_CODEX_REVIEWED",
+    "userAuditStatus": "COMPLETED_ACCEPT_ALL",
+    "userAuditDecisionAtUtc": "2026-08-13T09:17:59.3184438Z",
+    "userAuditPath": "user-audit-v0.1.json",
+    "independentHumanInterRaterStatus": "NOT_PERFORMED",
+    "retrievalOutputUsedForLabels": false
+  },
+  "splitPolicy": {
+    "tuning": "May be used for Day 2 prompt, policy, Top-K, and admission tuning.",
+    "fixedHoldout": "Must remain untouched and must not be used for result-driven tuning after this manifest is frozen.",
+    "balance": "Each split has six positive, six negative, six Chinese, and six English cases."
+  },
+  "caseHashCanonicalization": {
+    "algorithm": "SHA-256 over UTF-8",
+    "separator": "|",
+    "fieldOrder": [
+      "caseId",
+      "split",
+      "queryLanguage",
+      "queryText",
+      "caseIntent",
+      "filter.fromYear as integer or null",
+      "filter.toYear as integer or null",
+      "expectedOutcome",
+      "relevantDois lowercased and comma-joined in stored order",
+      "relevanceReason",
+      "labelScope",
+      "labelProvenance",
+      "reviewer",
+      "reviewStatus"
+    ]
+  },
+  "fileHashPolicy": "SHA-256 of file bytes; the dataset-local .gitattributes pins all text files to LF across checkouts.",
+  "files": [
+    {
+      "path": ".gitattributes",
+      "sha256": "a79691a93b46e49ce460c26ef22afcc03d6eca1e63bf2edbc20e96159510f6c9"
+    },
+    {
+      "path": "candidate-catalog.json",
+      "sha256": "76673954d937fd9e6a424cd10159c5e12bec254536bf945e366792f3de8ebe90"
+    },
+    {
+      "path": "tuning-cases.json",
+      "sha256": "3d4b43203140ae40c9aa03192bccbb3c0e5eecf33228cf006cc512eb36765f6d"
+    },
+    {
+      "path": "fixed-holdout-cases.json",
+      "sha256": "14b4c35d1e7f7a0b02f8b64edbe7e739411e715681505cc01feac9f69cf063d0"
+    },
+    {
+      "path": "review-notes.md",
+      "sha256": "55891ca7a903af8806f5715b435a431775f0b6d3f664200b3a66a2f2b740d2ac"
+    },
+    {
+      "path": "README.md",
+      "sha256": "4320f0c4a254ef08b200cc5c2b26f51e8e741890be4ce8ab5b45efb5c0e45799"
+    },
+    {
+      "path": "schema/retrieval-case.schema.json",
+      "sha256": "d74d73a686d208871715170c07ad1ffa3a365a0cc1ae7c94c04ae37d84a22d21"
+    },
+    {
+      "path": "user-audit-v0.1.json",
+      "sha256": "6beaae48f672f864cce8dc791fae73a04553b82454841213bb030ed0fa4f3a1d"
+    }
+  ],
+  "runtimeSnapshot": {
+    "application": "UP",
+    "mysql": "UP",
+    "redis": "UP",
+    "ollamaEmbedding": "UP",
+    "qdrant": "UP",
+    "llmConfigured": true,
+    "qdrantCollection": "research_pilot_paper_segments_v1",
+    "qdrantPointCount": 27,
+    "embeddingModel": "qwen3-embedding:0.6b",
+    "embeddingDimensions": 1024
+  },
+  "historicalDatasetPolicy": "eval/rag-retrieval-v2-draft remains unchanged and is referenced only for migration review",
+  "metricsStatus": "UNMEASURED_DAY1_DATA_PREPARATION_ONLY",
+  "day1Status": "COMPLETE_USER_AUDITED",
+  "nextStep": "Implement and test the bounded evidence-relevance admission stage using tuning cases only."
+}

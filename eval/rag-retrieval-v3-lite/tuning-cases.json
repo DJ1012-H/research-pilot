@@ -1,0 +1,262 @@
+[
+    {
+        "caseId":  "rag-v3l-0001",
+        "split":  "TUNING",
+        "queryLanguage":  "zh",
+        "queryText":  "选择性状态空间模型如何用于遥感影像的语义分割和变化检测？",
+        "caseIntent":  "cross_language_positive",
+        "filter":  {
+                       "fromYear":  null,
+                       "toYear":  null
+                   },
+        "expectedOutcome":  "ANSWER",
+        "relevantDois":  [
+                             "10.1109/tgrs.2025.3545012",
+                             "10.1109/tgrs.2024.3417253",
+                             "10.1109/tgrs.2024.3425540",
+                             "10.1016/j.heliyon.2024.e38495"
+                         ],
+        "relevanceReason":  "CDMamba and ChangeMamba apply Mamba or state-space modeling to change detection; RS-Mamba covers remote-sensing dense prediction including segmentation and change detection; Samba applies a state-space model to semantic segmentation.",
+        "labelScope":  "FROZEN_CATALOG_ABSTRACT_SEGMENTS",
+        "labelProvenance":  "CODEX_REVIEW_2026-08-13_FROM_FROZEN_TITLE_AND_ABSTRACT",
+        "reviewer":  "codex",
+        "reviewStatus":  "USER_AUDITED_CODEX_REVIEWED",
+        "frozenHash":  "32fb147c5bbbca787cc1a281373d8cc42210b5a5cf893b1e49fc3be7a62b71de"
+    },
+    {
+        "caseId":  "rag-v3l-0002",
+        "split":  "TUNING",
+        "queryLanguage":  "en",
+        "queryText":  "Which remote-sensing papers apply Mamba or state-space sequence models to dense prediction?",
+        "caseIntent":  "synonym_positive",
+        "filter":  {
+                       "fromYear":  null,
+                       "toYear":  null
+                   },
+        "expectedOutcome":  "ANSWER",
+        "relevantDois":  [
+                             "10.1109/tgrs.2025.3545012",
+                             "10.1109/tgrs.2024.3417253",
+                             "10.1109/tgrs.2024.3425540",
+                             "10.1016/j.heliyon.2024.e38495"
+                         ],
+        "relevanceReason":  "The four abstract-bearing papers explicitly use Mamba or state-space models for remote-sensing change detection, dense prediction, or semantic segmentation.",
+        "labelScope":  "FROZEN_CATALOG_ABSTRACT_SEGMENTS",
+        "labelProvenance":  "CODEX_REVIEW_2026-08-13_FROM_FROZEN_TITLE_AND_ABSTRACT",
+        "reviewer":  "codex",
+        "reviewStatus":  "USER_AUDITED_CODEX_REVIEWED",
+        "frozenHash":  "72d4a5f8665baab2609a620c3cece898d9fe94a22df256bd61bfc24463dd3404"
+    },
+    {
+        "caseId":  "rag-v3l-0003",
+        "split":  "TUNING",
+        "queryLanguage":  "zh",
+        "queryText":  "哪些研究使用线性复杂度的长程上下文建模进行高分辨率遥感语义分割？",
+        "caseIntent":  "long_context_positive",
+        "filter":  {
+                       "fromYear":  null,
+                       "toYear":  null
+                   },
+        "expectedOutcome":  "ANSWER",
+        "relevantDois":  [
+                             "10.1109/tgrs.2024.3425540",
+                             "10.1016/j.heliyon.2024.e38495"
+                         ],
+        "relevanceReason":  "RS-Mamba explicitly targets global context with linear complexity for large VHR dense prediction, and Samba uses a state-space encoder to address long sequences in high-resolution semantic segmentation.",
+        "labelScope":  "FROZEN_CATALOG_ABSTRACT_SEGMENTS",
+        "labelProvenance":  "CODEX_REVIEW_2026-08-13_FROM_FROZEN_TITLE_AND_ABSTRACT",
+        "reviewer":  "codex",
+        "reviewStatus":  "USER_AUDITED_CODEX_REVIEWED",
+        "frozenHash":  "5ad4a6ec5fa2a8a619861cb197bcf836da5e87f8781d543901b942b85240bd7f"
+    },
+    {
+        "caseId":  "rag-v3l-0004",
+        "split":  "TUNING",
+        "queryLanguage":  "en",
+        "queryText":  "Which lightweight two-branch CNN performs semantic segmentation of fine-resolution remotely sensed imagery?",
+        "caseIntent":  "precise_topic_positive",
+        "filter":  {
+                       "fromYear":  null,
+                       "toYear":  null
+                   },
+        "expectedOutcome":  "ANSWER",
+        "relevantDois":  [
+                             "10.1016/j.isprsjprs.2021.09.005"
+                         ],
+        "relevanceReason":  "ABCNet is the abstract-bearing catalog paper that describes a lightweight CNN with spatial and contextual paths for fine-resolution remote-sensing semantic segmentation.",
+        "labelScope":  "FROZEN_CATALOG_ABSTRACT_SEGMENTS",
+        "labelProvenance":  "CODEX_REVIEW_2026-08-13_FROM_FROZEN_TITLE_AND_ABSTRACT",
+        "reviewer":  "codex",
+        "reviewStatus":  "USER_AUDITED_CODEX_REVIEWED",
+        "frozenHash":  "30fb98ec652ded73da1dae4428c8b3a824cb735edaadb0e2d305f257b0e0d733"
+    },
+    {
+        "caseId":  "rag-v3l-0005",
+        "split":  "TUNING",
+        "queryLanguage":  "zh",
+        "queryText":  "2021 年有哪些论文使用注意力机制进行高分辨率遥感语义分割？",
+        "caseIntent":  "year_filter_positive",
+        "filter":  {
+                       "fromYear":  2021,
+                       "toYear":  2021
+                   },
+        "expectedOutcome":  "ANSWER",
+        "relevantDois":  [
+                             "10.1109/tgrs.2021.3093977",
+                             "10.1016/j.isprsjprs.2021.09.005"
+                         ],
+        "relevanceReason":  "Both 2021 papers address fine-resolution remote-sensing semantic segmentation and explicitly use multiattention or attentive bilateral contextual mechanisms.",
+        "labelScope":  "FROZEN_CATALOG_ABSTRACT_SEGMENTS",
+        "labelProvenance":  "CODEX_REVIEW_2026-08-13_FROM_FROZEN_TITLE_AND_ABSTRACT",
+        "reviewer":  "codex",
+        "reviewStatus":  "USER_AUDITED_CODEX_REVIEWED",
+        "frozenHash":  "e731a187ba995556dfb64aefaa5262207403eab823b9d4df866ee4a62e12a357"
+    },
+    {
+        "caseId":  "rag-v3l-0006",
+        "split":  "TUNING",
+        "queryLanguage":  "en",
+        "queryText":  "Which paper reviews deep-learning methods and datasets for remote-sensing change detection?",
+        "caseIntent":  "survey_positive",
+        "filter":  {
+                       "fromYear":  null,
+                       "toYear":  null
+                   },
+        "expectedOutcome":  "ANSWER",
+        "relevantDois":  [
+                             "10.3390/rs14040871"
+                         ],
+        "relevanceReason":  "The Remote Sensing review explicitly surveys supervised, unsupervised, and semi-supervised deep-learning change-detection methods and dataset types.",
+        "labelScope":  "FROZEN_CATALOG_ABSTRACT_SEGMENTS",
+        "labelProvenance":  "CODEX_REVIEW_2026-08-13_FROM_FROZEN_TITLE_AND_ABSTRACT",
+        "reviewer":  "codex",
+        "reviewStatus":  "USER_AUDITED_CODEX_REVIEWED",
+        "frozenHash":  "d11323934feb50af0ee8451014fab9eff0f5e18be084dfb7ad11e3d0b9087256"
+    },
+    {
+        "caseId":  "rag-v3l-0007",
+        "split":  "TUNING",
+        "queryLanguage":  "zh",
+        "queryText":  "量子遥感邮件分类有哪些可信论文？",
+        "caseIntent":  "semantic_negative_ood",
+        "filter":  {
+                       "fromYear":  null,
+                       "toYear":  null
+                   },
+        "expectedOutcome":  "INSUFFICIENT_EVIDENCE",
+        "relevantDois":  [
+
+                         ],
+        "relevanceReason":  "The frozen catalog contains remote-sensing vision papers, but no paper about quantum methods or email classification.",
+        "labelScope":  "FROZEN_CATALOG_ABSTRACT_SEGMENTS",
+        "labelProvenance":  "CODEX_REVIEW_2026-08-13_FROM_COMPLETE_FROZEN_CATALOG",
+        "reviewer":  "codex",
+        "reviewStatus":  "USER_AUDITED_CODEX_REVIEWED",
+        "frozenHash":  "a520ac58530f569e58260d6c316daaaef1274c354556c3578ff56b08fefe627c"
+    },
+    {
+        "caseId":  "rag-v3l-0008",
+        "split":  "TUNING",
+        "queryLanguage":  "en",
+        "queryText":  "Which large language models are best for clinical radiology report generation?",
+        "caseIntent":  "semantic_negative_ood",
+        "filter":  {
+                       "fromYear":  null,
+                       "toYear":  null
+                   },
+        "expectedOutcome":  "INSUFFICIENT_EVIDENCE",
+        "relevantDois":  [
+
+                         ],
+        "relevanceReason":  "No frozen catalog paper studies clinical radiology report generation or large language models.",
+        "labelScope":  "FROZEN_CATALOG_ABSTRACT_SEGMENTS",
+        "labelProvenance":  "CODEX_REVIEW_2026-08-13_FROM_COMPLETE_FROZEN_CATALOG",
+        "reviewer":  "codex",
+        "reviewStatus":  "USER_AUDITED_CODEX_REVIEWED",
+        "frozenHash":  "081c2d9e994e5e2286ee191e41eefb33ae12eec39d2aa6ce891eb86fb9edd0fc"
+    },
+    {
+        "caseId":  "rag-v3l-0009",
+        "split":  "TUNING",
+        "queryLanguage":  "zh",
+        "queryText":  "哪些论文研究合成孔径雷达舰船目标检测？",
+        "caseIntent":  "semantic_negative_in_domain",
+        "filter":  {
+                       "fromYear":  null,
+                       "toYear":  null
+                   },
+        "expectedOutcome":  "INSUFFICIENT_EVIDENCE",
+        "relevantDois":  [
+
+                         ],
+        "relevanceReason":  "The topic is within remote sensing, but the frozen catalog has no SAR ship-detection paper.",
+        "labelScope":  "FROZEN_CATALOG_ABSTRACT_SEGMENTS",
+        "labelProvenance":  "CODEX_REVIEW_2026-08-13_FROM_COMPLETE_FROZEN_CATALOG",
+        "reviewer":  "codex",
+        "reviewStatus":  "USER_AUDITED_CODEX_REVIEWED",
+        "frozenHash":  "6a4e47cddf70d1043a0b1761d893b269b5f4ae31a3df36f7926be2cd49fcbeeb"
+    },
+    {
+        "caseId":  "rag-v3l-0010",
+        "split":  "TUNING",
+        "queryLanguage":  "en",
+        "queryText":  "Which papers use diffusion models for cloud removal in satellite images?",
+        "caseIntent":  "semantic_negative_in_domain",
+        "filter":  {
+                       "fromYear":  null,
+                       "toYear":  null
+                   },
+        "expectedOutcome":  "INSUFFICIENT_EVIDENCE",
+        "relevantDois":  [
+
+                         ],
+        "relevanceReason":  "The frozen catalog contains no diffusion-model or satellite cloud-removal study.",
+        "labelScope":  "FROZEN_CATALOG_ABSTRACT_SEGMENTS",
+        "labelProvenance":  "CODEX_REVIEW_2026-08-13_FROM_COMPLETE_FROZEN_CATALOG",
+        "reviewer":  "codex",
+        "reviewStatus":  "USER_AUDITED_CODEX_REVIEWED",
+        "frozenHash":  "a6e0a91509b309216ef1603696b352910933e2ea69b0c3d1d6a11d552884ffd0"
+    },
+    {
+        "caseId":  "rag-v3l-0011",
+        "split":  "TUNING",
+        "queryLanguage":  "zh",
+        "queryText":  "效果最好的模型是什么？",
+        "caseIntent":  "semantic_negative_underspecified",
+        "filter":  {
+                       "fromYear":  null,
+                       "toYear":  null
+                   },
+        "expectedOutcome":  "INSUFFICIENT_EVIDENCE",
+        "relevantDois":  [
+
+                         ],
+        "relevanceReason":  "The query omits task, dataset, metric, and scope, so the frozen evidence cannot support a trustworthy best-model claim.",
+        "labelScope":  "FROZEN_CATALOG_ABSTRACT_SEGMENTS",
+        "labelProvenance":  "CODEX_REVIEW_2026-08-13_FROM_COMPLETE_FROZEN_CATALOG",
+        "reviewer":  "codex",
+        "reviewStatus":  "USER_AUDITED_CODEX_REVIEWED",
+        "frozenHash":  "992e17d51cb2944fe3c26cded7d0f417726c123d76c8ebccb1b0b6b86a0e450a"
+    },
+    {
+        "caseId":  "rag-v3l-0012",
+        "split":  "TUNING",
+        "queryLanguage":  "en",
+        "queryText":  "Which trusted papers study remote-sensing segmentation or change detection in 2099?",
+        "caseIntent":  "deterministic_empty_year",
+        "filter":  {
+                       "fromYear":  2099,
+                       "toYear":  2099
+                   },
+        "expectedOutcome":  "INSUFFICIENT_EVIDENCE",
+        "relevantDois":  [
+
+                         ],
+        "relevanceReason":  "The frozen catalog has no publication in 2099; the year filter deterministically produces an empty eligible set.",
+        "labelScope":  "FROZEN_CATALOG_ABSTRACT_SEGMENTS",
+        "labelProvenance":  "CODEX_REVIEW_2026-08-13_FROM_COMPLETE_FROZEN_CATALOG",
+        "reviewer":  "codex",
+        "reviewStatus":  "USER_AUDITED_CODEX_REVIEWED",
+        "frozenHash":  "696c6319b31325987505b5962f7a2a2da924a56018f52a12a4083fe70084ae64"
+    }
+]

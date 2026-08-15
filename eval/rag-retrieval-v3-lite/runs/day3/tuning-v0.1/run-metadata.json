@@ -1,0 +1,18 @@
+{
+    "schemaVersion":  "rag-v3-lite-run-metadata-v0.1",
+    "runId":  "rag-v3l-tuning-20260814T055622515Z-c73e650f",
+    "startedAtUtc":  "2026-08-14T05:56:22.5235564Z",
+    "completedAtUtc":  "2026-08-14T05:57:35.8507993Z",
+    "baseUrl":  "http://127.0.0.1:8080",
+    "split":  "TUNING",
+    "topK":  5,
+    "datasetManifestSha256":  "70fff7771baf6c4335bef3159fc953cc95240fd0075ab31b605c635ec4136bae",
+    "caseFileSha256":  "3d4b43203140ae40c9aa03192bccbb3c0e5eecf33228cf006cc512eb36765f6d",
+    "validatorSha256":  "3677d930c5913f37a202c81f51663742a4779c02f8e328c91db741b52ab85448",
+    "runnerSha256":  "8accb1e40676c8b6d137d0bb9c43d1c9cf63d4680a723f83a57cbe363f78a49e",
+    "parameterDecisionSha256":  null,
+    "caseObservationsSha256":  "72cd8275cfaad4ebba11eb4eba1262e4727af006a0023c36c4d8e5178e1f601e",
+    "evaluationReportSha256":  "e4c47aaae5ef1f029be231e5f44c4f6cc6a6b046479b79c007bede6f53c2e143",
+    "mainCommit":  "c64bc594f5b898c051e0e9b85a7c8b3916695e3b",
+    "mainTrackedWorktreeState":  "CLEAN"
+}

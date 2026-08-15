@@ -1,0 +1,399 @@
+{
+    "schemaVersion":  "rag-reviewed-metrics-v0.3",
+    "datasetId":  "rag-retrieval-v2-draft",
+    "metricKind":  "REVIEWED_RETRIEVAL_OBSERVATION",
+    "reviewBasis":  "USER_AUDITED_CODEX_REVIEWED",
+    "computedAtUtc":  "2026-08-12T17:15:55.0647094Z",
+    "runId":  "rag-eval-20260812T171551840Z-99c092cc",
+    "activeEmbeddingVersion":  "qe06b-d1024-t1-c350-o30-n1",
+    "topK":  5,
+    "reviewedCaseCount":  12,
+    "formalMetrics":  {
+                          "Recall@1":  0.2833333333,
+                          "Recall@3":  0.4466666667,
+                          "Recall@5":  0.58,
+                          "Hit@5":  0.9,
+                          "MRR":  0.825,
+                          "emptySetRejectionRate":  0.5,
+                          "semanticNegativeRejectionRate":  0
+                      },
+    "splitMetrics":  {
+                         "tuning":  {
+                                        "caseCount":  8,
+                                        "positiveCaseCount":  7,
+                                        "emptyRelevantSetCaseCount":  1,
+                                        "semanticNegativeCaseCount":  1,
+                                        "metrics":  {
+                                                        "Recall@1":  0.3,
+                                                        "Recall@3":  0.4285714286,
+                                                        "Recall@5":  0.5714285714,
+                                                        "Hit@5":  0.8571428571,
+                                                        "MRR":  0.75,
+                                                        "emptySetRejectionRate":  0,
+                                                        "semanticNegativeRejectionRate":  0
+                                                    }
+                                    },
+                         "fixedAcceptance":  {
+                                                 "caseCount":  4,
+                                                 "positiveCaseCount":  3,
+                                                 "emptyRelevantSetCaseCount":  1,
+                                                 "semanticNegativeCaseCount":  0,
+                                                 "metrics":  {
+                                                                 "Recall@1":  0.2444444444,
+                                                                 "Recall@3":  0.4888888889,
+                                                                 "Recall@5":  0.6,
+                                                                 "Hit@5":  1,
+                                                                 "MRR":  1,
+                                                                 "emptySetRejectionRate":  1,
+                                                                 "semanticNegativeRejectionRate":  "UNMEASURED"
+                                                             }
+                                             }
+                     },
+    "relatednessThresholdCalibration":  {
+                                            "status":  "UNMEASURED_INSUFFICIENT_REVIEWED_SEMANTIC_NEGATIVES",
+                                            "reviewedSemanticNegativeCaseCount":  1,
+                                            "selectedThreshold":  "UNMEASURED",
+                                            "reason":  "A threshold must be tuned on a larger reviewed semantic-negative tuning set and validated once on a fixed holdout."
+                                        },
+    "caseResults":  [
+                        {
+                            "caseId":  "rag-v2-0001",
+                            "split":  "TUNING",
+                            "caseIntent":  "cross_language",
+                            "relevantCount":  5,
+                            "observedStatus":  "SUCCESS",
+                            "rankedPaperIds":  [
+                                                   7,
+                                                   6,
+                                                   11,
+                                                   14,
+                                                   9
+                                               ],
+                            "scores":  [
+                                           0.6801095,
+                                           0.6576383,
+                                           0.56090987,
+                                           0.5554737,
+                                           0.54638696
+                                       ],
+                            "top1Score":  0.6801095,
+                            "lowestReturnedScore":  0.54638696,
+                            "recallAt1":  0.2,
+                            "recallAt3":  0.4,
+                            "recallAt5":  0.4,
+                            "hitAt5":  true,
+                            "mrr":  1
+                        },
+                        {
+                            "caseId":  "rag-v2-0002",
+                            "split":  "TUNING",
+                            "caseIntent":  "synonym_recall",
+                            "relevantCount":  5,
+                            "observedStatus":  "SUCCESS",
+                            "rankedPaperIds":  [
+                                                   7,
+                                                   6,
+                                                   11,
+                                                   9,
+                                                   14
+                                               ],
+                            "scores":  [
+                                           0.765433,
+                                           0.6894677,
+                                           0.6514209,
+                                           0.6311469,
+                                           0.6149723
+                                       ],
+                            "top1Score":  0.765433,
+                            "lowestReturnedScore":  0.6149723,
+                            "recallAt1":  0.2,
+                            "recallAt3":  0.4,
+                            "recallAt5":  0.4,
+                            "hitAt5":  true,
+                            "mrr":  1
+                        },
+                        {
+                            "caseId":  "rag-v2-0003",
+                            "split":  "TUNING",
+                            "caseIntent":  "long_context",
+                            "relevantCount":  1,
+                            "observedStatus":  "SUCCESS",
+                            "rankedPaperIds":  [
+                                                   14,
+                                                   9,
+                                                   12,
+                                                   10,
+                                                   1
+                                               ],
+                            "scores":  [
+                                           0.6008108,
+                                           0.5776781,
+                                           0.565807,
+                                           0.5511098,
+                                           0.5450796
+                                       ],
+                            "top1Score":  0.6008108,
+                            "lowestReturnedScore":  0.5450796,
+                            "recallAt1":  0,
+                            "recallAt3":  0,
+                            "recallAt5":  0,
+                            "hitAt5":  false,
+                            "mrr":  0
+                        },
+                        {
+                            "caseId":  "rag-v2-0004",
+                            "split":  "TUNING",
+                            "caseIntent":  "long_context",
+                            "relevantCount":  1,
+                            "observedStatus":  "SUCCESS",
+                            "rankedPaperIds":  [
+                                                   14,
+                                                   9,
+                                                   10,
+                                                   7,
+                                                   11
+                                               ],
+                            "scores":  [
+                                           0.69328207,
+                                           0.679541,
+                                           0.6495596,
+                                           0.6452583,
+                                           0.6425142
+                                       ],
+                            "top1Score":  0.69328207,
+                            "lowestReturnedScore":  0.6425142,
+                            "recallAt1":  0,
+                            "recallAt3":  0,
+                            "recallAt5":  1,
+                            "hitAt5":  true,
+                            "mrr":  0.25
+                        },
+                        {
+                            "caseId":  "rag-v2-0005",
+                            "split":  "TUNING",
+                            "caseIntent":  "year_filter",
+                            "relevantCount":  1,
+                            "observedStatus":  "SUCCESS",
+                            "rankedPaperIds":  [
+                                                   7,
+                                                   11,
+                                                   6,
+                                                   12,
+                                                   13
+                                               ],
+                            "scores":  [
+                                           0.5987055,
+                                           0.593546,
+                                           0.5908227,
+                                           0.57360977,
+                                           0.56775194
+                                       ],
+                            "top1Score":  0.5987055,
+                            "lowestReturnedScore":  0.56775194,
+                            "recallAt1":  1,
+                            "recallAt3":  1,
+                            "recallAt5":  1,
+                            "hitAt5":  true,
+                            "mrr":  1
+                        },
+                        {
+                            "caseId":  "rag-v2-0006",
+                            "split":  "TUNING",
+                            "caseIntent":  "adjacent_topic",
+                            "relevantCount":  5,
+                            "observedStatus":  "SUCCESS",
+                            "rankedPaperIds":  [
+                                                   6,
+                                                   11,
+                                                   9,
+                                                   12,
+                                                   1
+                                               ],
+                            "scores":  [
+                                           0.83655363,
+                                           0.7515838,
+                                           0.7429511,
+                                           0.73132,
+                                           0.73054004
+                                       ],
+                            "top1Score":  0.83655363,
+                            "lowestReturnedScore":  0.73054004,
+                            "recallAt1":  0.2,
+                            "recallAt3":  0.2,
+                            "recallAt5":  0.2,
+                            "hitAt5":  true,
+                            "mrr":  1
+                        },
+                        {
+                            "caseId":  "rag-v2-0007",
+                            "split":  "TUNING",
+                            "caseIntent":  "no_relevant_result",
+                            "relevantCount":  0,
+                            "observedStatus":  "SUCCESS",
+                            "rankedPaperIds":  [
+                                                   14,
+                                                   9,
+                                                   3,
+                                                   10,
+                                                   15
+                                               ],
+                            "scores":  [
+                                           0.60970926,
+                                           0.59129584,
+                                           0.58822894,
+                                           0.5777141,
+                                           0.5586965
+                                       ],
+                            "top1Score":  0.60970926,
+                            "lowestReturnedScore":  0.5586965,
+                            "recallAt1":  null,
+                            "recallAt3":  null,
+                            "recallAt5":  null,
+                            "hitAt5":  null,
+                            "mrr":  null
+                        },
+                        {
+                            "caseId":  "rag-v2-0008",
+                            "split":  "TUNING",
+                            "caseIntent":  "adjacent_topic",
+                            "relevantCount":  2,
+                            "observedStatus":  "SUCCESS",
+                            "rankedPaperIds":  [
+                                                   6,
+                                                   1,
+                                                   11,
+                                                   9,
+                                                   15
+                                               ],
+                            "scores":  [
+                                           0.81174856,
+                                           0.78966063,
+                                           0.77581847,
+                                           0.7556605,
+                                           0.7405293
+                                       ],
+                            "top1Score":  0.81174856,
+                            "lowestReturnedScore":  0.7405293,
+                            "recallAt1":  0.5,
+                            "recallAt3":  1,
+                            "recallAt5":  1,
+                            "hitAt5":  true,
+                            "mrr":  1
+                        },
+                        {
+                            "caseId":  "rag-v2-0009",
+                            "split":  "FIXED_ACCEPTANCE",
+                            "caseIntent":  "fixed_answer",
+                            "relevantCount":  5,
+                            "observedStatus":  "SUCCESS",
+                            "rankedPaperIds":  [
+                                                   7,
+                                                   6,
+                                                   4,
+                                                   11,
+                                                   9
+                                               ],
+                            "scores":  [
+                                           0.5076214,
+                                           0.49605376,
+                                           0.38753498,
+                                           0.37875623,
+                                           0.37734985
+                                       ],
+                            "top1Score":  0.5076214,
+                            "lowestReturnedScore":  0.37734985,
+                            "recallAt1":  0.2,
+                            "recallAt3":  0.4,
+                            "recallAt5":  0.4,
+                            "hitAt5":  true,
+                            "mrr":  1
+                        },
+                        {
+                            "caseId":  "rag-v2-0010",
+                            "split":  "FIXED_ACCEPTANCE",
+                            "caseIntent":  "fixed_answer",
+                            "relevantCount":  5,
+                            "observedStatus":  "SUCCESS",
+                            "rankedPaperIds":  [
+                                                   7,
+                                                   6,
+                                                   11,
+                                                   14,
+                                                   9
+                                               ],
+                            "scores":  [
+                                           0.7237493,
+                                           0.6820567,
+                                           0.6263058,
+                                           0.59829485,
+                                           0.5958132
+                                       ],
+                            "top1Score":  0.7237493,
+                            "lowestReturnedScore":  0.5958132,
+                            "recallAt1":  0.2,
+                            "recallAt3":  0.4,
+                            "recallAt5":  0.4,
+                            "hitAt5":  true,
+                            "mrr":  1
+                        },
+                        {
+                            "caseId":  "rag-v2-0011",
+                            "split":  "FIXED_ACCEPTANCE",
+                            "caseIntent":  "fixed_year_filter",
+                            "relevantCount":  3,
+                            "observedStatus":  "SUCCESS",
+                            "rankedPaperIds":  [
+                                                   7,
+                                                   6,
+                                                   11,
+                                                   13,
+                                                   12
+                                               ],
+                            "scores":  [
+                                           0.56026113,
+                                           0.5150598,
+                                           0.4035282,
+                                           0.38289756,
+                                           0.38259614
+                                       ],
+                            "top1Score":  0.56026113,
+                            "lowestReturnedScore":  0.38259614,
+                            "recallAt1":  0.3333333333,
+                            "recallAt3":  0.6666666667,
+                            "recallAt5":  1,
+                            "hitAt5":  true,
+                            "mrr":  1
+                        },
+                        {
+                            "caseId":  "rag-v2-0012",
+                            "split":  "FIXED_ACCEPTANCE",
+                            "caseIntent":  "fixed_insufficient_evidence",
+                            "relevantCount":  0,
+                            "observedStatus":  "NO_TRUSTED_RESULTS",
+                            "rankedPaperIds":  [
+
+                                               ],
+                            "scores":  [
+
+                                       ],
+                            "top1Score":  null,
+                            "lowestReturnedScore":  null,
+                            "recallAt1":  null,
+                            "recallAt3":  null,
+                            "recallAt5":  null,
+                            "hitAt5":  null,
+                            "mrr":  null
+                        }
+                    ],
+    "inputEvidence":  {
+                          "casesLfSha256":  "76e2e9eae1f0cd329f29af9f6afb51ab71bb32251b2c0abd3fad98b14f707ebb",
+                          "manifestSha256":  "1ad5bf48fb43516623be80d09c01cea9e5dd748f13c3e90b1614c35fcabbc956",
+                          "observationSha256":  "427b546a4ed6ca105a9cd39f36f3d97dd3d2e99d2dc2ec4ee361a0b9ebf7ca99",
+                          "metricScriptSha256":  "3655e401bf55ba25550fc59a9506f745913c2c8c16b28f925482c87e781d2998"
+                      },
+    "limitations":  [
+                        "Metrics are based on one captured retrieval observation per case.",
+                        "Empty relevant sets are excluded from Recall and MRR and are measured through explicit rejection rates.",
+                        "The semantic-negative sample is too small to select or validate a relatedness threshold."
+                    ]
+}

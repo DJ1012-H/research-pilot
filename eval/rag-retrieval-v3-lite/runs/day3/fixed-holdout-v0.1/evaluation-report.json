@@ -1,0 +1,56 @@
+{
+    "schemaVersion":  "rag-v3-lite-evaluation-report-v0.1",
+    "status":  "FAIL",
+    "datasetId":  "rag-retrieval-v3-lite",
+    "split":  "FIXED_HOLDOUT",
+    "runId":  "rag-v3l-fixed_holdout-20260814T060034335Z-a081c40f",
+    "caseCount":  12,
+    "positiveCaseCount":  6,
+    "negativeCaseCount":  6,
+    "semanticNegativeCaseCount":  5,
+    "deterministicEmptyCaseCount":  1,
+    "topK":  5,
+    "metrics":  {
+                    "caseOutcomeAccuracy":  0.8333333333,
+                    "positiveAnswerSuccessRate":  0.6666666667,
+                    "positiveEvidenceHitRate":  0.6666666667,
+                    "positiveCitationPrecision":  1,
+                    "positiveRetrievalRecallAt1":  0.8333333333,
+                    "positiveRetrievalRecallAt3":  1,
+                    "positiveRetrievalRecallAt5":  1,
+                    "positiveRetrievalHitAt5":  1,
+                    "positiveRetrievalMrr":  1,
+                    "negativeRefusalRate":  1,
+                    "semanticNegativeRefusalRate":  1,
+                    "deterministicEmptyRefusalRate":  1,
+                    "failedResponseCount":  2,
+                    "infrastructureFailureCount":  0,
+                    "modelContractFailureCount":  2,
+                    "totalModelCallCount":  16,
+                    "totalRepairCount":  1
+                },
+    "acceptance":  {
+                       "status":  "FAIL",
+                       "checks":  {
+                                      "caseOutcomeAccuracy":  true,
+                                      "positiveAnswerSuccessRate":  false,
+                                      "positiveEvidenceHitRate":  false,
+                                      "positiveCitationPrecision":  true,
+                                      "positiveRetrievalHitAt5":  true,
+                                      "semanticNegativeRefusalRate":  true,
+                                      "deterministicEmptyRefusalRate":  true,
+                                      "failedResponseCount":  false,
+                                      "infrastructureFailureCount":  true
+                                  },
+                       "failedChecks":  [
+                                            "positiveAnswerSuccessRate",
+                                            "positiveEvidenceHitRate",
+                                            "failedResponseCount"
+                                        ]
+                   },
+    "limitations":  [
+                        "Labels are USER_AUDITED_CODEX_REVIEWED, not independent Ground Truth.",
+                        "This 12-case split is interview-readiness evidence, not a production benchmark or SLA.",
+                        "Answer text is not retained; only its UTF-8 SHA-256 and length are recorded."
+                    ]
+}

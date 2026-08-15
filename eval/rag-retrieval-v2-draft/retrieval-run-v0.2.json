@@ -1,0 +1,29 @@
+{
+    "schemaVersion":  "rag-retrieval-eval-run-v0.2",
+    "runId":  "rag-eval-20260812T171551840Z-99c092cc",
+    "startedAtUtc":  "2026-08-12T17:15:51.8474014Z",
+    "completedAtUtc":  "2026-08-12T17:15:53.8140234Z",
+    "datasetId":  "rag-retrieval-v2-draft",
+    "caseCount":  12,
+    "topK":  5,
+    "baseUrl":  "http://127.0.0.1:8080",
+    "qdrantBaseUrl":  "http://127.0.0.1:6333",
+    "collectionName":  "research_pilot_paper_segments_v1",
+    "collectionStatus":  "green",
+    "collectionPointCount":  19,
+    "vectorDimensions":  1024,
+    "activeEmbeddingVersion":  "qe06b-d1024-t1-c350-o30-n1",
+    "mainCommit":  "f9b1a841950529fa08311d1a1345c67fb64e8818",
+    "trackedWorktreeState":  "DIRTY",
+    "casesLfSha256":  "76e2e9eae1f0cd329f29af9f6afb51ab71bb32251b2c0abd3fad98b14f707ebb",
+    "manifestSha256":  "1ad5bf48fb43516623be80d09c01cea9e5dd748f13c3e90b1614c35fcabbc956",
+    "runnerSha256":  "05ed742a01d60ada3ecd01d0c821d0e6451cfaebb9e5b26736e3ff8c6ac65e0d",
+    "observationLfSha256":  "427b546a4ed6ca105a9cd39f36f3d97dd3d2e99d2dc2ec4ee361a0b9ebf7ca99",
+    "statusCounts":  {
+                         "success":  11,
+                         "noTrustedResults":  1,
+                         "failed":  0
+                     },
+    "averageClientElapsedMs":  154.42,
+    "outputPath":  "C:\\Users\\a1123\\.codex\\visualizations\\2026\\08\\09\\019fe744-26a2-7d93-97e1-75429be9983b\\crossref-eval-v2\\eval\\rag-retrieval-v2-draft\\retrieval-observation-v0.2.jsonl"
+}

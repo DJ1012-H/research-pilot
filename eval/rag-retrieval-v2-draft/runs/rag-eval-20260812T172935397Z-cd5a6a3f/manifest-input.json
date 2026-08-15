@@ -31,9 +31,9 @@
   },
   "provenanceRule": "Codex review was explicitly authorized on 2026-08-12; the user accepted all 12 labels on 2026-08-13 Asia/Shanghai. Retrieval output stayed separate and did not create Ground Truth. This was a user audit of the supplied packet, not a blind independent inter-rater relabeling.",
   "frozenSource": "eval/rag-retrieval-v1 remains unchanged",
-  "retrievalObservationPath": "runs/rag-eval-20260812T173345535Z-ed95a8f0/retrieval-observation-primary.jsonl",
-  "retrievalRunMetadataPath": "runs/rag-eval-20260812T173345535Z-ed95a8f0/retrieval-run-primary.json",
-  "retrievalReproducibilityPath": "runs/rag-eval-20260812T173345535Z-ed95a8f0/reproducibility-check.json",
+  "retrievalObservationPath": "runs/rag-eval-20260812T172212789Z-12bf07d7/retrieval-observation-primary.jsonl",
+  "retrievalRunMetadataPath": "runs/rag-eval-20260812T172212789Z-12bf07d7/retrieval-run-primary.json",
+  "retrievalReproducibilityPath": "runs/rag-eval-20260812T172212789Z-12bf07d7/reproducibility-check.json",
   "historicalRetrievalObservationPaths": [
     "retrieval-observation-v0.1.jsonl",
     "retrieval-observation-v0.2.jsonl",
@@ -45,7 +45,7 @@
   ],
   "candidateCatalogPath": "candidate-paper-catalog-v0.1.json",
   "aiReviewSuggestionsPath": "ai-review-suggestions-v0.1.json",
-  "reviewedMetricsPath": "runs/rag-eval-20260812T173345535Z-ed95a8f0/reviewed-metrics.json",
+  "reviewedMetricsPath": "runs/rag-eval-20260812T172212789Z-12bf07d7/reviewed-metrics.json",
   "historicalReviewedMetricsPaths": [
     "reviewed-metrics-v0.1.json",
     "reviewed-metrics-v0.2.json",
@@ -64,11 +64,5 @@
   "orchestrationScriptPath": "scripts/run-rag-reviewed-eval.ps1",
   "investigationNotesPath": "evaluation-investigation-v0.1.md",
   "qdrantInvestigationPath": "qdrant-transport-investigation-v0.2.md",
-  "maxEvidenceDataPlanPath": "max-evidence-boundary-data-plan-v0.1.md",
-  "maxEvidenceBoundary": {
-    "status": "COMPLETED_PASS",
-    "observationPath": "max-evidence-boundary-observation-v0.1.json",
-    "retrievalEvidenceCount": 6,
-    "generationEvidenceCount": 5
-  }
+  "maxEvidenceDataPlanPath": "max-evidence-boundary-data-plan-v0.1.md"
 }
