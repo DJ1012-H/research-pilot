@@ -215,6 +215,7 @@ class GlobalExceptionHandlerTest {
                 Arguments.of(ModelFailureType.RATE_LIMITED, 503, "MODEL_RATE_LIMITED"),
                 Arguments.of(ModelFailureType.MODEL_NOT_FOUND, 502, "MODEL_NOT_FOUND"),
                 Arguments.of(ModelFailureType.INVALID_PROVIDER_REQUEST, 502, "MODEL_REQUEST_REJECTED"),
+                Arguments.of(ModelFailureType.EMPTY_RESPONSE, 502, "MODEL_EMPTY_RESPONSE"),
                 Arguments.of(ModelFailureType.PROVIDER_ERROR, 502, "MODEL_INVOCATION_FAILED")
         );
     }

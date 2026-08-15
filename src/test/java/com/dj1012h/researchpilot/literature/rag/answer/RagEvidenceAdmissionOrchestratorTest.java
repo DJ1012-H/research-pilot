@@ -2,6 +2,8 @@ package com.dj1012h.researchpilot.literature.rag.answer;
 
 import com.dj1012h.researchpilot.config.StructuredOutputConfiguration;
 import com.dj1012h.researchpilot.config.StructuredOutputMapper;
+import com.dj1012h.researchpilot.exception.ModelFailureType;
+import com.dj1012h.researchpilot.exception.ModelInvocationException;
 import com.dj1012h.researchpilot.literature.rag.RagSegmentType;
 import org.junit.jupiter.api.Test;
 
@@ -15,6 +17,7 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+import org.mockito.ArgumentCaptor;
 
 class RagEvidenceAdmissionOrchestratorTest {
 
@@ -30,7 +33,13 @@ class RagEvidenceAdmissionOrchestratorTest {
         assertThat(result.relevanceJudgeCallCount()).isEqualTo(1);
         assertThat(result.admittedEvidence()).singleElement()
                 .satisfies(evidence -> assertThat(evidence.citationId()).isEqualTo("P2"));
-        verify(judge, times(1)).judge(anyString());
+        ArgumentCaptor<String> promptCaptor = ArgumentCaptor.forClass(String.class);
+        verify(judge, times(1)).judge(promptCaptor.capture());
+        assertThat(promptCaptor.getValue())
+                .contains("Prompt version: rag-evidence-admission-v2")
+                .contains("Valid relevant JSON example")
+                .contains("Valid rejection JSON example")
+                .contains("at most 160 characters");
     }
 
     @Test
@@ -44,6 +53,7 @@ class RagEvidenceAdmissionOrchestratorTest {
                     assertThat(exception.failureType()).isEqualTo(
                             RagAnswerFailureType.RAG_EVIDENCE_ADMISSION_INVALID);
                     assertThat(exception.relevanceJudgeCallCount()).isEqualTo(1);
+                    assertThat(exception.failureDetailCode()).isEqualTo("RAG_ADMISSION_JSON_INVALID");
                 });
         verify(judge, times(1)).judge(anyString());
     }
@@ -59,6 +69,23 @@ class RagEvidenceAdmissionOrchestratorTest {
                     assertThat(exception.failureType()).isEqualTo(
                             RagAnswerFailureType.RAG_RELEVANCE_JUDGE_UNAVAILABLE);
                     assertThat(exception.relevanceJudgeCallCount()).isEqualTo(1);
+                });
+        verify(judge, times(1)).judge(anyString());
+    }
+
+    @Test
+    void shouldExposeSafeDetailWhenProviderReturnsEmptyText() {
+        LlmRagEvidenceRelevanceJudge judge = mock(LlmRagEvidenceRelevanceJudge.class);
+        when(judge.judge(anyString())).thenThrow(new ModelInvocationException(
+                ModelFailureType.EMPTY_RESPONSE, new RuntimeException("provider detail")));
+        RagEvidenceAdmissionOrchestrator orchestrator = orchestrator(judge);
+
+        assertThatThrownBy(() -> orchestrator.admit(input()))
+                .isInstanceOfSatisfying(RagEvidenceAdmissionException.class, exception -> {
+                    assertThat(exception.failureType()).isEqualTo(
+                            RagAnswerFailureType.RAG_RELEVANCE_JUDGE_UNAVAILABLE);
+                    assertThat(exception.failureDetailCode()).isEqualTo(
+                            "RAG_ADMISSION_MODEL_EMPTY_RESPONSE");
                 });
         verify(judge, times(1)).judge(anyString());
     }

@@ -10,11 +10,14 @@ import dev.langchain4j.exception.TimeoutException;
 import dev.langchain4j.data.message.AiMessage;
 import dev.langchain4j.data.message.ChatMessage;
 import dev.langchain4j.model.chat.ChatModel;
+import dev.langchain4j.model.chat.request.ChatRequest;
+import dev.langchain4j.model.chat.request.ResponseFormatType;
 import dev.langchain4j.model.chat.response.ChatResponse;
 import dev.langchain4j.model.output.TokenUsage;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
+import org.mockito.ArgumentCaptor;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.boot.test.system.CapturedOutput;
@@ -26,6 +29,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.when;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.verify;
 
 @ExtendWith({MockitoExtension.class, OutputCaptureExtension.class})
 class ModelInvokerTest {
@@ -77,6 +81,57 @@ class ModelInvokerTest {
                 .contains("totalTokens=18")
                 .doesNotContain("input=prompt")
                 .doesNotContain("content=answer");
+    }
+
+    @Test
+    void shouldInvokeProviderJsonModeWithDeterministicBoundedOutput(CapturedOutput output) {
+        when(chatModelProvider.getIfAvailable()).thenReturn(chatModel);
+        when(chatModel.chat(any(ChatRequest.class))).thenReturn(ChatResponse.builder()
+                .aiMessage(AiMessage.from("{\"relevant\":false}"))
+                .tokenUsage(new TokenUsage(13, 5, 18))
+                .build());
+
+        ModelInvocationResult result = invoker().invokeJsonWithUsage(
+                "rag_evidence_relevance", "return JSON", 256);
+
+        ArgumentCaptor<ChatRequest> requestCaptor = ArgumentCaptor.forClass(ChatRequest.class);
+        verify(chatModel).chat(requestCaptor.capture());
+        ChatRequest request = requestCaptor.getValue();
+        assertThat(request.responseFormat().type()).isEqualTo(ResponseFormatType.JSON);
+        assertThat(request.temperature()).isZero();
+        assertThat(request.maxOutputTokens()).isEqualTo(256);
+        assertThat(request.messages()).hasSize(1);
+        assertThat(result.content()).isEqualTo("{\"relevant\":false}");
+        assertThat(output)
+                .contains("operation=rag_evidence_relevance")
+                .doesNotContain("return JSON")
+                .doesNotContain("{\"relevant\"");
+    }
+
+    @Test
+    void shouldRejectUnboundedJsonOutputLimitBeforeModelLookup() {
+        assertThatThrownBy(() -> invoker().invokeJsonWithUsage("judge", "JSON", 0))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("maxOutputTokens");
+    }
+
+    @Test
+    void shouldClassifyEmptyJsonModeResponseWithoutLoggingContent(CapturedOutput output) {
+        when(chatModelProvider.getIfAvailable()).thenReturn(chatModel);
+        when(chatModel.chat(any(ChatRequest.class))).thenReturn(ChatResponse.builder()
+                .aiMessage(AiMessage.from(""))
+                .tokenUsage(new TokenUsage(13, 256, 269))
+                .build());
+
+        assertThatThrownBy(() -> invoker().invokeJsonWithUsage(
+                "rag_evidence_relevance", "return JSON", 256))
+                .isInstanceOfSatisfying(ModelInvocationException.class, exception ->
+                        assertThat(exception.getFailureType()).isEqualTo(ModelFailureType.EMPTY_RESPONSE));
+
+        assertThat(output)
+                .contains("event=model_call_failed")
+                .contains("failureType=EMPTY_RESPONSE")
+                .doesNotContain("return JSON");
     }
 
     @Test

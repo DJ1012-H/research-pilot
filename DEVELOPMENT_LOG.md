@@ -2088,3 +2088,74 @@ Spring Boot 的条件装配回退，使它成为 MVC 使用的全局 Mapper；�
   The redacted functional evidence is retained in
   `docs/demo/rag-evidence-admission-day2-observation.md`; dataset-wide refusal
   quality remains `UNMEASURED` until the frozen evaluation protocol is run.
+
+## 2026-08-14 - Interview-readiness Day 3 frozen evaluation
+
+- Added a fail-closed v3-lite evaluation Runner and parameter-freeze tool. The
+  Runner requires explicit real-model cost authorization, validates the frozen
+  24-case dataset, separates tuning from fixed holdout, scores stable DOI
+  labels, retains no answer text, and refuses to overwrite holdout evidence.
+- Ran 12 tuning cases with `TopK=5`: 11/12 matched the expected outcome,
+  positive retrieval Recall@5 was 0.9583, Hit@5 was 1.0, and all six negatives
+  were refused. One positive stopped with `RAG_EVIDENCE_ADMISSION_INVALID`.
+- Froze `TopK=5`, no uncalibrated vector-score threshold, prompt version v1,
+  and the acceptance thresholds before running the fixed holdout once.
+- The 12-case fixed holdout is retained as `FAIL`: 10/12 outcomes matched,
+  positive answer/evidence-hit rates were 4/6, while retrieval Recall@5,
+  Hit@5, MRR, citation precision, and all six negative refusals were 1.0.
+  Two positives had successful retrieval but failed closed after the Judge with
+  `RAG_EVIDENCE_ADMISSION_INVALID`; infrastructure failures were zero.
+- Did not rerun, relabel, lower thresholds, or mutate the frozen holdout. The
+  evidence identifies structured Judge output reliability rather than dataset
+  labels or vector retrieval as the current RAG release blocker. Detailed
+  hashes and limitations are in `docs/demo/rag-v3-lite-day3-evaluation.md`.
+
+## 2026-08-14 - Evidence admission v2 structured-output repair
+
+- Kept the failed v3-lite fixed holdout immutable and repaired the revealed
+  development defect without lowering thresholds or adding a Judge retry.
+- Changed only the relevance Judge to use LangChain4j per-request JSON mode,
+  temperature zero, and a 2,000-token output ceiling. The shared answer and
+  SearchPlan model paths retain their existing invocation behavior.
+- Versioned the admission prompt and schema as v2, added exact valid JSON
+  examples and a bounded reason instruction, and retained all Java syntax,
+  schema, DTO, consistency, ID-membership, and fail-closed checks.
+- Added safe `failureDetailCode` diagnostics and low-cardinality logs so future
+  failures distinguish empty, JSON, schema, DTO, state, and request-ownership
+  rejection without retaining prompts or model content.
+- Added focused coverage for provider JSON request format, deterministic and
+  bounded options, one-call Judge wiring, prompt v2, stable validation codes,
+  service propagation, and HTTP serialization. Live verification remains
+  gated on restarting the updated application and is not a rerun of the old
+  holdout.
+- The first restarted probe made one real Judge call: transport and
+  authentication succeeded, but no assistant text was returned under the
+  initial 256-token bound, so no answer call occurred. Added explicit
+  `EMPTY_RESPONSE` classification, the safe
+  `RAG_ADMISSION_MODEL_EMPTY_RESPONSE` detail code, and raised only the Judge
+  output bound to 1,024 tokens. Full `clean verify` then passed 548 tests with
+  zero failures, zero errors, and seven skipped tests; a second restart is
+  required before live regression.
+- Added a dedicated three-case burned-regression runner that cannot select new
+  holdout cases, requires an explicit cost flag, refuses output overwrite, and
+  stores hashes and bounded diagnostics instead of question or answer text.
+- After an explicit three-case cost authorization and the second restart, the
+  burned regression proved evidence admission on all three revealed failures.
+  Two full requests succeeded. The third admitted two evidence items but its
+  initial answer and one allowed repair both failed output validation, so the
+  regression remains `FAIL` at 2/3 and the old holdout remains unchanged.
+- The three case-level requests expanded to seven provider calls: Judge=3,
+  initial Answer=3, Answer repair=1. Provider-reported usage totaled 15,310
+  input tokens and 7,217 output tokens. No additional model call was made.
+  The redacted eval evidence is labeled `NONE_BURNED_CASES`, retains no prompt
+  or answer text, and has SHA-256
+  `7eed7b1bfa48f2886aaf770ee592550ed45d2f62fd62cf42a9743b489aafd4ca`.
+- On 2026-08-15, a targeted rerun of the already burned `rag-v3l-0018` case
+  reproduced `RAG_ADMISSION_MODEL_EMPTY_RESPONSE` at the 1,024-token Judge
+  ceiling with no answer call. Raising only that ceiling to 2,000 and
+  restarting produced one successful Judge call and one successful Answer
+  call, admitted/generated evidence=2/2, no repair, and both expected DOI
+  citations. Provider usage was 5,207 total tokens. Full `clean verify` passed
+  550 tests with zero failures, zero errors, and seven skipped. This targeted
+  success has no acceptance authority and does not change either retained
+  `FAIL` result.

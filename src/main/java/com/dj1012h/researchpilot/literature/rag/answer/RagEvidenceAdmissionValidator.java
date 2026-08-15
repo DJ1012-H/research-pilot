@@ -77,7 +77,7 @@ public class RagEvidenceAdmissionValidator {
         }
     }
 
-    private IllegalArgumentException invalid(String code) {
-        return new IllegalArgumentException(code);
+    private RagEvidenceAdmissionValidationException invalid(String code) {
+        return new RagEvidenceAdmissionValidationException(code);
     }
 }

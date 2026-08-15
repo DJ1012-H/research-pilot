@@ -119,6 +119,7 @@ public class RagAnswerService {
             return failed(
                     requestId,
                     exception.failureType(),
+                    exception.failureDetailCode(),
                     summary,
                     startedNanos,
                     exception.relevanceJudgeCallCount(),
@@ -188,9 +189,14 @@ public class RagAnswerService {
                     requestId, validated, input, summary, elapsedMs(startedNanos),
                     relevanceJudgeCalls, answerModelCalls, 0);
         } catch (RagAnswerValidationException firstFailure) {
+            logValidationFailure(firstFailure, 1);
             if (!firstFailure.isRetryable()) {
                 return failed(
-                        requestId, RagAnswerFailureType.RAG_ANSWER_OUTPUT_INVALID, summary, startedNanos,
+                        requestId,
+                        RagAnswerFailureType.RAG_ANSWER_OUTPUT_INVALID,
+                        validationDetailCode(firstFailure),
+                        summary,
+                        startedNanos,
                         relevanceJudgeCalls, answerModelCalls, admittedEvidenceCount, admittedEvidenceCount, 0);
             }
             if (deadlineReached(deadline)) {
@@ -230,8 +236,13 @@ public class RagAnswerService {
                         requestId, validated, input, summary, elapsedMs(startedNanos),
                         relevanceJudgeCalls, answerModelCalls, 1);
             } catch (RagAnswerValidationException secondFailure) {
+                logValidationFailure(secondFailure, 2);
                 return failed(
-                        requestId, RagAnswerFailureType.RAG_ANSWER_VALIDATION_FAILED, summary, startedNanos,
+                        requestId,
+                        RagAnswerFailureType.RAG_ANSWER_VALIDATION_FAILED,
+                        validationDetailCode(secondFailure),
+                        summary,
+                        startedNanos,
                         relevanceJudgeCalls, answerModelCalls, admittedEvidenceCount, admittedEvidenceCount, 1);
             }
         }
@@ -308,7 +319,7 @@ public class RagAnswerService {
             int repairs
     ) {
         return failed(
-                requestId, failureType, summary, startedNanos,
+                requestId, failureType, null, summary, startedNanos,
                 0, modelCalls, 0, 0, repairs);
     }
 
@@ -323,9 +334,35 @@ public class RagAnswerService {
             int generationEvidenceCount,
             int repairs
     ) {
+        return failed(
+                requestId,
+                failureType,
+                null,
+                summary,
+                startedNanos,
+                relevanceJudgeCalls,
+                answerModelCalls,
+                admittedEvidenceCount,
+                generationEvidenceCount,
+                repairs);
+    }
+
+    private ResearchAnswerResponse failed(
+            UUID requestId,
+            RagAnswerFailureType failureType,
+            String failureDetailCode,
+            RagAnswerRetrievalSummary summary,
+            long startedNanos,
+            int relevanceJudgeCalls,
+            int answerModelCalls,
+            int admittedEvidenceCount,
+            int generationEvidenceCount,
+            int repairs
+    ) {
         return responseAssembler.failed(
                 requestId,
                 failureType,
+                failureDetailCode,
                 summary,
                 elapsedMs(startedNanos),
                 relevanceJudgeCalls,
@@ -349,6 +386,20 @@ public class RagAnswerService {
 
     private int safeQuestionLength(ResearchQuestionRequest request) {
         return request == null || request.question() == null ? -1 : request.question().length();
+    }
+
+    private String validationDetailCode(RagAnswerValidationException exception) {
+        return "RAG_ANSWER_" + exception.stage().name() + "_" + exception.safeCodes().getFirst();
+    }
+
+    private void logValidationFailure(RagAnswerValidationException exception, int attempt) {
+        log.info(
+                "event=rag_answer_validation_failed requestId={} attempt={} stage={} codes={} retryable={}",
+                RequestCorrelation.requestIdForLog(),
+                attempt,
+                exception.stage(),
+                exception.safeCodes(),
+                exception.isRetryable());
     }
 
     private record NormalizedQuestion(

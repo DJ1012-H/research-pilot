@@ -148,6 +148,29 @@ class RagAnswerServiceTest {
     }
 
     @Test
+    void shouldExposeSafeDetailAfterSecondAnswerValidationFailure() {
+        RagRetrievalService retrieval = mock(RagRetrievalService.class);
+        when(retrieval.retrieveTrusted(any(), any())).thenReturn(
+                new TrustedRagRetrieval("SUCCESS", "test-v1", 5, 1, 1, 1, 0, 1, List.of(evidence()), null));
+        LlmRagAnswerGenerator generator = mock(LlmRagAnswerGenerator.class);
+        when(generator.generate(anyString())).thenReturn(
+                new UntrustedRagAnswerDraft(
+                        "{\"statements\":[{\"text\":\"unsupported citation\",\"citationIds\":[\"P99\"]}]}"));
+        RagAnswerService service = service(true, retrieval, generator, realPipeline());
+
+        ResearchAnswerResponse response = service.answer(
+                new ResearchQuestionRequest("bounded question", 5, null, null, List.of()));
+
+        assertThat(response.status()).isEqualTo(RagAnswerStatus.FAILED);
+        assertThat(response.diagnostics().failureCode()).isEqualTo("RAG_ANSWER_VALIDATION_FAILED");
+        assertThat(response.diagnostics().failureDetailCode())
+                .isEqualTo("RAG_ANSWER_CITATION_GUARD_UNKNOWN_CITATION_ID");
+        assertThat(response.diagnostics().answerModelCallCount()).isEqualTo(2);
+        assertThat(response.diagnostics().repairCount()).isEqualTo(1);
+        verify(generator, times(2)).generate(anyString());
+    }
+
+    @Test
     void shouldNotRepairProviderFailure() {
         RagRetrievalService retrieval = mock(RagRetrievalService.class);
         when(retrieval.retrieveTrusted(any(), any())).thenReturn(
@@ -199,7 +222,10 @@ class RagAnswerServiceTest {
         LlmRagAnswerGenerator generator = mock(LlmRagAnswerGenerator.class);
         RagEvidenceAdmissionOrchestrator admission = mock(RagEvidenceAdmissionOrchestrator.class);
         when(admission.admit(any())).thenThrow(new RagEvidenceAdmissionException(
-                RagAnswerFailureType.RAG_EVIDENCE_ADMISSION_INVALID, 1, new IllegalArgumentException("invalid")));
+                RagAnswerFailureType.RAG_EVIDENCE_ADMISSION_INVALID,
+                1,
+                "RAG_ADMISSION_SCHEMA_INVALID",
+                new IllegalArgumentException("invalid")));
         RagAnswerService service = service(true, retrieval, admission, generator, realPipeline());
 
         ResearchAnswerResponse response = service.answer(
@@ -207,6 +233,7 @@ class RagAnswerServiceTest {
 
         assertThat(response.status()).isEqualTo(RagAnswerStatus.FAILED);
         assertThat(response.diagnostics().failureCode()).isEqualTo("RAG_EVIDENCE_ADMISSION_INVALID");
+        assertThat(response.diagnostics().failureDetailCode()).isEqualTo("RAG_ADMISSION_SCHEMA_INVALID");
         assertThat(response.diagnostics().modelCallCount()).isEqualTo(1);
         assertThat(response.diagnostics().relevanceJudgeCallCount()).isEqualTo(1);
         assertThat(response.diagnostics().answerModelCallCount()).isZero();

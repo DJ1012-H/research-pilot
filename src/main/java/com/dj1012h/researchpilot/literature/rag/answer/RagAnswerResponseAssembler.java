@@ -47,6 +47,7 @@ public class RagAnswerResponseAssembler {
                 elapsedMs,
                 new RagAnswerDiagnostics(
                         null,
+                        null,
                         relevanceJudgeCallCount + answerModelCallCount,
                         relevanceJudgeCallCount,
                         answerModelCallCount,
@@ -72,6 +73,7 @@ public class RagAnswerResponseAssembler {
                 elapsedMs,
                 new RagAnswerDiagnostics(
                         RagAnswerFailureType.RAG_INSUFFICIENT_EVIDENCE.name(),
+                        null,
                         0, 0, 0, 0, 0, 0, 0));
     }
 
@@ -92,6 +94,7 @@ public class RagAnswerResponseAssembler {
                 elapsedMs,
                 new RagAnswerDiagnostics(
                         RagAnswerFailureType.RAG_INSUFFICIENT_EVIDENCE.name(),
+                        null,
                         relevanceJudgeCallCount,
                         relevanceJudgeCallCount,
                         0, 0, 0, 0, 0));
@@ -100,6 +103,7 @@ public class RagAnswerResponseAssembler {
     public ResearchAnswerResponse failed(
             UUID requestId,
             RagAnswerFailureType failureType,
+            String failureDetailCode,
             RagAnswerRetrievalSummary summary,
             long elapsedMs,
             int relevanceJudgeCallCount,
@@ -119,6 +123,7 @@ public class RagAnswerResponseAssembler {
                 elapsedMs,
                 new RagAnswerDiagnostics(
                         failureType.name(),
+                        failureDetailCode,
                         relevanceJudgeCallCount + answerModelCallCount,
                         relevanceJudgeCallCount,
                         answerModelCallCount,

@@ -129,6 +129,13 @@ public class GlobalExceptionHandler {
                     request,
                     Map.of()
             );
+            case EMPTY_RESPONSE -> build(
+                    HttpStatus.BAD_GATEWAY,
+                    "MODEL_EMPTY_RESPONSE",
+                    "模型服务返回了空响应",
+                    request,
+                    Map.of()
+            );
             case PROVIDER_ERROR -> build(
                     HttpStatus.BAD_GATEWAY,
                     "MODEL_INVOCATION_FAILED",

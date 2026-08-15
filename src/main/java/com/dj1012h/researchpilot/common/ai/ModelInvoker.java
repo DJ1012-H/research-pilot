@@ -14,6 +14,8 @@ import dev.langchain4j.exception.RateLimitException;
 import dev.langchain4j.exception.TimeoutException;
 import dev.langchain4j.exception.UnresolvedModelServerException;
 import dev.langchain4j.model.chat.ChatModel;
+import dev.langchain4j.model.chat.request.ChatRequest;
+import dev.langchain4j.model.chat.request.ResponseFormat;
 import dev.langchain4j.model.chat.response.ChatResponse;
 import dev.langchain4j.data.message.UserMessage;
 import dev.langchain4j.model.output.TokenUsage;
@@ -67,10 +69,36 @@ public class ModelInvoker {
      */
     public ModelInvocationResult invokeWithUsage(String operation, String input) {
         ChatResponse response = invoke(operation, input,
-                (chatModel, prompt) -> chatModel.chat(UserMessage.from(prompt)));
-        if (response == null || response.aiMessage() == null || response.aiMessage().text() == null) {
-            throw new IllegalStateException("model response did not contain assistant text");
+                (chatModel, prompt) -> requireAssistantText(
+                        chatModel.chat(UserMessage.from(prompt))));
+        return resultWithUsage(operation, response);
+    }
+
+    /**
+     * Invokes one provider JSON-mode request. The provider guarantees JSON
+     * syntax only; callers must still apply their own schema and business
+     * validation and fail closed on empty or invalid content.
+     */
+    public ModelInvocationResult invokeJsonWithUsage(
+            String operation,
+            String input,
+            int maxOutputTokens
+    ) {
+        if (maxOutputTokens < 1 || maxOutputTokens > 2_000) {
+            throw new IllegalArgumentException("maxOutputTokens must be between 1 and 2000");
         }
+        ChatRequest request = ChatRequest.builder()
+                .messages(UserMessage.from(input))
+                .responseFormat(ResponseFormat.JSON)
+                .temperature(0.0)
+                .maxOutputTokens(maxOutputTokens)
+                .build();
+        ChatResponse response = invoke(operation, input,
+                (chatModel, ignored) -> requireAssistantText(chatModel.chat(request)));
+        return resultWithUsage(operation, response);
+    }
+
+    private ModelInvocationResult resultWithUsage(String operation, ChatResponse response) {
         TokenUsage usage = response.tokenUsage();
         Integer inputTokens = usage == null ? null : usage.inputTokenCount();
         Integer outputTokens = usage == null ? null : usage.outputTokenCount();
@@ -84,6 +112,16 @@ public class ModelInvoker {
                 safeTokenCount(totalTokens)
         );
         return new ModelInvocationResult(response.aiMessage().text(), inputTokens, outputTokens, totalTokens);
+    }
+
+    private ChatResponse requireAssistantText(ChatResponse response) {
+        if (response == null
+                || response.aiMessage() == null
+                || response.aiMessage().text() == null
+                || response.aiMessage().text().isBlank()) {
+            throw new EmptyModelResponseException();
+        }
+        return response;
     }
 
     /**
@@ -121,6 +159,8 @@ public class ModelInvoker {
             throw knownFailure(ModelFailureType.MODEL_NOT_FOUND, exception, operation, input, startNanos);
         } catch (InvalidRequestException exception) {
             throw knownFailure(ModelFailureType.INVALID_PROVIDER_REQUEST, exception, operation, input, startNanos);
+        } catch (EmptyModelResponseException exception) {
+            throw knownFailure(ModelFailureType.EMPTY_RESPONSE, exception, operation, input, startNanos);
         } catch (InternalServerException | UnresolvedModelServerException exception) {
             throw knownFailure(ModelFailureType.UNAVAILABLE, exception, operation, input, startNanos);
         } catch (LangChain4jException exception) {
@@ -199,5 +239,11 @@ public class ModelInvoker {
             current = current.getCause();
         }
         return current;
+    }
+
+    private static final class EmptyModelResponseException extends RuntimeException {
+        private EmptyModelResponseException() {
+            super("model response did not contain assistant text");
+        }
     }
 }

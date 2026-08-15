@@ -9,6 +9,7 @@ import java.util.Objects;
 /** Single, tool-free relevance judgment through the shared configured model boundary. */
 @Component
 public class LlmRagEvidenceRelevanceJudge {
+    static final int MAX_OUTPUT_TOKENS = 2_000;
     private final ModelInvoker modelInvoker;
 
     public LlmRagEvidenceRelevanceJudge(ModelInvoker modelInvoker) {
@@ -17,7 +18,8 @@ public class LlmRagEvidenceRelevanceJudge {
 
     public String judge(String prompt) {
         Objects.requireNonNull(prompt, "prompt must not be null");
-        ModelInvocationResult result = modelInvoker.invokeWithUsage("rag_evidence_relevance", prompt);
+        ModelInvocationResult result = modelInvoker.invokeJsonWithUsage(
+                "rag_evidence_relevance", prompt, MAX_OUTPUT_TOKENS);
         return result.content();
     }
 }

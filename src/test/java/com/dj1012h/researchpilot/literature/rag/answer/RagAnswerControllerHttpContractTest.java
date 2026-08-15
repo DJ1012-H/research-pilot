@@ -113,6 +113,47 @@ class RagAnswerControllerHttpContractTest {
     }
 
     @Test
+    void shouldExposeOnlySafeAdmissionFailureDetailCode() throws Exception {
+        when(service.answer(any())).thenAnswer(ignored -> admissionFailed(RequestCorrelation.requestIdOrNew()));
+
+        String body = mockMvc.perform(post("/api/research/ask")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"question\":\"structured admission\"}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("FAILED"))
+                .andExpect(jsonPath("$.answer").value(""))
+                .andExpect(jsonPath("$.citations").isEmpty())
+                .andExpect(jsonPath("$.diagnostics.failureCode").value("RAG_EVIDENCE_ADMISSION_INVALID"))
+                .andExpect(jsonPath("$.diagnostics.failureDetailCode").value("RAG_ADMISSION_SCHEMA_INVALID"))
+                .andReturn()
+                .getResponse()
+                .getContentAsString();
+
+        assertThat(body).doesNotContain("model output", "raw", "prompt");
+    }
+
+    @Test
+    void shouldExposeOnlySafeAnswerValidationFailureDetailCode() throws Exception {
+        when(service.answer(any())).thenAnswer(ignored -> answerValidationFailed(RequestCorrelation.requestIdOrNew()));
+
+        String body = mockMvc.perform(post("/api/research/ask")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"question\":\"answer validation\"}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("FAILED"))
+                .andExpect(jsonPath("$.answer").value(""))
+                .andExpect(jsonPath("$.citations").isEmpty())
+                .andExpect(jsonPath("$.diagnostics.failureCode").value("RAG_ANSWER_VALIDATION_FAILED"))
+                .andExpect(jsonPath("$.diagnostics.failureDetailCode")
+                        .value("RAG_ANSWER_CITATION_GUARD_UNKNOWN_CITATION_ID"))
+                .andReturn()
+                .getResponse()
+                .getContentAsString();
+
+        assertThat(body).doesNotContain("model output", "raw", "prompt", "unsupported citation");
+    }
+
+    @Test
     void shouldUseExistingGlobalInvalidJsonBoundary() throws Exception {
         mockMvc.perform(post("/api/research/ask")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -146,7 +187,7 @@ class RagAnswerControllerHttpContractTest {
                 false,
                 "Citation mapping only.",
                 12,
-                new RagAnswerDiagnostics(null, 2, 1, 1, 1, 1, 0, 1));
+                new RagAnswerDiagnostics(null, null, 2, 1, 1, 1, 1, 0, 1));
     }
 
     private ResearchAnswerResponse insufficient(UUID requestId) {
@@ -159,7 +200,7 @@ class RagAnswerControllerHttpContractTest {
                 true,
                 "No re-admitted ABSTRACT evidence.",
                 3,
-                new RagAnswerDiagnostics("RAG_INSUFFICIENT_EVIDENCE", 0, 0, 0, 0, 0, 0, 0));
+                new RagAnswerDiagnostics("RAG_INSUFFICIENT_EVIDENCE", null, 0, 0, 0, 0, 0, 0, 0));
     }
 
     private ResearchAnswerResponse failed(UUID requestId) {
@@ -172,6 +213,38 @@ class RagAnswerControllerHttpContractTest {
                 false,
                 "Generation unavailable.",
                 4,
-                new RagAnswerDiagnostics("RAG_GENERATION_UNAVAILABLE", 2, 1, 1, 1, 1, 0, 0));
+                new RagAnswerDiagnostics("RAG_GENERATION_UNAVAILABLE", null, 2, 1, 1, 1, 1, 0, 0));
+    }
+
+    private ResearchAnswerResponse admissionFailed(UUID requestId) {
+        return new ResearchAnswerResponse(
+                requestId,
+                RagAnswerStatus.FAILED,
+                "",
+                List.of(),
+                new RagAnswerRetrievalSummary("test-v1", 5, 5, 5, 5, 5, 0, 0.5),
+                false,
+                "Admission output invalid.",
+                4,
+                new RagAnswerDiagnostics(
+                        "RAG_EVIDENCE_ADMISSION_INVALID",
+                        "RAG_ADMISSION_SCHEMA_INVALID",
+                        1, 1, 0, 0, 0, 0, 0));
+    }
+
+    private ResearchAnswerResponse answerValidationFailed(UUID requestId) {
+        return new ResearchAnswerResponse(
+                requestId,
+                RagAnswerStatus.FAILED,
+                "",
+                List.of(),
+                new RagAnswerRetrievalSummary("test-v1", 5, 5, 5, 2, 2, 3, 0.5),
+                false,
+                "Answer validation failed.",
+                4,
+                new RagAnswerDiagnostics(
+                        "RAG_ANSWER_VALIDATION_FAILED",
+                        "RAG_ANSWER_CITATION_GUARD_UNKNOWN_CITATION_ID",
+                        3, 1, 2, 2, 2, 1, 0));
     }
 }

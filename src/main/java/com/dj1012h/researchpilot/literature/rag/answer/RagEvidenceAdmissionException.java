@@ -6,10 +6,20 @@ import java.util.Objects;
 public final class RagEvidenceAdmissionException extends RuntimeException {
     private final RagAnswerFailureType failureType;
     private final int relevanceJudgeCallCount;
+    private final String failureDetailCode;
 
     public RagEvidenceAdmissionException(
             RagAnswerFailureType failureType,
             int relevanceJudgeCallCount,
+            Throwable cause
+    ) {
+        this(failureType, relevanceJudgeCallCount, null, cause);
+    }
+
+    public RagEvidenceAdmissionException(
+            RagAnswerFailureType failureType,
+            int relevanceJudgeCallCount,
+            String failureDetailCode,
             Throwable cause
     ) {
         super(Objects.requireNonNull(failureType, "failureType must not be null").name(), cause);
@@ -20,8 +30,12 @@ public final class RagEvidenceAdmissionException extends RuntimeException {
         if (relevanceJudgeCallCount < 0 || relevanceJudgeCallCount > 1) {
             throw new IllegalArgumentException("relevance judge call count must be zero or one");
         }
+        if (failureDetailCode != null && !failureDetailCode.matches("RAG_ADMISSION_[A-Z0-9_]+")) {
+            throw new IllegalArgumentException("invalid admission failure detail code");
+        }
         this.failureType = failureType;
         this.relevanceJudgeCallCount = relevanceJudgeCallCount;
+        this.failureDetailCode = failureDetailCode;
     }
 
     public RagAnswerFailureType failureType() {
@@ -30,5 +44,9 @@ public final class RagEvidenceAdmissionException extends RuntimeException {
 
     public int relevanceJudgeCallCount() {
         return relevanceJudgeCallCount;
+    }
+
+    public String failureDetailCode() {
+        return failureDetailCode;
     }
 }

@@ -7,5 +7,6 @@ public enum ModelFailureType {
     RATE_LIMITED,
     MODEL_NOT_FOUND,
     INVALID_PROVIDER_REQUEST,
+    EMPTY_RESPONSE,
     PROVIDER_ERROR
 }

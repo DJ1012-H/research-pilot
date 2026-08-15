@@ -3,6 +3,7 @@ package com.dj1012h.researchpilot.literature.rag.answer;
 /** Safe counts only; no prompt, draft, provider message, DOI or paper list. */
 public record RagAnswerDiagnostics(
         String failureCode,
+        String failureDetailCode,
         int modelCallCount,
         int relevanceJudgeCallCount,
         int answerModelCallCount,
@@ -12,6 +13,10 @@ public record RagAnswerDiagnostics(
         int citationCount
 ) {
     public RagAnswerDiagnostics {
+        if (failureDetailCode != null && (failureCode == null
+                || !failureDetailCode.matches("RAG_(?:ADMISSION|ANSWER)_[A-Z0-9_]+"))) {
+            throw new IllegalArgumentException("failure detail code is invalid or has no failure code");
+        }
         if (modelCallCount < 0 || relevanceJudgeCallCount < 0 || answerModelCallCount < 0
                 || admittedEvidenceCount < 0 || generationEvidenceCount < 0
                 || repairCount < 0 || citationCount < 0) {

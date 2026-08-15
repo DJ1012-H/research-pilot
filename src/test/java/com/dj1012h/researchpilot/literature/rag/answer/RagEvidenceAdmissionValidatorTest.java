@@ -49,6 +49,13 @@ class RagEvidenceAdmissionValidatorTest {
         assertInvalid("{\"relevant\":true,\"admittedEvidenceIds\":[\"P3\"],\"reason\":\"Claimed match.\"}");
     }
 
+    @Test
+    void shouldExposeOnlyStableValidationCode() {
+        assertThatThrownBy(() -> validator.validate("not-json", input()))
+                .isInstanceOfSatisfying(RagEvidenceAdmissionValidationException.class, exception ->
+                        assertThat(exception.validationCode()).isEqualTo("RAG_ADMISSION_JSON_INVALID"));
+    }
+
     private void assertInvalid(String raw) {
         assertThatThrownBy(() -> validator.validate(raw, input()))
                 .isInstanceOf(IllegalArgumentException.class);
