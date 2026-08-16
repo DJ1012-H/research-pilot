@@ -74,7 +74,7 @@ class AgentExecutionLoopTest {
         AgentBudgetPolicy budgetPolicy = new AgentBudgetPolicy(budgets, CLOCK);
         AgentTransitionPolicy transitions = new AgentTransitionPolicy();
         SearchActionExecutor executor = new SearchActionExecutor(
-                transitions, budgetPolicy, budgets, new OpenAlexQueryFactory(), openAlex,
+                transitions, budgetPolicy, budgets, new LiteratureSearchProperties(), new OpenAlexQueryFactory(), openAlex,
                 deduplication, crossref, verification, eligible, refiner, CLOCK);
         agent = new LiteratureResearchAgent(
                 budgetPolicy, budgets, new LiteratureSearchProperties(), openAlex,
@@ -288,7 +288,7 @@ class AgentExecutionLoopTest {
         Clock expiredClock = Clock.fixed(NOW.plusSeconds(91), ZoneOffset.UTC);
         AgentBudgetPolicy expiredPolicy = new AgentBudgetPolicy(budgets, expiredClock);
         SearchActionExecutor expiredExecutor = new SearchActionExecutor(
-                new AgentTransitionPolicy(), expiredPolicy, budgets, new OpenAlexQueryFactory(), openAlex,
+                new AgentTransitionPolicy(), expiredPolicy, budgets, new LiteratureSearchProperties(), new OpenAlexQueryFactory(), openAlex,
                 deduplication, crossref, verification, eligible, refiner, expiredClock);
         LiteratureResearchAgent expiredAgent = new LiteratureResearchAgent(
                 expiredPolicy, budgets, new LiteratureSearchProperties(), openAlex,

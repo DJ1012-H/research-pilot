@@ -9,6 +9,7 @@ import org.springframework.util.StringUtils;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.regex.Pattern;
 
 /**
  * Deterministically maps a Crossref work DTO to the provider-independent metadata contract.
@@ -17,6 +18,8 @@ import java.util.List;
  */
 @Component
 public class CrossrefPaperMapper {
+
+    private static final Pattern ABSTRACT_MARKUP = Pattern.compile("(?s)<[^>]*>");
 
     private final DoiNormalizer doiNormalizer;
 
@@ -41,7 +44,8 @@ public class CrossrefPaperMapper {
                 publicationYear(message),
                 firstText(message.containerTitle()),
                 textOrNull(message.type()),
-                textOrNull(message.publisher())
+                textOrNull(message.publisher()),
+                normalizeAbstract(message.abstractText())
         );
     }
 
@@ -89,5 +93,13 @@ public class CrossrefPaperMapper {
 
     private String textOrNull(String value) {
         return StringUtils.hasText(value) ? value.trim() : null;
+    }
+
+    private String normalizeAbstract(String value) {
+        if (!StringUtils.hasText(value)) return null;
+        String normalized = ABSTRACT_MARKUP.matcher(value).replaceAll(" ")
+                .replaceAll("\\s+", " ")
+                .trim();
+        return StringUtils.hasText(normalized) ? normalized : null;
     }
 }

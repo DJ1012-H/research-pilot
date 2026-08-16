@@ -1,6 +1,7 @@
 package com.dj1012h.researchpilot.literature.agent;
 
 import com.dj1012h.researchpilot.config.AgentBudgetProperties;
+import com.dj1012h.researchpilot.config.LiteratureSearchProperties;
 import com.dj1012h.researchpilot.exception.ModelInvocationException;
 import com.dj1012h.researchpilot.exception.ModelNotConfiguredException;
 import com.dj1012h.researchpilot.integration.crossref.CrossrefApiException;
@@ -16,18 +17,22 @@ import com.dj1012h.researchpilot.literature.application.PaperVerificationService
 import com.dj1012h.researchpilot.literature.application.ValidatedSearchPlanContext;
 import com.dj1012h.researchpilot.literature.model.CandidateDeduplicationKey;
 import com.dj1012h.researchpilot.literature.model.CandidateDeduplicationResult;
+import com.dj1012h.researchpilot.literature.model.CandidatePaper;
 import com.dj1012h.researchpilot.literature.model.CandidateVerificationOutcome;
 import com.dj1012h.researchpilot.literature.model.NormalizedCandidate;
 import com.dj1012h.researchpilot.literature.model.OpenAlexQuery;
 import com.dj1012h.researchpilot.literature.model.SearchPlanValidationResult;
+import com.dj1012h.researchpilot.literature.model.VerificationResult;
 import org.springframework.stereotype.Component;
 
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Objects;
+import java.util.Set;
 
 /** Executes one already selected action through the structural and budget gates. */
 @Component
@@ -36,6 +41,7 @@ public class SearchActionExecutor {
     private final AgentTransitionPolicy transitionPolicy;
     private final AgentBudgetPolicy budgetPolicy;
     private final AgentBudgetProperties budgetProperties;
+    private final LiteratureSearchProperties searchProperties;
     private final OpenAlexQueryFactory queryFactory;
     private final OpenAlexSearchPort openAlexSearchPort;
     private final CandidateDeduplicationService deduplicationService;
@@ -49,6 +55,7 @@ public class SearchActionExecutor {
             AgentTransitionPolicy transitionPolicy,
             AgentBudgetPolicy budgetPolicy,
             AgentBudgetProperties budgetProperties,
+            LiteratureSearchProperties searchProperties,
             OpenAlexQueryFactory queryFactory,
             OpenAlexSearchPort openAlexSearchPort,
             CandidateDeduplicationService deduplicationService,
@@ -61,6 +68,7 @@ public class SearchActionExecutor {
         this.transitionPolicy = Objects.requireNonNull(transitionPolicy, "transitionPolicy must not be null");
         this.budgetPolicy = Objects.requireNonNull(budgetPolicy, "budgetPolicy must not be null");
         this.budgetProperties = Objects.requireNonNull(budgetProperties, "budgetProperties must not be null");
+        this.searchProperties = Objects.requireNonNull(searchProperties, "searchProperties must not be null");
         this.queryFactory = Objects.requireNonNull(queryFactory, "queryFactory must not be null");
         this.openAlexSearchPort = Objects.requireNonNull(openAlexSearchPort, "openAlexSearchPort must not be null");
         this.deduplicationService = Objects.requireNonNull(
@@ -121,6 +129,20 @@ public class SearchActionExecutor {
                         blocked(prepared, action, decisionSource, stageBefore, budgetBefore, startedAt,
                                 TerminationReason.INVALID_STATE, "action is outside the controlled execution loop");
             };
+        } catch (PlanRefinementRejectedException exception) {
+            String failureCode = "PLAN_REFINEMENT_" + exception.getReason().name();
+            int verified = prepared.state().verifiedPapers().size();
+            TerminationReason reason = verified >= prepared.state().requestedCount()
+                    ? TerminationReason.TARGET_REACHED
+                    : verified > 0 ? TerminationReason.PARTIAL_RESULTS : TerminationReason.NO_VERIFIED_RESULTS;
+            AgentState completed = prepared.state().complete(
+                    reason,
+                    "plan refinement rejected: " + exception.getReason().name(),
+                    Instant.now(clock)
+            );
+            return result(prepared.withState(completed), action, decisionSource, stageBefore,
+                    ExecutionStepStatus.FAILED, "plan refinement rejected", failureCode,
+                    ActionCost.none(), budgetBefore, startedAt);
         } catch (RuntimeException exception) {
             TerminationReason reason = isExternalFailure(exception)
                     ? TerminationReason.EXTERNAL_SERVICE_UNAVAILABLE
@@ -209,21 +231,58 @@ public class SearchActionExecutor {
             Instant startedAt,
             ActionExecutionPermit permit
     ) {
-        CrossrefLookupSummary lookup = crossrefLookupService.lookup(
-                context.currentRoundDeduplication(),
-                context.state().requestedCount());
-        List<CandidateVerificationOutcome> currentOutcomes = verificationService.verify(lookup);
         List<CandidateVerificationOutcome> allOutcomes = new ArrayList<>(context.state().verificationResults());
-        allOutcomes.addAll(currentOutcomes);
+        Set<CandidatePaper> processedCandidates = new LinkedHashSet<>();
+        List<NormalizedCandidate> candidates = context.currentRoundDeduplication().uniqueCandidates();
+        int remainingCrossrefBudget = budgetProperties.getMaxCrossrefCalls()
+                - context.state().crossrefCallCount();
+        int nextIndex = 0;
+        int attemptedCount = 0;
+        boolean available = true;
+        while (nextIndex < candidates.size()
+                && eligiblePaperFilter.filter(allOutcomes, context.state().requestedCount()).size()
+                < context.state().requestedCount()
+                && remainingCrossrefBudget > 0
+                && Instant.now(clock).isBefore(context.state().deadline())) {
+            int batchSize = Math.min(
+                    searchProperties.getMaxCrossrefLookupsPerRequest(),
+                    Math.min(remainingCrossrefBudget, candidates.size() - nextIndex)
+            );
+            List<NormalizedCandidate> batchCandidates = candidates.subList(nextIndex, nextIndex + batchSize);
+            CandidateDeduplicationResult batch = new CandidateDeduplicationResult(
+                    batchCandidates,
+                    List.of(),
+                    batchCandidates.size(),
+                    batchCandidates.size(),
+                    0
+            );
+            CrossrefLookupSummary lookup = crossrefLookupService.lookup(batch, batchCandidates.size());
+            allOutcomes.addAll(verificationService.verify(lookup));
+            processedCandidates.addAll(batchCandidates.stream()
+                    .map(NormalizedCandidate::originalCandidate)
+                    .toList());
+            attemptedCount += lookup.attemptedCount();
+            remainingCrossrefBudget -= lookup.attemptedCount();
+            nextIndex += batchCandidates.size();
+            available = lookup.crossrefEnabled() && lookup.sourceAvailable();
+            if (!available) {
+                break;
+            }
+        }
+        candidates.stream()
+                .map(NormalizedCandidate::originalCandidate)
+                .filter(candidate -> !processedCandidates.contains(candidate))
+                .map(candidate -> new CandidateVerificationOutcome(
+                        candidate, null, VerificationResult.notChecked()))
+                .forEach(allOutcomes::add);
         List<SearchResponse.PaperResult> formalPapers =
                 eligiblePaperFilter.filter(allOutcomes, context.state().requestedCount());
         AgentState next = context.state().recordVerificationResults(allOutcomes, formalPapers);
-        boolean available = lookup.crossrefEnabled() && lookup.sourceAvailable();
         String failureCode = available ? null : "CROSSREF_SOURCE_UNAVAILABLE";
         next = next.recordObservation(new AgentObservation(
                 AgentAction.VERIFY_WITH_CROSSREF, stageBefore, AgentStage.VERIFICATION_COMPLETED, available,
-                0, context.state().deduplicatedCandidates().size(), formalPapers.size(), 0,
-                lookup.attemptedCount(), elapsed(startedAt),
+                0, candidates.size(), formalPapers.size(), 0,
+                attemptedCount, elapsed(startedAt),
                 available ? "Crossref verification completed" : "Crossref source unavailable",
                 failureCode, Instant.now(clock)), permit);
         ExecutionStepStatus status = available ? ExecutionStepStatus.SUCCEEDED : ExecutionStepStatus.FAILED;
@@ -233,7 +292,7 @@ public class SearchActionExecutor {
         }
         return result(context.withState(next), AgentAction.VERIFY_WITH_CROSSREF, source, stageBefore,
                 status, available ? "Crossref verification completed" : "Crossref source unavailable",
-                failureCode, new ActionCost(0, lookup.attemptedCount()), budgetBefore, startedAt);
+                failureCode, new ActionCost(0, attemptedCount), budgetBefore, startedAt);
     }
 
     private SearchActionExecutionResult evaluate(
@@ -318,7 +377,15 @@ public class SearchActionExecutor {
                 yield new ActionCost(remaining > 0 ? Math.min(requested, remaining) : 1, 0);
             }
             case DEDUPLICATE_CANDIDATES -> new ActionCost(state.retrievedCandidates().size(), 0);
-            case VERIFY_WITH_CROSSREF -> new ActionCost(0, state.deduplicatedCandidates().size());
+            case VERIFY_WITH_CROSSREF -> {
+                int remainingBudget = budgetProperties.getMaxCrossrefCalls() - state.crossrefCallCount();
+                int poolSize = context.currentRoundDeduplication().uniqueCandidates().size();
+                int estimatedCalls = Math.min(
+                        poolSize,
+                        poolSize == 0 ? 0 : Math.max(1, remainingBudget)
+                );
+                yield new ActionCost(0, estimatedCalls);
+            }
             default -> ActionCost.none();
         };
     }

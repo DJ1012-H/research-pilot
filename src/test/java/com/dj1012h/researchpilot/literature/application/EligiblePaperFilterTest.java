@@ -43,14 +43,51 @@ class EligiblePaperFilterTest {
         assertThat(paper.paper().publicationYear()).isEqualTo(2024);
     }
 
+    @Test
+    void shouldPreferOpenAlexAbstractOverCrossrefAbstract() {
+        SearchResponse.PaperResult paper = filter.filter(List.of(
+                outcome("W1", "10.1000/a", VerificationResult.VerificationStatus.VERIFIED,
+                        "OpenAlex abstract", "Crossref abstract")
+        ), 1).getFirst();
+
+        assertThat(paper.paper().abstractText()).isEqualTo("OpenAlex abstract");
+    }
+
+    @Test
+    void shouldUseCrossrefAbstractWhenOpenAlexAbstractIsMissing() {
+        SearchResponse.PaperResult paper = filter.filter(List.of(
+                outcome("W1", "10.1000/a", VerificationResult.VerificationStatus.VERIFIED,
+                        null, "Crossref abstract")
+        ), 1).getFirst();
+
+        assertThat(paper.paper().abstractText()).isEqualTo("Crossref abstract");
+    }
+
+    @Test
+    void shouldKeepAbstractNullWhenBothProvidersAreMissing() {
+        SearchResponse.PaperResult paper = filter.filter(List.of(
+                outcome("W1", "10.1000/a", VerificationResult.VerificationStatus.VERIFIED,
+                        null, null)
+        ), 1).getFirst();
+
+        assertThat(paper.paper().abstractText()).isNull();
+    }
+
     private CandidateVerificationOutcome outcome(
             String id, String doi, VerificationResult.VerificationStatus status
     ) {
+        return outcome(id, doi, status, "abstract", null);
+    }
+
+    private CandidateVerificationOutcome outcome(
+            String id, String doi, VerificationResult.VerificationStatus status,
+            String candidateAbstract, String crossrefAbstract
+    ) {
         CandidatePaper candidate = new CandidatePaper(id, null, "OpenAlex title " + id,
                 List.of(new CandidatePaper.Author(null, "OpenAlex Author", null)), "OpenAlex venue", null, 2024,
-                "article", "en", 3, "abstract", null, null, false, CandidatePaper.CandidateSource.OPENALEX);
+                "article", "en", 3, candidateAbstract, null, null, false, CandidatePaper.CandidateSource.OPENALEX);
         CrossrefWorkMetadata reference = new CrossrefWorkMetadata(doi, "Crossref title", List.of("Crossref Author"),
-                2020, "Crossref venue", "journal-article", "Publisher");
+                2020, "Crossref venue", "journal-article", "Publisher", crossrefAbstract);
         VerificationResult verification = new VerificationResult(status, 1.0,
                 VerificationResult.VerificationSource.CROSSREF,
                 status == VerificationResult.VerificationStatus.VERIFIED ? doi : null, List.of(), List.of("TEST"));

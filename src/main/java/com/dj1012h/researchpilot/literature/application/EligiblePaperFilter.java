@@ -61,7 +61,8 @@ public class EligiblePaperFilter {
                 candidate.publicationYear() != null ? candidate.publicationYear() : reference.publicationYear(),
                 text(candidate.sourceName()) != null ? candidate.sourceName() : reference.venue(),
                 List.of(), candidate.workType() != null ? candidate.workType() : reference.workType(),
-                candidate.landingPageUrl(), candidate.abstractText(), candidate.language(), List.of(),
+                candidate.landingPageUrl(), text(candidate.abstractText()) != null
+                        ? candidate.abstractText() : reference.abstractText(), candidate.language(), List.of(),
                 candidate.citedByCount(), PaperDTO.LiteratureSource.OPENALEX);
     }
 

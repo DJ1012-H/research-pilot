@@ -122,18 +122,17 @@ class SearchPlanRefinerTest {
                 ),
                 PlanRefinementRejectionReason.EMPTY_SUGGESTION
         );
-        assertRejected(
-                () -> refiner.refine(
-                        context,
-                        new SearchPlanRefinementDraft(
-                                List.of("one", "two", "three", "four", "five", "six"),
-                                List.of(),
-                                List.of(),
-                                "Too many"
-                        )
-                ),
-                PlanRefinementRejectionReason.TOO_MANY_KEYWORDS
+        SearchPlanRefinementResult bounded = refiner.refine(
+                context,
+                new SearchPlanRefinementDraft(
+                        List.of("one", "two", "three", "four", "five", "six"),
+                        List.of(),
+                        List.of(),
+                        "Bounded additions"
+                )
         );
+        assertThat(bounded.diff().addedKeywords())
+                .containsExactly("one", "two", "three", "four", "five");
         assertRejected(
                 () -> refiner.refine(
                         context,
@@ -233,6 +232,39 @@ class SearchPlanRefinerTest {
         verifyNoInteractions(openAlexSearchPort);
     }
 
+    @Test
+    void shouldUseConfiguredPlanAdjustmentBudgetAsTheRefinementLimit() {
+        AgentBudgetProperties budgets = new AgentBudgetProperties();
+        budgets.setMaxPlanAdjustments(2);
+        SearchPlanRefiner refiner = refiner(
+                ignored -> {
+                    throw new AssertionError("model must not be called by direct-draft tests");
+                },
+                mock(SearchPlanRefinementDraftValidationPipeline.class),
+                planPipeline(),
+                budgets
+        );
+
+        SearchPlanRefinementResult result = refiner.refine(
+                context(1),
+                new SearchPlanRefinementDraft(
+                        List.of("state space model"), List.of(), List.of(), "Second configured attempt"
+                )
+        );
+
+        assertThat(result.refinementAttempt()).isEqualTo(2);
+    }
+
+    @Test
+    void shouldExposeConfiguredAggregateSuggestionLimitInThePrompt() {
+        AgentBudgetProperties budgets = new AgentBudgetProperties();
+        budgets.setMaxRefinementKeywords(3);
+
+        String prompt = new SearchPlanRefinementPromptBuilder(budgets).build(context(0));
+
+        assertThat(prompt).contains("no more than 3 total new suggestions");
+    }
+
     private SearchPlanRefiner refiner(SearchPlanValidationPipeline pipeline) {
         return refiner(
                 ignored -> {
@@ -254,6 +286,21 @@ class SearchPlanRefinerTest {
                 planPipeline,
                 mapper,
                 new AgentBudgetProperties()
+        );
+    }
+
+    private SearchPlanRefiner refiner(
+            SearchPlanRefinementGenerator generator,
+            SearchPlanRefinementDraftValidationPipeline draftPipeline,
+            SearchPlanValidationPipeline planPipeline,
+            AgentBudgetProperties budgets
+    ) {
+        return new SearchPlanRefiner(
+                generator,
+                draftPipeline,
+                planPipeline,
+                mapper,
+                budgets
         );
     }
 

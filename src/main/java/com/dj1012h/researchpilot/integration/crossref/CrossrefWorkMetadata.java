@@ -11,11 +11,24 @@ public record CrossrefWorkMetadata(
         Integer publicationYear,
         String venue,
         String workType,
-        String publisher
+        String publisher,
+        String abstractText
 ) {
     public CrossrefWorkMetadata {
         doi = requireText(doi, "doi");
         authorNames = List.copyOf(Objects.requireNonNull(authorNames, "authorNames 不能为空"));
+    }
+
+    public CrossrefWorkMetadata(
+            String doi,
+            String title,
+            List<String> authorNames,
+            Integer publicationYear,
+            String venue,
+            String workType,
+            String publisher
+    ) {
+        this(doi, title, authorNames, publicationYear, venue, workType, publisher, null);
     }
 
     private static String requireText(String value, String name) {

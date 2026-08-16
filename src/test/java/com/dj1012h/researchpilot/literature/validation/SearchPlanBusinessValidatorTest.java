@@ -41,6 +41,16 @@ class SearchPlanBusinessValidatorTest {
     }
 
     @Test
+    void shouldDefaultUnspecifiedPublicationTypesToArticle() {
+        SearchPlan plan = validator.validate(
+                context(new SearchRequest("Mamba remote sensing", null, null, null)),
+                draft(null, null, null, null, List.of(), List.of(), null)
+        );
+
+        assertThat(plan.publicationTypes()).containsExactly("article");
+    }
+
+    @Test
     void shouldResolveRelativeYearsFromContextClock() {
         SearchPlan plan = validator.validate(
                 context(new SearchRequest("Mamba 遥感变化检测", null, null, null)),

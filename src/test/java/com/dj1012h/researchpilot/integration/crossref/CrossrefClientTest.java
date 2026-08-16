@@ -162,6 +162,7 @@ class CrossrefClientTest {
                     assertThat(decodedQuery).contains("query.bibliographic=Mamba: A/B Ada 2026 Journal")
                             .contains("rows=5")
                             .contains("select=DOI,title,author,published")
+                            .contains("abstract")
                             .contains("mailto=" + MAILTO);
                     assertThat(rawQuery).contains("%20");
                 })

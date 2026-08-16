@@ -14,6 +14,8 @@ import java.util.List;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 class CrossrefSearchAdapterTest {
@@ -34,6 +36,19 @@ class CrossrefSearchAdapterTest {
         assertThat(result.metadata().doi()).isEqualTo("10.1000/example");
         assertThat(result.metadata().publicationYear()).isEqualTo(2023);
         assertThat(result.metadata().authorNames()).containsExactly("Ada Lovelace", "Group");
+    }
+
+    @Test
+    void shouldCarryAbstractFromTheExistingDoiLookupResponseWithoutAnotherLookup() {
+        when(client.getWorkByDoi("10.1000/example")).thenReturn(new CrossrefWorkResponse("ok", null, null,
+                new CrossrefWorkMessage("10.1000/example", List.of("A title"), List.of(),
+                        null, null, null, null, null, List.of("Journal"), "article", "Publisher",
+                        "<jats:p>Crossref abstract</jats:p>")));
+
+        CrossrefLookupResult result = adapter.findByDoi("10.1000/example");
+
+        assertThat(result.metadata().abstractText()).isEqualTo("Crossref abstract");
+        verify(client, times(1)).getWorkByDoi("10.1000/example");
     }
 
     @Test

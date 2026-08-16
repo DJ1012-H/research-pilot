@@ -102,6 +102,17 @@ class SearchPlanProvenanceTest {
         assertOrigin(result, SearchConstraintField.PUBLICATION_TYPES, ConstraintOrigin.MODEL_DERIVED);
     }
 
+    @Test
+    void shouldRecordDefaultPublicationTypesAsSystemDefault() {
+        SearchPlanValidationResult result = validate(
+                new SearchRequest("query", null, null, null),
+                draft(null, null, null, null, List.of())
+        );
+
+        assertThat(result.plan().publicationTypes()).containsExactly("article");
+        assertOrigin(result, SearchConstraintField.PUBLICATION_TYPES, ConstraintOrigin.SYSTEM_DEFAULT);
+    }
+
     private SearchPlanValidationResult validate(SearchRequest request, SearchPlanDraft draft) {
         return validator.validateWithOrigins(context(request), draft);
     }
@@ -120,12 +131,22 @@ class SearchPlanProvenanceTest {
             Integer toYear,
             Integer resultLimit
     ) {
+        return draft(recentYears, fromYear, toYear, resultLimit, List.of("article"));
+    }
+
+    private SearchPlanDraft draft(
+            Integer recentYears,
+            Integer fromYear,
+            Integer toYear,
+            Integer resultLimit,
+            List<String> publicationTypes
+    ) {
         return new SearchPlanDraft(
                 "remote sensing change detection",
                 List.of("remote sensing", "change detection"),
                 "remote sensing change detection",
                 List.of("en"),
-                List.of("article"),
+                publicationTypes,
                 null,
                 recentYears,
                 fromYear,

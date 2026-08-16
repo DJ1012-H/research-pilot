@@ -78,7 +78,7 @@ public class SearchPlanBusinessValidator {
         validateQueryRelationship(searchQuery, keywords);
 
         Set<LanguageCode> languages = normalizeLanguages(draft.languages());
-        List<String> publicationTypes = normalizePublicationTypes(draft.publicationTypes());
+        ResolvedValue<List<String>> publicationTypes = resolvePublicationTypes(draft.publicationTypes());
         ResolvedValue<SearchSort> sort = resolveSort(draft.sort());
 
         ResolvedYears years = resolveYears(context, request, draft);
@@ -92,14 +92,14 @@ public class SearchPlanBusinessValidator {
                     keywords,
                     searchQuery,
                     languages,
-                    publicationTypes,
+                    publicationTypes.value(),
                     sort.value(),
                     years.fromYear().value(),
                     years.toYear().value(),
                     candidateLimit,
                     resultLimit.value()
             );
-            return new SearchPlanValidationResult(plan, origins(years, resultLimit, sort));
+            return new SearchPlanValidationResult(plan, origins(years, resultLimit, publicationTypes, sort));
         } catch (IllegalArgumentException | NullPointerException exception) {
             throw failure(
                     "INVALID_SEARCH_PLAN",
@@ -200,7 +200,10 @@ public class SearchPlanBusinessValidator {
         return result;
     }
 
-    private List<String> normalizePublicationTypes(List<String> values) {
+    private ResolvedValue<List<String>> resolvePublicationTypes(List<String> values) {
+        if (values.isEmpty()) {
+            return new ResolvedValue<>(List.of("article"), ConstraintOrigin.SYSTEM_DEFAULT);
+        }
         LinkedHashSet<String> result = new LinkedHashSet<>();
         for (String value : values) {
             if (value == null) {
@@ -222,7 +225,7 @@ public class SearchPlanBusinessValidator {
             }
             result.add(normalized);
         }
-        return List.copyOf(result);
+        return new ResolvedValue<>(List.copyOf(result), ConstraintOrigin.MODEL_DERIVED);
     }
 
     private ResolvedValue<SearchSort> resolveSort(String value) {
@@ -356,6 +359,7 @@ public class SearchPlanBusinessValidator {
     private SearchConstraintOrigins origins(
             ResolvedYears years,
             ResolvedValue<Integer> resultLimit,
+            ResolvedValue<List<String>> publicationTypes,
             ResolvedValue<SearchSort> sort
     ) {
         EnumMap<SearchConstraintField, ConstraintOrigin> origins =
@@ -367,7 +371,7 @@ public class SearchPlanBusinessValidator {
         origins.put(SearchConstraintField.FROM_YEAR, years.fromYear().origin());
         origins.put(SearchConstraintField.TO_YEAR, years.toYear().origin());
         origins.put(SearchConstraintField.LANGUAGES, ConstraintOrigin.MODEL_DERIVED);
-        origins.put(SearchConstraintField.PUBLICATION_TYPES, ConstraintOrigin.MODEL_DERIVED);
+        origins.put(SearchConstraintField.PUBLICATION_TYPES, publicationTypes.origin());
         origins.put(SearchConstraintField.SORT, sort.origin());
         origins.put(SearchConstraintField.RESULT_LIMIT, resultLimit.origin());
         origins.put(SearchConstraintField.CANDIDATE_LIMIT, ConstraintOrigin.SYSTEM_FIXED);

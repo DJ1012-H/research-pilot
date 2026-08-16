@@ -72,6 +72,27 @@ class OpenAlexClientTest {
     }
 
     @Test
+    void shouldUseRelevanceProviderSortForNewestQueries() {
+        ClientFixture fixture = fixture(enabledProperties());
+        OpenAlexQuery query = new OpenAlexQuery(
+                "CBT-I insomnia",
+                LocalDate.of(2022, 1, 1),
+                LocalDate.of(2026, 12, 31),
+                List.of("article"),
+                OpenAlexQuery.Sort.NEWEST,
+                15
+        );
+        fixture.server().expect(requestTo(startsWith(BASE_URL + "/works")))
+                .andExpect(request -> assertThat(queryParam(request.getURI(), "sort"))
+                        .isEqualTo("relevance_score:desc"))
+                .andRespond(withSuccess("{\"meta\":{\"count\":0},\"results\":[]}", MediaType.APPLICATION_JSON));
+
+        fixture.client().search(query);
+
+        fixture.server().verify();
+    }
+
+    @Test
     void shouldOmitLanguageFilterWhenNoLanguagesRequested() {
         ClientFixture fixture = fixture(enabledProperties());
         OpenAlexQuery query = new OpenAlexQuery(

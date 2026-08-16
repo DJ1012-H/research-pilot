@@ -150,6 +150,24 @@ class RagIndexRebuildServiceTest {
     }
 
     @Test
+    void shouldRebuildWhenAnAuthoritativeAbstractContainsThePointNameSeparator() {
+        MutableSourceRepository sources = new MutableSourceRepository(List.of(source(
+                1L, "10.1000/one", "Title one", "Crossref abstract with A | B.", NOW,
+                VerificationResult.VerificationStatus.VERIFIED)));
+        CountingEmbeddingPort embeddings = new CountingEmbeddingPort();
+        InMemoryIndexPort index = new InMemoryIndexPort();
+        RecordingStateStore state = new RecordingStateStore();
+
+        RagIndexRebuildResult result = service(sources, embeddings, index, state).rebuild();
+
+        assertThat(result.actualPointCount()).isEqualTo(2);
+        assertThat(index.payloads.values())
+                .anyMatch(payload -> payload.text().contains("Crossref abstract with A | B."));
+        assertThat(state.active()).isPresent();
+        assertThat(state.lastFailureCode).isNull();
+    }
+
+    @Test
     void shouldNotActivateAnEmptyIndexWithoutASampledRetrieval() {
         MutableSourceRepository sources = new MutableSourceRepository(List.of());
         CountingEmbeddingPort embeddings = new CountingEmbeddingPort();
@@ -192,6 +210,17 @@ class RagIndexRebuildServiceTest {
             Instant updatedAt,
             VerificationResult.VerificationStatus status
     ) {
+        return source(paperId, doi, title, "Controlled abstract.", updatedAt, status);
+    }
+
+    private VerifiedPaperSource source(
+            long paperId,
+            String doi,
+            String title,
+            String abstractText,
+            Instant updatedAt,
+            VerificationResult.VerificationStatus status
+    ) {
         PaperDTO paper = new PaperDTO(
                 "W" + paperId,
                 doi,
@@ -202,7 +231,7 @@ class RagIndexRebuildServiceTest {
                 List.of(),
                 "article",
                 null,
-                "Controlled abstract.",
+                abstractText,
                 "en",
                 List.of(),
                 0,

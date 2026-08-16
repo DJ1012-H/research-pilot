@@ -7,6 +7,7 @@ import com.dj1012h.researchpilot.observability.LiteratureObservationMetrics;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
+import java.util.Comparator;
 import java.util.List;
 
 /**
@@ -39,7 +40,7 @@ public class OpenAlexSearchAdapter implements OpenAlexSearchPort {
         long startedAt = System.nanoTime();
         try {
             OpenAlexWorksResponse response = client.search(query);
-            List<CandidatePaper> candidates = mapper.map(response);
+            List<CandidatePaper> candidates = orderCandidates(query, mapper.map(response));
             long totalMatches = response.meta() == null || response.meta().count() == null
                     ? 0
                     : Math.max(0, response.meta().count());
@@ -50,6 +51,15 @@ public class OpenAlexSearchAdapter implements OpenAlexSearchPort {
             metrics.recordProvider("openalex", "search", "failed", elapsed(startedAt));
             throw exception;
         }
+    }
+
+    private List<CandidatePaper> orderCandidates(OpenAlexQuery query, List<CandidatePaper> candidates) {
+        if (query.sort() != OpenAlexQuery.Sort.NEWEST) return candidates;
+        return candidates.stream()
+                .sorted(Comparator.comparing(
+                        CandidatePaper::publicationDate,
+                        Comparator.nullsLast(Comparator.reverseOrder())))
+                .toList();
     }
 
     private java.time.Duration elapsed(long startedAt) {

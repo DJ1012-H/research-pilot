@@ -72,7 +72,7 @@ literature
 | `englishKeywords` | `List<String>` | 英文关键词和同义词 |
 | `searchQuery` | `String` | 第一版唯一的主要 OpenAlex 检索式 |
 | `languages` | `List<String>` | ISO 语言代码；空列表表示不限制语言 |
-| `publicationTypes` | `List<String>` | 允许的内部规范化文献类型；空列表表示不限制 |
+| `publicationTypes` | `List<String>` | 允许的内部规范化文献类型；未指定时由 trusted validator 默认使用 `article` |
 | `fromYear` | `int` | 已解析并校验的起始年份 |
 | `toYear` | `int` | 已解析并校验的结束年份 |
 | `candidateLimit` | `int` | OpenAlex 候选池数量，1～100，且不小于 `resultLimit` |

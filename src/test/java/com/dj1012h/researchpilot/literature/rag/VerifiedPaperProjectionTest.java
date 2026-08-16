@@ -131,7 +131,7 @@ class VerifiedPaperProjectionTest {
     }
 
     @Test
-    void shouldRejectInvalidAuthorityFieldsAndSeparatorBeforeEmbedding() {
+    void shouldRejectInvalidAuthorityFieldsBeforeEmbedding() {
         FakeEmbeddingPort fake = new FakeEmbeddingPort(PROFILE);
         VerifiedPaperProjector projector = projector(fake);
         PaperDTO validPaper = paper("10.1000/example", "Abstract");
@@ -147,15 +147,32 @@ class VerifiedPaperProjectionTest {
                 .rejectionReason()).isEqualTo(ProjectionRejectionReason.VERIFICATION_VERSION_MISMATCH);
         assertThat(projector.project(new VerifiedPaperSource(
                 42L, validPaper, verified, "10.1000/example", "verification-v1|other", SOURCE_UPDATED_AT))
-                .rejectionReason()).isEqualTo(ProjectionRejectionReason.ILLEGAL_SEPARATOR);
+                .rejectionReason()).isEqualTo(ProjectionRejectionReason.VERIFICATION_VERSION_MISMATCH);
         assertThat(projector.project(new VerifiedPaperSource(
                 42L, validPaper, verified, "10.1000/example", VerificationPolicy.VERSION, null))
                 .rejectionReason()).isEqualTo(ProjectionRejectionReason.SOURCE_UPDATED_AT_MISSING);
-        assertThat(projector.project(source(
-                paperWithTitle("Title | untrusted separator"), verified, "10.1000/example"))
-                .rejectionReason()).isEqualTo(ProjectionRejectionReason.ILLEGAL_SEPARATOR);
 
         assertThat(fake.callCount).isZero();
+    }
+
+    @Test
+    void shouldAdmitProviderTextContainingThePointNameSeparator() {
+        FakeEmbeddingPort fake = new FakeEmbeddingPort(PROFILE);
+        VerifiedPaperProjector projector = projector(fake);
+        VerificationResult verified = verification(
+                VerificationResult.VerificationStatus.VERIFIED,
+                "10.1000/example");
+
+        VerifiedPaperProjectionResult result = projector.project(source(
+                paperWithText("Title | comparison", "Crossref abstract with A | B."),
+                verified,
+                "10.1000/example"));
+
+        assertThat(result.admitted()).isTrue();
+        assertThat(result.projections()).hasSize(2);
+        assertThat(result.projections()).extracting(VerifiedPaperProjection::text)
+                .anyMatch(text -> text.contains("Crossref abstract with A | B."));
+        assertThat(fake.callCount).isEqualTo(1);
     }
 
     private VerifiedPaperProjector projector(EmbeddingPort port) {
@@ -189,7 +206,7 @@ class VerifiedPaperProjectionTest {
                 List.of("TEST"));
     }
 
-    private PaperDTO paperWithTitle(String title) {
+    private PaperDTO paperWithText(String title, String abstractText) {
         return new PaperDTO(
                 "W123",
                 "10.1000/example",
@@ -200,7 +217,7 @@ class VerifiedPaperProjectionTest {
                 List.of(),
                 "article",
                 null,
-                "Abstract",
+                abstractText,
                 "en",
                 List.of("testing"),
                 1,

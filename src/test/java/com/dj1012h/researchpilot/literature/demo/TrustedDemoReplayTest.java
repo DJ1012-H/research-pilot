@@ -226,6 +226,7 @@ class TrustedDemoReplayTest {
                     transitions,
                     policy,
                     budgets,
+                    new LiteratureSearchProperties(),
                     new OpenAlexQueryFactory(),
                     openAlex,
                     deduplication,

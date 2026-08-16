@@ -16,8 +16,8 @@ public record SearchPlanRefinementResult(
         refinedPlan = Objects.requireNonNull(refinedPlan, "refinedPlan must not be null");
         origins = Objects.requireNonNull(origins, "origins must not be null");
         diff = Objects.requireNonNull(diff, "diff must not be null");
-        if (refinementAttempt != 1) {
-            throw new IllegalArgumentException("refinementAttempt must be exactly 1");
+        if (refinementAttempt < 1) {
+            throw new IllegalArgumentException("refinementAttempt must be positive");
         }
     }
 }

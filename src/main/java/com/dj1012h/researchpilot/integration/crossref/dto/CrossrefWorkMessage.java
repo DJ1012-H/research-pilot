@@ -17,7 +17,8 @@ public record CrossrefWorkMessage(
         CrossrefDate created,
         @JsonProperty("container-title") List<String> containerTitle,
         String type,
-        String publisher
+        String publisher,
+        @JsonProperty("abstract") String abstractText
 ) {
     public CrossrefWorkMessage(
             String doi,
@@ -32,6 +33,23 @@ public record CrossrefWorkMessage(
             String publisher
     ) {
         this(doi, title, author, published, publishedOnline, publishedPrint, issued, null,
-                containerTitle, type, publisher);
+                containerTitle, type, publisher, null);
+    }
+
+    public CrossrefWorkMessage(
+            String doi,
+            List<String> title,
+            List<CrossrefAuthor> author,
+            CrossrefDate published,
+            CrossrefDate publishedOnline,
+            CrossrefDate publishedPrint,
+            CrossrefDate issued,
+            CrossrefDate created,
+            List<String> containerTitle,
+            String type,
+            String publisher
+    ) {
+        this(doi, title, author, published, publishedOnline, publishedPrint, issued, created,
+                containerTitle, type, publisher, null);
     }
 }

@@ -18,6 +18,9 @@ import java.util.Optional;
 @Component
 public class CacheKeyFactory {
 
+    private static final String OPENALEX_BEHAVIOR_VERSION = "newest-relevance-pool-v2";
+    private static final String CROSSREF_METADATA_VERSION = "abstract-enrichment-v1";
+
     private final LiteratureCacheProperties properties;
     private final DoiNormalizer doiNormalizer;
     private final OpenAlexProperties openAlexProperties;
@@ -37,6 +40,7 @@ public class CacheKeyFactory {
 
     public String openAlexSearch(OpenAlexQuery query) {
         String canonical = String.join("\n",
+                "behavior=" + OPENALEX_BEHAVIOR_VERSION,
                 "search=" + text(query.search()),
                 "from=" + query.fromPublicationDate(),
                 "to=" + query.toPublicationDate(),
@@ -49,11 +53,14 @@ public class CacheKeyFactory {
 
     public Optional<String> crossrefDoi(String doi) {
         String normalized = doiNormalizer.normalize(doi);
-        return normalized == null ? Optional.empty() : Optional.of(key("crossref", "doi", normalized));
+        return normalized == null
+                ? Optional.empty()
+                : Optional.of(key("crossref", "doi", "metadata=" + CROSSREF_METADATA_VERSION + "\ndoi=" + normalized));
     }
 
     public String crossrefBibliographic(CrossrefBibliographicQuery query) {
         String canonical = String.join("\n",
+                "metadata=" + CROSSREF_METADATA_VERSION,
                 "title=" + text(query.title()),
                 "firstAuthor=" + text(query.firstAuthor()),
                 "publicationYear=" + (query.publicationYear() == null ? "" : query.publicationYear()),

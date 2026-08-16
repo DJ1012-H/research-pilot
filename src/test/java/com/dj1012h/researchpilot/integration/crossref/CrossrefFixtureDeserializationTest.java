@@ -22,6 +22,7 @@ class CrossrefFixtureDeserializationTest {
         assertThat(response.message().title()).contains("Highly accurate protein structure prediction with AlphaFold");
         assertThat(response.message().author()).extracting(author -> author.family()).contains("Jumper");
         assertThat(response.message().publishedPrint().dateParts().getFirst()).containsExactly(2021, 8, 26);
+        assertThat(response.message().abstractText()).contains("<jats:p>");
     }
 
     private InputStream fixtureStream() {

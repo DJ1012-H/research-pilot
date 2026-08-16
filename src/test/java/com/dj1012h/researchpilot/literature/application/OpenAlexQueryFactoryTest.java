@@ -122,7 +122,7 @@ class OpenAlexQueryFactoryTest {
     private static Stream<Arguments> sortMappings() {
         return Stream.of(
                 Arguments.of(SearchSort.RELEVANCE, OpenAlexQuery.Sort.RELEVANCE, "relevance_score:desc"),
-                Arguments.of(SearchSort.NEWEST, OpenAlexQuery.Sort.NEWEST, "publication_date:desc"),
+                Arguments.of(SearchSort.NEWEST, OpenAlexQuery.Sort.NEWEST, "relevance_score:desc"),
                 Arguments.of(SearchSort.MOST_CITED, OpenAlexQuery.Sort.MOST_CITED, "cited_by_count:desc")
         );
     }

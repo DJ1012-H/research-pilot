@@ -29,8 +29,6 @@ import java.util.Objects;
 @Component
 public class SearchPlanRefiner {
 
-    private static final int MAX_REFINEMENT_COUNT = 1;
-
     private final SearchPlanRefinementGenerator generator;
     private final SearchPlanRefinementDraftValidationPipeline refinementDraftPipeline;
     private final SearchPlanValidationPipeline searchPlanValidationPipeline;
@@ -132,7 +130,7 @@ public class SearchPlanRefiner {
 
     private void requireEligibleContext(SearchPlanRefinementContext context) {
         Objects.requireNonNull(context, "context must not be null");
-        if (context.refinementCount() >= MAX_REFINEMENT_COUNT) {
+        if (context.refinementCount() >= properties.getMaxPlanAdjustments()) {
             throw new PlanRefinementRejectedException(
                     PlanRefinementRejectionReason.REFINEMENT_LIMIT_REACHED
             );
@@ -172,14 +170,14 @@ public class SearchPlanRefiner {
                     PlanRefinementRejectionReason.EMPTY_SUGGESTION
             );
         }
-        if (additions.size() > properties.getMaxRefinementKeywords()
-                || currentPlan.englishKeywords().size() + additions.size()
-                > SearchPlan.MAX_KEYWORD_COUNT) {
+        int availableSlots = SearchPlan.MAX_KEYWORD_COUNT - currentPlan.englishKeywords().size();
+        int maxAdditions = Math.min(properties.getMaxRefinementKeywords(), availableSlots);
+        if (maxAdditions < 1) {
             throw new PlanRefinementRejectedException(
                     PlanRefinementRejectionReason.TOO_MANY_KEYWORDS
             );
         }
-        return List.copyOf(additions.values());
+        return additions.values().stream().limit(maxAdditions).toList();
     }
 
     private void addSuggestions(

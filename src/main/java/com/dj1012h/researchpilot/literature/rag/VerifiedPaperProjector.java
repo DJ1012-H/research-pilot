@@ -132,9 +132,6 @@ public class VerifiedPaperProjector {
         if (source.sourceUpdatedAt() == null) {
             return ProjectionRejectionReason.SOURCE_UPDATED_AT_MISSING;
         }
-        if (containsSeparator(source)) {
-            return ProjectionRejectionReason.ILLEGAL_SEPARATOR;
-        }
         if (!VerificationPolicy.VERSION.equals(source.verificationVersion())) {
             return ProjectionRejectionReason.VERIFICATION_VERSION_MISMATCH;
         }
@@ -157,33 +154,6 @@ public class VerifiedPaperProjector {
             return ProjectionRejectionReason.DOI_MISMATCH;
         }
         return null;
-    }
-
-    private boolean containsSeparator(VerifiedPaperSource source) {
-        PaperDTO paper = source.paper();
-        if (containsPipe(source.normalizedDoi())
-                || containsPipe(source.verificationVersion())
-                || containsPipe(source.verification().referenceDoi())
-                || containsPipe(paper.openAlexId())
-                || containsPipe(paper.doi())
-                || containsPipe(paper.title())
-                || containsPipe(paper.venue())
-                || containsPipe(paper.publicationType())
-                || containsPipe(paper.landingPageUrl())
-                || containsPipe(paper.abstractText())
-                || containsPipe(paper.language())) {
-            return true;
-        }
-        if (paper.authors().stream().anyMatch(author -> containsPipe(author.openAlexAuthorId())
-                || containsPipe(author.displayName()) || containsPipe(author.orcid()))) {
-            return true;
-        }
-        return paper.issns().stream().anyMatch(this::containsPipe)
-                || paper.keywords().stream().anyMatch(this::containsPipe);
-    }
-
-    private boolean containsPipe(String value) {
-        return value != null && value.indexOf('|') >= 0;
     }
 
     private void validateEmbeddingBatch(EmbeddingBatch batch, int expectedCount) {

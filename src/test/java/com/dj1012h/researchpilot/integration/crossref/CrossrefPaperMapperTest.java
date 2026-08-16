@@ -45,6 +45,15 @@ class CrossrefPaperMapperTest {
     }
 
     @Test
+    void shouldNormalizeJatsMarkupInCrossrefAbstract() {
+        CrossrefWorkMessage message = new CrossrefWorkMessage(
+                "10.1000/example", List.of("A title"), List.of(), null, null, null, null, null,
+                List.of("Journal"), "article", "Publisher", "  <jats:p>First</jats:p>\n<jats:p>second</jats:p>  ");
+
+        assertThat(mapper.map(message).abstractText()).isEqualTo("First second");
+    }
+
+    @Test
     void shouldMapMissingOptionalFieldsDeterministicallyWithoutMutatingTheInput() {
         CrossrefWorkMessage message = new CrossrefWorkMessage("10.1000/example", List.of(), null,
                 null, null, null, null, null, List.of(), " ", " ");

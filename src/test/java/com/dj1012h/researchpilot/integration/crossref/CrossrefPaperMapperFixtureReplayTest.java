@@ -24,6 +24,7 @@ class CrossrefPaperMapperFixtureReplayTest {
         assertThat(metadata.venue()).isEqualTo("Nature");
         assertThat(metadata.workType()).isEqualTo("journal-article");
         assertThat(metadata.publisher()).isEqualTo("Springer Science and Business Media LLC");
+        assertThat(metadata.abstractText()).isNotBlank().doesNotContain("<jats:");
     }
 
     private InputStream fixtureStream() {

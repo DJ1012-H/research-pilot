@@ -70,7 +70,7 @@ public record OpenAlexQuery(
 
     public enum Sort {
         RELEVANCE("relevance_score:desc"),
-        NEWEST("publication_date:desc"),
+        NEWEST("relevance_score:desc"),
         MOST_CITED("cited_by_count:desc");
 
         private final String apiValue;
